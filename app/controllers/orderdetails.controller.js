@@ -152,3 +152,21 @@ exports.deleteByOrderId = async (req, res, next) => {
         );
     }
 };
+
+// =======================
+// XÓA TẤT CẢ CHI TIẾT
+// =======================
+exports.deleteAll = async (_req, res, next) => {
+    try {
+        const orderDetailsService = new OrderDetailsService(MongoDB.client);
+        const deletedCount = await orderDetailsService.deleteAll();
+
+        return res.send({
+            message: `${deletedCount} order details were deleted successfully`,
+        });
+    } catch (error) {
+        return next(
+            new ApiError(500, "An error occurred while removing all order details")
+        );
+    }
+};

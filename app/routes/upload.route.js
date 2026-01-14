@@ -5,15 +5,16 @@ const auth = require("../middleware/auth.middleware");
 const router = express.Router();
 
 /**
- * Upload ảnh (chỉ nhân viên / admin được phép)
+ * Upload ảnh (chỉ nhân viên / admin)
  * POST /api/upload
  * form-data: image
  */
-router.route("/")
-    .post(
-        [auth.verifyToken, auth.isEmployeeOrAdmin],
-        uploadController.uploader,
-        uploadController.uploadImage
-    );
+router.post(
+    "/",
+    auth.verifyToken,
+    auth.isEmployeeOrAdmin,
+    uploadController.uploader,
+    uploadController.uploadImage
+);
 
 module.exports = router;

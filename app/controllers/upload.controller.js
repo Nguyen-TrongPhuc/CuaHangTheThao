@@ -15,7 +15,7 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
-        folder: "sport-store",   // 📁 thư mục lưu ảnh cho dự án của bạn
+        folder: "sport-store",
         allowed_formats: ["jpg", "png", "jpeg"],
     },
 });
@@ -25,7 +25,7 @@ const upload = multer({ storage });
 
 // ================= CONTROLLERS =================
 
-// Upload ảnh sản phẩm / avatar / banner
+// Upload ảnh
 exports.uploadImage = (req, res, next) => {
     if (!req.file) {
         return next(new ApiError(400, "Không có hình ảnh nào được tải lên"));
@@ -33,9 +33,9 @@ exports.uploadImage = (req, res, next) => {
 
     return res.send({
         message: "Upload ảnh thành công",
-        url: req.file.path,   // link ảnh trên Cloudinary
+        url: req.file.path,
     });
 };
 
-// Middleware dùng trong route
+// Middleware multer
 exports.uploader = upload.single("image");
