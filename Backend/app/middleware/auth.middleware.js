@@ -38,11 +38,11 @@ const isEmployeeOrAdmin = (req, res, next) => {
     }
 
     const role = req.user.role;
-    if (role === "employee" || role === "admin") {
+    if (role === "staff" || role === "admin") {
         return next();
     }
 
-    return next(new ApiError(403, "Quyền truy cập bị từ chối! Cần quyền Nhân viên hoặc Admin."));
+    return next(new ApiError(403, "Quyền truy cập bị từ chối! Cần quyền Nhân viên (Staff) hoặc Admin."));
 };
 
 // =======================

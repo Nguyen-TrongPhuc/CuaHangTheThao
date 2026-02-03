@@ -81,7 +81,7 @@ class CustomerService {
             { returnDocument: "after" }
         );
 
-        return result.value;   // ⚠️ rất quan trọng
+        return result;
     }
 
     /* ================= DELETE ================= */
@@ -90,7 +90,7 @@ class CustomerService {
             _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
         });
 
-        return result.value;
+        return result;
     }
 
     /* ================= DELETE ALL ================= */

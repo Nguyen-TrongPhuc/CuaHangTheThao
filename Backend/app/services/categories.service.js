@@ -60,7 +60,7 @@ class CategoriesService {
             { returnDocument: "after" }
         );
 
-        return result.value;   // ⚠️ rất quan trọng
+        return result;
     }
 
     // Xóa 1
@@ -69,7 +69,7 @@ class CategoriesService {
             _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
         });
 
-        return result.value;
+        return result;
     }
 
     // Xóa tất cả

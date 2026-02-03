@@ -104,7 +104,7 @@ class OrderDetailsService {
             { returnDocument: "after" }
         );
 
-        return result.value;
+        return result;
     }
 
     // =======================
@@ -115,7 +115,7 @@ class OrderDetailsService {
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         });
 
-        return result.value;
+        return result;
     }
 
     // =======================

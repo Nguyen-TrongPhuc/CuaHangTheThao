@@ -9,19 +9,17 @@ const config = require("../config/index.js");
 // TẠO NHÂN VIÊN
 // =======================
 exports.create = async (req, res, next) => {
-    if (!req.body?.full_name || !req.body?.password) {
-        return next(new ApiError(400, "Full name and password can not be empty"));
+    if (!req.body?.full_name || !req.body?.password || !req.body?.admin_code) {
+        return next(new ApiError(400, "Full name, admin code and password can not be empty"));
     }
 
     try {
         const employeesService = new EmployeesService(MongoDB.client);
 
-        // kiểm tra trùng số điện thoại
-        if (req.body.phone) {
-            const existing = await employeesService.findByPhone(req.body.phone);
-            if (existing) {
-                return next(new ApiError(409, "Employee already exists"));
-            }
+        // kiểm tra trùng mã admin
+        const existing = await employeesService.findByAdminCode(req.body.admin_code);
+        if (existing) {
+            return next(new ApiError(409, "Employee code already exists"));
         }
 
         // mã hóa mật khẩu
@@ -162,16 +160,16 @@ exports.deleteAll = async (_req, res, next) => {
 // ĐĂNG NHẬP NHÂN VIÊN
 // =======================
 exports.login = async (req, res, next) => {
-    if (!req.body?.phone || !req.body?.password) {
-        return next(new ApiError(400, "Phone and password are required"));
+    if (!req.body?.admin_code || !req.body?.password) {
+        return next(new ApiError(400, "Admin code and password are required"));
     }
 
     try {
         const employeesService = new EmployeesService(MongoDB.client);
-        const user = await employeesService.findByPhone(req.body.phone);
+        const user = await employeesService.findByAdminCode(req.body.admin_code);
 
         if (!user) {
-            return next(new ApiError(401, "Incorrect phone or password"));
+            return next(new ApiError(401, "Incorrect admin code or password"));
         }
 
         const passwordMatch = await bcrypt.compare(
@@ -180,7 +178,7 @@ exports.login = async (req, res, next) => {
         );
 
         if (!passwordMatch) {
-            return next(new ApiError(401, "Incorrect phone or password"));
+            return next(new ApiError(401, "Incorrect admin code or password"));
         }
 
         const token = jwt.sign(

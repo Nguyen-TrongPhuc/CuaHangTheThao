@@ -11,6 +11,7 @@ class EmployeesService {
     async create(payload) {
         const employee = {
             full_name: payload.full_name,
+            admin_code: payload.admin_code,
             phone: payload.phone || null,
             password: payload.password,
             role: payload.role || "staff",   // mặc định là staff
@@ -64,6 +65,13 @@ class EmployeesService {
     }
 
     // =======================
+    // TÌM THEO MÃ ADMIN
+    // =======================
+    async findByAdminCode(admin_code) {
+        return await this.Employees.findOne({ admin_code });
+    }
+
+    // =======================
     // CẬP NHẬT NHÂN VIÊN
     // =======================
     async update(id, payload) {
@@ -84,7 +92,7 @@ class EmployeesService {
             { returnDocument: "after" }
         );
 
-        return result.value;
+        return result;
     }
 
     // =======================
@@ -95,7 +103,7 @@ class EmployeesService {
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         });
 
-        return result.value;
+        return result;
     }
 
     // =======================

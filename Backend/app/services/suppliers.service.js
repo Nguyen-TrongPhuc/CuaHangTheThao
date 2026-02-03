@@ -79,7 +79,7 @@ class SuppliersService {
             { returnDocument: "after" }
         );
 
-        return result.value;
+        return result;
     }
 
     // =======================
@@ -90,7 +90,7 @@ class SuppliersService {
             _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
         });
 
-        return result.value;
+        return result;
     }
 
     // =======================

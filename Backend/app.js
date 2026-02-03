@@ -8,11 +8,16 @@ const employeesRouter = require("./app/routes/employees.route");
 const ordersRouter = require("./app/routes/orders.route");
 const orderDetailsRouter = require("./app/routes/orderdetails.route");
 const uploadRouter = require("./app/routes/upload.route");
+const sportsRouter = require("./app/routes/sports.route");
 
 const ApiError = require("./app/api-error");
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: "http://localhost:3004", // Địa chỉ Frontend Admin của bạn
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+}));
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -27,6 +32,7 @@ app.use("/api/employees", employeesRouter);
 app.use("/api/orders", ordersRouter);
 app.use("/api/orderdetails", orderDetailsRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/sports", sportsRouter);
 
 app.use((req, res, next) => {
   return next(new ApiError(404, "Resource not found"));

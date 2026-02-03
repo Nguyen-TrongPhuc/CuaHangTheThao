@@ -19,6 +19,10 @@ class ProductsService {
                 ? new ObjectId(payload.category_id)
                 : null,
 
+            sport_id: payload.sport_id
+                ? new ObjectId(payload.sport_id)
+                : null,
+
             image: payload.image || null,
 
             createdAt: new Date(),
@@ -66,6 +70,17 @@ class ProductsService {
     }
 
     // =======================
+    // TÌM THEO MÔN THỂ THAO
+    // =======================
+    async findBySport(sportId) {
+        return await this.Products.find({
+            sport_id: ObjectId.isValid(sportId)
+                ? new ObjectId(sportId)
+                : null,
+        }).toArray();
+    }
+
+    // =======================
     // CẬP NHẬT SẢN PHẨM
     // =======================
     async update(id, payload) {
@@ -86,7 +101,7 @@ class ProductsService {
             { returnDocument: "after" }
         );
 
-        return result.value;
+        return result;
     }
 
     // =======================
@@ -97,7 +112,7 @@ class ProductsService {
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         });
 
-        return result.value;
+        return result;
     }
 
     // =======================

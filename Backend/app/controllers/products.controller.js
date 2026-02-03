@@ -27,12 +27,14 @@ exports.findAll = async (req, res, next) => {
 
     try {
         const productsService = new ProductsService(MongoDB.client);
-        const { name, category_id } = req.query;
+        const { name, category_id, sport_id } = req.query;
 
         if (name) {
             documents = await productsService.findByName(name);
         } else if (category_id) {
             documents = await productsService.findByCategory(category_id);
+        } else if (sport_id) {
+            documents = await productsService.findBySport(sport_id);
         } else {
             documents = await productsService.find({});
         }

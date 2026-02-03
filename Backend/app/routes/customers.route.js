@@ -24,12 +24,12 @@ router.route("/profile")
 router.route("/")
     .get(customers.findAll)                 // nhân viên / admin
     .post(customers.create)                // đăng ký tài khoản
-    .delete([auth.verifyToken, auth.isAdmin], customers.deleteAll);
+    .delete([auth.verifyToken, auth.isEmployeeOrAdmin], customers.deleteAll);
 
 // Lấy 1 + cập nhật + xóa theo id
 router.route("/:id")
     .get(customers.findOne)
     .put([auth.verifyToken], customers.update)
-    .delete([auth.verifyToken, auth.isAdmin], customers.delete);
+    .delete([auth.verifyToken, auth.isEmployeeOrAdmin], customers.delete);
 
 module.exports = router;

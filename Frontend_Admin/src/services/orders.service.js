@@ -5,7 +5,10 @@ class OrderService {
         this.api = createApiClient(baseUrl);
     }
     async getAll() { return (await this.api.get("/")).data; }
-    async getDetail(id) { return (await this.api.get(`/${id}`)).data; }
-    async updateStatus(id, status) { return (await this.api.put(`/${id}`, { status })).data; }
+    async get(id) { return (await this.api.get(`/${id}`)).data; }
+    async updateStatus(id, status) { 
+        return (await this.api.put(`/${id}`, { status })).data; 
+    }
+    async delete(id) { return (await this.api.delete(`/${id}`)).data; }
 }
 export default new OrderService();

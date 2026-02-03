@@ -32,6 +32,7 @@
 
 <script>
 import CustomerService from "@/services/customer.service";
+import { showToast } from "@/utils/toast";
 
 export default {
   data() {
@@ -54,9 +55,11 @@ export default {
       if (confirm("Bạn muốn xóa khách hàng này?")) {
         try {
           await CustomerService.delete(id);
-          this.retrieveCustomers();
+          await this.retrieveCustomers();
+          showToast("Xóa thành công!", "success");
         } catch (error) {
           console.log(error);
+          showToast("Xóa thất bại!", "error");
         }
       }
     },
@@ -72,5 +75,6 @@ export default {
 .admin-table { width: 100%; border-collapse: collapse; background: white; }
 .admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
 .btn-del { color: #e74c3c; margin-left: 10px; cursor: pointer; border: none; background: none; }
-.btn-add { background: #27ae60; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+.btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; }
+.btn-add:hover { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 </style>

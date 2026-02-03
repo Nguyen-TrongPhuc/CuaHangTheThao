@@ -154,7 +154,7 @@ class OrdersService {
             { returnDocument: "after" }
         );
 
-        return result.value;
+        return result;
     }
 
     // =======================
@@ -181,7 +181,7 @@ class OrdersService {
                     { session }
                 );
 
-                deletedOrder = result.value;
+                deletedOrder = result;
             });
 
             return deletedOrder;
