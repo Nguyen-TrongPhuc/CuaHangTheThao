@@ -7,16 +7,22 @@ const config = require("../config/index.js");
 
 /* ================= CREATE ================= */
 exports.create = async (req, res, next) => {
-    if (!req.body?.phone || !req.body?.password) {
-        return next(new ApiError(400, "Phone and password can not be empty"));
+    if (!req.body?.email || !req.body?.password) {
+        return next(new ApiError(400, "Email and password can not be empty"));
+    }
+
+    // Validate số điện thoại (10 số, bắt đầu bằng 0)
+    const phoneRegex = /^0\d{9}$/;
+    if (req.body.phone && !phoneRegex.test(req.body.phone)) {
+        return next(new ApiError(400, "Số điện thoại không hợp lệ (phải có 10 số và bắt đầu bằng 0)"));
     }
 
     try {
         const customerService = new CustomerService(MongoDB.client);
 
-        const existing = await customerService.findByPhone(req.body.phone);
+        const existing = await customerService.findByEmail(req.body.email);
         if (existing) {
-            return next(new ApiError(409, "Phone already exists"));
+            return next(new ApiError(409, "Email already exists"));
         }
 
         // Hash password
@@ -125,16 +131,16 @@ exports.deleteAll = async (_req, res, next) => {
 
 /* ================= LOGIN ================= */
 exports.login = async (req, res, next) => {
-    if (!req.body?.phone || !req.body?.password) {
-        return next(new ApiError(400, "Phone and password are required"));
+    if (!req.body?.email || !req.body?.password) {
+        return next(new ApiError(400, "Email and password are required"));
     }
 
     try {
         const customerService = new CustomerService(MongoDB.client);
-        const user = await customerService.findByPhone(req.body.phone);
+        const user = await customerService.findByEmail(req.body.email);
 
         if (!user) {
-            return next(new ApiError(401, "Incorrect phone or password"));
+            return next(new ApiError(401, "Incorrect email or password"));
         }
 
         const passwordMatch = await bcrypt.compare(
@@ -143,7 +149,7 @@ exports.login = async (req, res, next) => {
         );
 
         if (!passwordMatch) {
-            return next(new ApiError(401, "Incorrect phone or password"));
+            return next(new ApiError(401, "Incorrect email or password"));
         }
 
         const token = jwt.sign(
@@ -164,10 +170,33 @@ exports.login = async (req, res, next) => {
     }
 };
 
+/* ================= GET PROFILE ================= */
+exports.getProfile = async (req, res, next) => {
+    try {
+        const customerService = new CustomerService(MongoDB.client);
+        const userId = req.user.userId;
+        const document = await customerService.findById(userId);
+
+        if (!document) {
+            return next(new ApiError(404, "Customer not found"));
+        }
+        const { password, ...userWithoutPassword } = document;
+        return res.send(userWithoutPassword);
+    } catch (error) {
+        return next(new ApiError(500, "Error retrieving profile"));
+    }
+};
+
 /* ================= UPDATE PROFILE ================= */
 exports.updateProfile = async (req, res, next) => {
     if (Object.keys(req.body).length === 0) {
         return next(new ApiError(400, "Data to update can not be empty"));
+    }
+
+    // Validate số điện thoại nếu có cập nhật
+    const phoneRegex = /^0\d{9}$/;
+    if (req.body.phone && !phoneRegex.test(req.body.phone)) {
+        return next(new ApiError(400, "Số điện thoại không hợp lệ (phải có 10 số và bắt đầu bằng 0)"));
     }
 
     try {
@@ -181,6 +210,8 @@ exports.updateProfile = async (req, res, next) => {
             gender: req.body.gender,
             address: req.body.address,
             phone: req.body.phone,
+            email: req.body.email,
+            avatar: req.body.avatar, // <--- Thêm dòng này để lưu Avatar
         };
 
         const document = await customerService.update(userId, updateData);
@@ -220,17 +251,11 @@ exports.changePassword = async (req, res, next) => {
         );
 
         if (!passwordIsValid) {
-            return next(new ApiError(401, "Old password is incorrect"));
+            return next(new ApiError(401, "Mật khẩu cũ không đúng"));
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedNewPassword = await bcrypt.hash(
-            req.body.newPassword,
-            salt
-        );
-
         await customerService.update(userId, {
-            password: hashedNewPassword,
+            password: req.body.newPassword,
         });
 
         return res.send({ message: "Password changed successfully!" });

@@ -4,24 +4,27 @@ class OrdersService {
     constructor(client) {
         this.Orders = client.db().collection("orders");
         this.OrderDetails = client.db().collection("order_details");
+        this.Products = client.db().collection("products");
     }
 
     // =======================
     // TẠO ĐƠN HÀNG + CHI TIẾT
     // =======================
     async create(payload) {
-        const session = this.Orders.client.startSession();
-
-        try {
-            let resultOrder;
-
-            await session.withTransaction(async () => {
+        // Đã bỏ Transaction để tránh lỗi 500 trên MongoDB Standalone (môi trường dev)
                 const order = {
                     customer_id: payload.customer_id
                         ? new ObjectId(payload.customer_id)
                         : null,
 
-                    employee_id: new ObjectId(payload.employee_id),
+                    employee_id: payload.employee_id 
+                        ? new ObjectId(payload.employee_id) 
+                        : null, // Đơn hàng online không có nhân viên tạo
+
+                    name: payload.name,
+                    phone: payload.phone,
+                    address: payload.address,
+                    note: payload.note,
 
                     payment_method: payload.payment_method || "cash",
                     status: "pending",
@@ -32,7 +35,7 @@ class OrdersService {
                 };
 
                 // 1️⃣ Tạo đơn hàng
-                const orderResult = await this.Orders.insertOne(order, { session });
+                const orderResult = await this.Orders.insertOne(order);
                 const orderId = orderResult.insertedId;
 
                 // 2️⃣ Tạo chi tiết đơn hàng
@@ -51,32 +54,28 @@ class OrdersService {
                         quantity,
                         unit_price,
                         total_price,
+                        // FIX: Lưu thông tin biến thể
+                        variant_size_id: (item.variant_size_id && ObjectId.isValid(item.variant_size_id)) ? new ObjectId(item.variant_size_id) : null,
+                        variant_color_id: (item.variant_color_id && ObjectId.isValid(item.variant_color_id)) ? new ObjectId(item.variant_color_id) : null,
+                        
                         createdAt: new Date(),
                     };
                 });
 
-                await this.OrderDetails.insertMany(orderDetails, { session });
+                await this.OrderDetails.insertMany(orderDetails);
 
                 // 3️⃣ Cập nhật tổng tiền
                 await this.Orders.updateOne(
                     { _id: orderId },
-                    { $set: { total_amount: totalAmount } },
-                    { session }
+                    { $set: { total_amount: totalAmount } }
                 );
 
-                resultOrder = {
+                return {
                     _id: orderId,
                     ...order,
                     total_amount: totalAmount,
                     items: orderDetails,
                 };
-            });
-
-            return resultOrder;
-
-        } finally {
-            await session.endSession();
-        }
     }
 
     // =======================
@@ -131,6 +130,37 @@ class OrdersService {
                 ? new ObjectId(customerId)
                 : null,
         }).toArray();
+    }
+
+    // =======================
+    // TÌM THEO KHÁCH HÀNG KÈM CHI TIẾT SẢN PHẨM
+    // =======================
+    async findByCustomerWithDetails(customerId) {
+        const orders = await this.Orders.find({
+            customer_id: ObjectId.isValid(customerId)
+                ? new ObjectId(customerId)
+                : null,
+        }).sort({ createdAt: -1 }).toArray();
+
+        // Với mỗi đơn hàng, lấy chi tiết và thông tin sản phẩm (tên, ảnh)
+        const result = await Promise.all(orders.map(async (order) => {
+            const details = await this.OrderDetails.find({
+                order_id: order._id,
+            }).toArray();
+
+            const itemsWithProductInfo = await Promise.all(details.map(async (detail) => {
+                const product = await this.Products.findOne({ _id: detail.product_id });
+                return {
+                    ...detail,
+                    product_name: product ? product.name : "Sản phẩm đã bị xóa",
+                    product_image: product ? product.image : null
+                };
+            }));
+
+            return { ...order, items: itemsWithProductInfo };
+        }));
+
+        return result;
     }
 
     // =======================

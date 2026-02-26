@@ -14,10 +14,13 @@
         <router-link to="/dashboard" class="nav-item">Tổng quan</router-link>
         <router-link to="/categories" class="nav-item">Quản lý Danh mục</router-link>
         <router-link to="/sports" class="nav-item">Quản lý Môn thể thao</router-link>
+        <router-link to="/colors" class="nav-item">Quản lý Màu sắc</router-link>
+        <router-link to="/sizes" class="nav-item">Quản lý Size</router-link>
         <router-link to="/products" class="nav-item">Quản lý Sản phẩm</router-link>
         <router-link to="/orders" class="nav-item">Quản lý Đơn hàng</router-link>
         <router-link to="/customers" class="nav-item">Quản lý Khách hàng</router-link>
         <router-link v-if="isAdmin" to="/employees" class="nav-item">Quản lý Nhân viên</router-link>
+        <router-link to="/contacts" class="nav-item">Quản lý Liên hệ</router-link>
       </nav>
       <button v-show="!isLoginPage" class="nav-item logout-btn" @click="handleLogout">Đăng xuất</button>
     </aside>

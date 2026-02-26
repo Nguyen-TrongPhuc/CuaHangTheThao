@@ -9,16 +9,23 @@ const ordersRouter = require("./app/routes/orders.route");
 const orderDetailsRouter = require("./app/routes/orderdetails.route");
 const uploadRouter = require("./app/routes/upload.route");
 const sportsRouter = require("./app/routes/sports.route");
+const colorsRouter = require("./app/routes/colors.route");
+const sizesRouter = require("./app/routes/sizes.route");
+const reviewsRouter = require("./app/routes/reviews.route");
+const contactRouter = require("./app/routes/contact.route");
 
 const ApiError = require("./app/api-error");
 const app = express();
 
 app.use(cors({
-    origin: "http://localhost:3004", // Địa chỉ Frontend Admin của bạn
+    origin: ["http://localhost:3004", "http://localhost:3005"], // Frontend Admin và Frontend User
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json());
+
+// Phục vụ file tĩnh từ thư mục public/uploads
+app.use("/uploads", express.static("public/uploads"));
 
 app.get("/", (req, res) => {
     res.json({ message: "Welcome to SportStore." });
@@ -33,6 +40,10 @@ app.use("/api/orders", ordersRouter);
 app.use("/api/orderdetails", orderDetailsRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/sports", sportsRouter);
+app.use("/api/colors", colorsRouter);
+app.use("/api/sizes", sizesRouter);
+app.use("/api/reviews", reviewsRouter);
+app.use("/api/contacts", contactRouter);
 
 app.use((req, res, next) => {
   return next(new ApiError(404, "Resource not found"));

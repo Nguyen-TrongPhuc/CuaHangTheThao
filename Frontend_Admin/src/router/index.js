@@ -4,8 +4,11 @@ import OrderManager from "@/views/OrderManager.vue";
 import Dashboard from '@/views/Dashboard.vue'
 import CategoryManager from '@/views/CategoryManager.vue'
 import SportManager from '@/views/SportManager.vue'
+import ColorManager from '@/views/ColorManager.vue'
+import SizeManager from '@/views/SizeManager.vue'
 import Login from "@/views/Login.vue";
 import EmployeeForm from "@/views/EmployeeForm.vue";
+import ContactManager from "@/views/ContactManager.vue";
 
 const routes = [
     {
@@ -43,6 +46,16 @@ const routes = [
         component: SportManager,
     },
     {
+        path: "/colors",
+        name: "color.manager",
+        component: ColorManager,
+    },
+    {
+        path: "/sizes",
+        name: "size.manager",
+        component: SizeManager,
+    },
+    {
         path: "/customers", 
         name: "customer.manager",
         component: () => import('@/views/CustomerManager.vue'),
@@ -62,6 +75,11 @@ const routes = [
         name: "employee.edit",
         component: EmployeeForm,
         props: true // Truyền id qua props
+    },
+    {
+        path: "/contacts",
+        name: "contact.manager",
+        component: ContactManager,
     },
 ];
 

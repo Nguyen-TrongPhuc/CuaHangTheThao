@@ -8,6 +8,10 @@ const router = express.Router();
 // ROUTES CHO ORDERS
 // =======================
 
+// Lấy lịch sử đơn hàng của khách hàng (Đặt trước route /:id để tránh nhầm lẫn)
+router.route("/history")
+    .get([auth.verifyToken], orders.findHistory);
+
 // Tạo đơn hàng + xem danh sách đơn
 router.route("/")
     .get([auth.verifyToken], orders.findAll)        // nhân viên / admin xem

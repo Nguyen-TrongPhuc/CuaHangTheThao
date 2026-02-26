@@ -15,6 +15,8 @@ class CustomerService {
             gender: payload.gender,
             address: payload.address,
             phone: payload.phone,
+            email: payload.email,
+            avatar: payload.avatar,
             customer_type: payload.customer_type,
             password: payload.password,
         };
@@ -52,6 +54,11 @@ class CustomerService {
     /* ================= FIND BY PHONE ================= */
     async findByPhone(phone) {
         return await this.Customers.findOne({ phone: phone });
+    }
+
+    /* ================= FIND BY EMAIL ================= */
+    async findByEmail(email) {
+        return await this.Customers.findOne({ email: email });
     }
 
     /* ================= FIND BY ID ================= */

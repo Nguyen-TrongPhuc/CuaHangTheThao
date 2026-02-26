@@ -1,0 +1,54 @@
+/* FontAwesome Fix for proper icon rendering */
+
+/* Ensure Font Awesome Free fonts are loaded correctly */
+@font-face {
+  font-family: 'Font Awesome 6 Free';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff2') format('woff2'),
+       url('@fortawesome/fontawesome-free/webfonts/fa-solid-900.woff') format('woff');
+}
+
+@font-face {
+  font-family: 'Font Awesome 6 Free';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('@fortawesome/fontawesome-free/webfonts/fa-regular-400.woff2') format('woff2'),
+       url('@fortawesome/fontawesome-free/webfonts/fa-regular-400.woff') format('woff');
+}
+
+/* Fix for solid icons */
+.fa-solid,
+.fas {
+  font-weight: 900;
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 7 Free';
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix for regular icons */
+.fa-regular,
+.far {
+  font-weight: 400;
+  font-family: 'Font Awesome 6 Free', 'Font Awesome 7 Free';
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* General icon styling */
+i[class^="fa-"],
+i[class*=" fa-"] {
+  display: inline-block;
+  line-height: 1;
+  vertical-align: -0.125em;
+}

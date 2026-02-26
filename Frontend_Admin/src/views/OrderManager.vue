@@ -26,9 +26,15 @@
             <select :value="order.status" @change="updateStatus(order._id, $event)">
                 <option value="pending">Chờ xử lý</option>
                 <option value="shipping">Đang giao</option>
+                <option value="delivered">Đã giao</option>
                 <option value="completed">Hoàn thành</option>
                 <option value="cancelled">Đã hủy</option>
+                <option value="return_requested">Yêu cầu trả hàng</option>
+                <option value="returned">Đã trả hàng</option>
             </select>
+            <div v-if="order.status === 'return_requested' && order.return_reason" class="return-reason">
+               Lý do: {{ order.return_reason }}
+            </div>
           </td>
           <td>
             <button class="btn-del" @click="remove(order._id)">Xóa</button>
@@ -52,7 +58,7 @@ export default {
     async updateStatus(id, event) {
         try {
             const newStatus = event.target.value;
-            await OrderService.updateStatus(id, newStatus);
+            await OrderService.update(id, { status: newStatus });
             showToast("Cập nhật trạng thái thành công!", "success");
             await this.loadData(); // Tải lại để đồng bộ dữ liệu
         } catch (error) {
@@ -79,4 +85,5 @@ export default {
 .admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
 .btn-del { color: #e74c3c; cursor: pointer; border: none; background: none; }
 select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; }
+.return-reason { font-size: 0.85em; color: #d35400; margin-top: 5px; font-style: italic; }
 </style>

@@ -13,15 +13,24 @@ class ProductsService {
             name: payload.name,
             description: payload.description || "",
             price: Number(payload.price),
-            stock: payload.stock ? Number(payload.stock) : 0,
+            // stock: Tổng tồn kho sẽ được tính toán hoặc hiển thị từ variants, ở đây lưu tạm 0 hoặc tổng
+            stock: 0, 
 
-            category_id: payload.category_id
+            category_id: (payload.category_id && ObjectId.isValid(payload.category_id))
                 ? new ObjectId(payload.category_id)
                 : null,
 
-            sport_id: payload.sport_id
+            sport_id: (payload.sport_id && ObjectId.isValid(payload.sport_id))
                 ? new ObjectId(payload.sport_id)
                 : null,
+            
+            // Mảng biến thể: [{ size_id, color_id, stock, price }]
+            variants: Array.isArray(payload.variants) ? payload.variants.map(v => ({
+                size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
+                color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
+                stock: Number(v.stock) || 0,
+                price: Number(v.price) || Number(payload.price) // Nếu không có giá riêng thì lấy giá chung
+            })) : [],
 
             image: payload.image || null,
 
@@ -88,9 +97,31 @@ class ProductsService {
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         };
 
+        // FIX: Chuyển đổi dữ liệu sang đúng định dạng (ObjectId, Number) trước khi update
+        const updateData = { ...payload };
+
+        const objectIdFields = ["category_id", "sport_id"];
+        objectIdFields.forEach((field) => {
+            if (updateData[field] && ObjectId.isValid(updateData[field])) {
+                updateData[field] = new ObjectId(updateData[field]);
+            }
+        });
+
+        // Xử lý variants khi update
+        if (updateData.variants && Array.isArray(updateData.variants)) {
+            updateData.variants = updateData.variants.map(v => ({
+                size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
+                color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
+                stock: Number(v.stock) || 0,
+                price: Number(v.price) || Number(updateData.price || 0)
+            }));
+        }
+
+        if (updateData.price !== undefined) updateData.price = Number(updateData.price);
+
         const update = {
             $set: {
-                ...payload,
+                ...updateData,
                 updatedAt: new Date(),
             },
         };

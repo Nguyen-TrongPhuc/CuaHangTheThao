@@ -1,20 +1,7 @@
 const express = require("express");
-const uploadController = require("../controllers/upload.controller");
-const auth = require("../middleware/auth.middleware");
-
+const upload = require("../controllers/upload.controller");
 const router = express.Router();
 
-/**
- * Upload ảnh (chỉ nhân viên / admin)
- * POST /api/upload
- * form-data: image
- */
-router.post(
-    "/",
-    auth.verifyToken,
-    auth.isEmployeeOrAdmin,
-    uploadController.uploader,
-    uploadController.uploadImage
-);
+router.post("/", upload.uploader, upload.uploadImage);
 
 module.exports = router;

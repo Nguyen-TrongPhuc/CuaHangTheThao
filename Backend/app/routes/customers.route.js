@@ -18,6 +18,7 @@ router.route("/change-password")
 
 // Cập nhật hồ sơ cá nhân
 router.route("/profile")
+    .get([auth.verifyToken], customers.getProfile)
     .put([auth.verifyToken], customers.updateProfile);
 
 // Lấy danh sách + tạo mới + xóa tất cả

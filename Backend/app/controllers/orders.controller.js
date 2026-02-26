@@ -6,8 +6,8 @@ const ApiError = require("../api-error");
 // TẠO ĐƠN HÀNG
 // =======================
 exports.create = async (req, res, next) => {
-    if (!req.body?.employee_id || !req.body?.items || req.body.items.length === 0) {
-        return next(new ApiError(400, "Employee and order items are required"));
+    if (!req.body?.items || req.body.items.length === 0) {
+        return next(new ApiError(400, "Order items are required"));
     }
 
     try {
@@ -29,6 +29,20 @@ exports.create = async (req, res, next) => {
         return next(
             new ApiError(500, "An error occurred while creating the order")
         );
+    }
+};
+
+// =======================
+// LẤY LỊCH SỬ ĐƠN HÀNG (USER)
+// =======================
+exports.findHistory = async (req, res, next) => {
+    try {
+        const ordersService = new OrdersService(MongoDB.client);
+        const userId = req.user.userId || req.user.id || req.user._id; 
+        const documents = await ordersService.findByCustomerWithDetails(userId);
+        return res.send(documents);
+    } catch (error) {
+        return next(new ApiError(500, "An error occurred while retrieving order history"));
     }
 };
 
