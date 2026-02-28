@@ -30,7 +30,8 @@
                 </div>
                 <div class="item-price">{{ formatPrice(item.unit_price) }}đ</div>
                 <div v-if="order.status === 'completed'" class="item-action">
-                    <button class="btn-review" @click="openReviewModal(item, order)">Đánh giá</button>
+                    <button v-if="!item.is_reviewed" class="btn-review" @click="openReviewModal(item, order)">Đánh giá</button>
+                    <span v-else class="text-reviewed"><i class="fa-solid fa-check"></i> Đã đánh giá</span>
                 </div>
             </div>
           </div>
@@ -219,6 +220,16 @@ export default {
         try {
             await ReviewsService.create(reviewData);
             showToast("Cảm ơn bạn đã đánh giá sản phẩm!", "success");
+            
+            // Cập nhật trạng thái đã đánh giá cho sản phẩm trong đơn hàng hiện tại
+            if (this.selectedOrderForReview && this.selectedProductForReview) {
+                const order = this.orders.find(o => o._id === this.selectedOrderForReview._id);
+                if (order) {
+                    const item = order.items.find(i => i._id === this.selectedProductForReview._id);
+                    if (item) item.is_reviewed = true;
+                }
+            }
+
             this.showReviewModal = false;
         } catch (error) {
             console.error(error);
@@ -270,6 +281,7 @@ export default {
     padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
 }
 .btn-review:hover { background: #2980b9; color: white; }
+.text-reviewed { font-size: 0.85rem; color: #27ae60; font-weight: bold; }
 
 .order-body p { margin: 5px 0; color: #444; font-size: 0.95rem; }
 .order-footer { margin-top: 15px; font-size: 0.9rem; color: #777; font-style: italic; display: flex; justify-content: space-between; align-items: center; }

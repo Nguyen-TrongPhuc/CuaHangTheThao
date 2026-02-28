@@ -14,7 +14,8 @@ class ProductsService {
             description: payload.description || "",
             price: Number(payload.price),
             // stock: Tổng tồn kho sẽ được tính toán hoặc hiển thị từ variants, ở đây lưu tạm 0 hoặc tổng
-            stock: 0, 
+            stock: Number(payload.stock) || 0, 
+            sold: 0, // Thêm trường số lượng đã bán, mặc định là 0
 
             category_id: (payload.category_id && ObjectId.isValid(payload.category_id))
                 ? new ObjectId(payload.category_id)
@@ -32,7 +33,15 @@ class ProductsService {
                 price: Number(v.price) || Number(payload.price) // Nếu không có giá riêng thì lấy giá chung
             })) : [],
 
-            image: payload.image || null,
+            // support multiple images. each item may optionally be associated with a color
+            images: Array.isArray(payload.images)
+                ? payload.images.map(img => ({
+                      url: img.url || null,
+                      color_id: (img.color_id && ObjectId.isValid(img.color_id)) ? new ObjectId(img.color_id) : null
+                  }))
+                : [],
+            // legacy single image field for backward compatibility
+            image: payload.image || (Array.isArray(payload.images) && payload.images[0] ? payload.images[0].url : null),
 
             createdAt: new Date(),
         };
@@ -117,7 +126,19 @@ class ProductsService {
             }));
         }
 
+        // Xử lý images khi update (mảng ảnh có thể đi kèm color_id)
+        if (updateData.images && Array.isArray(updateData.images)) {
+            updateData.images = updateData.images.map(img => ({
+                url: img.url || null,
+                color_id: (img.color_id && ObjectId.isValid(img.color_id)) ? new ObjectId(img.color_id) : null
+            }));
+            // maintain legacy image property as first url
+            updateData.image = updateData.images[0] ? updateData.images[0].url : null;
+        }
+
         if (updateData.price !== undefined) updateData.price = Number(updateData.price);
+        if (updateData.stock !== undefined) updateData.stock = Number(updateData.stock);
+        if (updateData.sold !== undefined) updateData.sold = Number(updateData.sold);
 
         const update = {
             $set: {

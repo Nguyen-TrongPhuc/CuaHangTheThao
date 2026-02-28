@@ -19,11 +19,10 @@
 
       <!-- Navigation -->
       <nav class="nav-links">
-        <router-link to="/">Trang chủ</router-link>
+        <router-link to="/" class="home-link">Trang chủ</router-link>
         <router-link to="/products">Sản phẩm</router-link>
         <router-link to="/about">Giới thiệu</router-link>
         <router-link to="/contact">Liên hệ</router-link>
-        <router-link v-if="isLoggedIn" to="/contact-replies" class="replies-link">Trả lời</router-link>
       </nav>
 
       <!-- User & Cart -->
@@ -42,7 +41,6 @@
           <div v-if="showDropdown" class="dropdown-menu">
             <router-link to="/profile" class="dropdown-item">Hồ sơ cá nhân</router-link>
             <router-link to="/orders" class="dropdown-item">Lịch sử đơn hàng</router-link>
-            <router-link to="/contact-replies" class="dropdown-item">Trả lời liên hệ</router-link>
             <a @click="logout" class="dropdown-item">Đăng xuất</a>
           </div>
         </div>
@@ -189,10 +187,19 @@ export default {
 }
 
 .nav-links { display: flex; gap: 20px; }
-.nav-links a { text-decoration: none; color: #333; font-weight: 500; transition: color 0.3s; }
-.nav-links a:hover, .nav-links a.router-link-active { color: #302b63; }
-.nav-links .replies-link { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 20px; }
-.nav-links .replies-link:hover { opacity: 0.9; }
+.nav-links a { text-decoration: none; color: #333; font-weight: 500; transition: color 0.3s; position: relative; }
+.nav-links a:hover { color: #302b63; }
+
+/* Active link styling */
+.nav-links a:not(.home-link).router-link-active,
+.nav-links a.home-link.router-link-exact-active {
+  color: #e74c3c;
+  font-weight: 700;
+}
+.nav-links a:not(.home-link).router-link-active::after,
+.nav-links a.home-link.router-link-exact-active::after {
+  content: ''; position: absolute; bottom: -5px; left: 0; width: 100%; height: 2px; background: #e74c3c;
+}
 
 .user-actions { display: flex; align-items: center; gap: 20px; }
 

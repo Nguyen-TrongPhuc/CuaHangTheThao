@@ -36,7 +36,7 @@
         <div v-for="product in products" :key="product._id" class="product-card">
           <router-link :to="{ name: 'product.detail', params: { id: product._id } }">
             <div class="image-wrapper">
-              <img :src="product.image || 'https://via.placeholder.com/300'" :alt="product.name" />
+              <img :src="(product.images && product.images.length ? product.images[0].url : product.image) || 'https://via.placeholder.com/300'" :alt="product.name" />
             </div>
             <div class="info">
               <h3 class="product-name">{{ product.name }}</h3>
@@ -84,10 +84,12 @@ export default {
     };
   },
   watch: {
-    "$route.query.q": {
+    "$route.query": {
       immediate: true,
-      handler(newVal) {
-        this.query = newVal || "";
+      handler(newQuery) {
+        this.query = newQuery.q || "";
+        this.selectedCategory = newQuery.category || "";
+        this.selectedSport = newQuery.sport || "";
         this.fetchProducts();
       },
     },

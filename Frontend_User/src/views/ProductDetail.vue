@@ -9,8 +9,25 @@
 
       <div v-else-if="product" class="product-content">
         <div class="product-image-gallery">
-          <img :src="product.image || 'https://via.placeholder.com/600x400'" :alt="product.name" class="main-image" />
-          <!-- Có thể thêm các ảnh nhỏ khác ở đây nếu có -->
+            <div class="main-image-container">
+              <img :src="displayedImage" :alt="product.name" class="main-image" />
+              <button v-if="imageList.length > 1" class="img-nav prev" @click="prevImage">
+                <i class="fa-solid fa-chevron-left"></i>
+              </button>
+              <button v-if="imageList.length > 1" class="img-nav next" @click="nextImage">
+                <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+            <!-- thumbnails -->
+            <div v-if="imageList.length > 1" class="thumbnails">
+              <img
+                v-for="(img, idx) in imageList"
+                :key="idx"
+                :src="img"
+                :class="['thumb', { active: img === displayedImage }]"
+                @click="displayedImage = img"
+              />
+            </div>
         </div>
 
         <div class="product-details">
@@ -23,8 +40,8 @@
 
           <p class="product-price">{{ formatPrice(selectedVariant ? selectedVariant.price : product.price) }}</p>
 
-          <div class="variant-selection">
-            <div class="variant-group">
+          <div class="variant-selection" v-if="hasVariants">
+            <div class="variant-group" v-if="availableSizes.length > 0">
               <span class="variant-label">Kích thước:</span>
               <div class="variant-options">
                 <button 
@@ -37,7 +54,7 @@
               </div>
             </div>
 
-            <div class="variant-group">
+            <div class="variant-group" v-if="availableColors.length > 0">
               <span class="variant-label">Màu sắc:</span>
               <div class="variant-options">
                 <button 
@@ -51,25 +68,32 @@
             </div>
           </div>
 
-          <div v-if="selectedVariant" class="variant-info-display">
+          <div v-if="hasVariants && selectedVariant" class="variant-info-display">
             <p><strong>Tồn kho:</strong> {{ selectedVariant.stock }} sản phẩm</p>
             <p v-if="selectedVariant.stock === 0" class="out-of-stock">Hết hàng!</p>
           </div>
-          <div v-else-if="selectedSizeId || selectedColorId" class="no-variant-match">
+          <div v-else-if="hasVariants && (selectedSizeId || selectedColorId)" class="no-variant-match">
             <p>Không có biến thể phù hợp với lựa chọn của bạn.</p>
+          </div>
+          <div v-else-if="!hasVariants" class="variant-info-display">
+             <p><strong>Tồn kho:</strong> {{ product.stock }} sản phẩm</p>
+             <p v-if="product.stock === 0" class="out-of-stock">Hết hàng!</p>
           </div>
 
           <div class="quantity-selector">
             <label for="quantity">Số lượng:</label>
-            <input type="number" id="quantity" v-model.number="quantity" min="1" :max="selectedVariant ? selectedVariant.stock : 1" :disabled="!selectedVariant || selectedVariant.stock === 0" />
+            <input type="number" id="quantity" v-model.number="quantity" min="1" :max="maxQuantity" :disabled="maxQuantity === 0" />
           </div>
 
           <div class="action-buttons">
-            <button class="btn-add-to-cart" @click="addToCart" :disabled="!selectedVariant || selectedVariant.stock === 0 || quantity <= 0">
+            <button class="btn-add-to-cart" @click="addToCart" :disabled="maxQuantity === 0 || quantity <= 0 || (hasVariants && !selectedVariant)">
               <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ hàng
             </button>
-            <button class="btn-buy-now" @click="buyNow" :disabled="!selectedVariant || selectedVariant.stock === 0 || quantity <= 0">
+            <button class="btn-buy-now" @click="buyNow" :disabled="maxQuantity === 0 || quantity <= 0 || (hasVariants && !selectedVariant)">
               Mua ngay
+            </button>
+            <button class="btn-chat-now" @click="chatNow">
+              <i class="fa-solid fa-comments"></i> Chat ngay
             </button>
           </div>
 
@@ -135,20 +159,43 @@ export default {
       selectedVariant: null,
       quantity: 1,
       reviews: []
+      ,
+      displayedImage: ''
     };
   },
   computed: {
+    hasVariants() {
+        return this.product && this.product.variants && this.product.variants.length > 0;
+    },
+    maxQuantity() {
+        if (this.hasVariants) {
+            return this.selectedVariant ? this.selectedVariant.stock : 0;
+        }
+        return this.product ? this.product.stock : 0;
+    },
     // Lấy danh sách các Size có sẵn cho sản phẩm này
     availableSizes() {
       if (!this.product || !this.product.variants || !this.sizes.length) return [];
-      const uniqueSizeIds = [...new Set(this.product.variants.map(v => v.size_id))];
+      const uniqueSizeIds = [...new Set(this.product.variants.map(v => v.size_id).filter(id => id))];
       return this.sizes.filter(s => uniqueSizeIds.some(id => String(id) === String(s._id)));
     },
     // Lấy danh sách các Color có sẵn cho sản phẩm này
     availableColors() {
       if (!this.product || !this.product.variants || !this.colors.length) return [];
-      const uniqueColorIds = [...new Set(this.product.variants.map(v => v.color_id))];
+      const uniqueColorIds = [...new Set(this.product.variants.map(v => v.color_id).filter(id => id))];
       return this.colors.filter(c => uniqueColorIds.some(id => String(id) === String(c._id)));
+    },
+    // danh sách đường dẫn ảnh sẵn có để hiển thị trong gallery
+    imageList() {
+      if (this.product && Array.isArray(this.product.images) && this.product.images.length) {
+        return this.product.images.map(i => i.url).filter(u => u);
+      }
+      if (this.product && this.product.image) return [this.product.image];
+      return [];
+    },
+    // index of current displayedImage in the list (or -1 if not found)
+    currentImageIndex() {
+      return this.imageList.indexOf(this.displayedImage);
     },
     averageRating() {
         if (!this.reviews.length) return 0;
@@ -168,6 +215,9 @@ export default {
           this.selectedColorId = this.product.variants[0].color_id;
           this.updateSelectedVariant();
         }
+        // thiết lập ảnh hiển thị mặc định
+        const imgs = this.imageList;
+        this.displayedImage = imgs.length ? imgs[0] : 'https://via.placeholder.com/600x400';
       } catch (error) {
         console.error("Lỗi khi tải sản phẩm:", error);
         this.product = null;
@@ -212,16 +262,26 @@ export default {
       if (this.selectedColorId === id) {
         this.selectedColorId = "";
         this.updateSelectedVariant();
+        // nếu bỏ chọn màu, quay về ảnh mặc định nếu có
+        const imgs = this.imageList;
+        this.displayedImage = imgs.length ? imgs[0] : this.displayedImage;
         return;
       }
 
       this.selectedColorId = id;
       this.updateSelectedVariant();
+      // chọn ảnh tương ứng với màu nếu có
+      if (this.product && Array.isArray(this.product.images)) {
+        const matched = this.product.images.find(img => String(img.color_id) === String(id));
+        if (matched && matched.url) {
+          this.displayedImage = matched.url;
+        }
+      }
     },
     // Kiểm tra xem Size có nên bị disable không
     isSizeDisabled(sizeId) {
       // Nếu chưa chọn màu nào -> Chỉ disable những size không có hàng hoặc không tồn tại trong bất kỳ biến thể nào
-      if (!this.selectedColorId) {
+      if (!this.selectedColorId && this.availableColors.length > 0) {
         return !this.product.variants.some(v => 
           String(v.size_id) === String(sizeId) && v.stock > 0
         );
@@ -230,21 +290,21 @@ export default {
       // Nếu đã chọn màu -> Kiểm tra xem cặp (Size này + Màu đang chọn) có tồn tại và còn hàng không
       return !this.product.variants.some(v => 
         String(v.size_id) === String(sizeId) && 
-        String(v.color_id) === String(this.selectedColorId) && 
+        (this.selectedColorId ? String(v.color_id) === String(this.selectedColorId) : !v.color_id) && 
         v.stock > 0
       );
     },
     // Kiểm tra xem Màu có nên bị disable không
     isColorDisabled(colorId) {
       // Tương tự logic của Size
-      if (!this.selectedSizeId) {
+      if (!this.selectedSizeId && this.availableSizes.length > 0) {
         return !this.product.variants.some(v => 
           String(v.color_id) === String(colorId) && v.stock > 0
         );
       }
 
       return !this.product.variants.some(v => 
-        String(v.size_id) === String(this.selectedSizeId) && 
+        (this.selectedSizeId ? String(v.size_id) === String(this.selectedSizeId) : !v.size_id) && 
         String(v.color_id) === String(colorId) && 
         v.stock > 0
       );
@@ -255,8 +315,8 @@ export default {
         return;
       }
       this.selectedVariant = this.product.variants.find(v =>
-        String(v.size_id) === String(this.selectedSizeId) &&
-        String(v.color_id) === String(this.selectedColorId)
+        (v.size_id ? String(v.size_id) === String(this.selectedSizeId) : !this.selectedSizeId) &&
+        (v.color_id ? String(v.color_id) === String(this.selectedColorId) : !this.selectedColorId)
       );
       // Đảm bảo số lượng không vượt quá tồn kho
       if (this.selectedVariant && this.quantity > this.selectedVariant.stock) {
@@ -267,9 +327,16 @@ export default {
     },
     // Hàm xử lý logic thêm vào giỏ hàng (dùng chung cho cả 2 nút)
     processAddToCart(isBuyNow = false) {
-      if (!this.selectedVariant || this.selectedVariant.stock === 0 || this.quantity <= 0) {
-        showToast("Vui lòng chọn biến thể và số lượng hợp lệ.", "warning");
-        return false;
+      if (this.hasVariants) {
+          if (!this.selectedVariant || this.selectedVariant.stock === 0 || this.quantity <= 0) {
+            showToast("Vui lòng chọn biến thể và số lượng hợp lệ.", "warning");
+            return false;
+          }
+      } else {
+          if (this.product.stock === 0 || this.quantity <= 0) {
+              showToast("Sản phẩm đã hết hàng.", "warning");
+              return false;
+          }
       }
 
       // Nếu là Mua ngay, bỏ chọn tất cả sản phẩm khác trong giỏ để chỉ thanh toán sản phẩm này
@@ -280,11 +347,11 @@ export default {
       // Sử dụng hàm addToCart từ store
       cartStore.addToCart(
         this.product, 
-        {
+        this.hasVariants ? {
           size_id: this.selectedVariant.size_id,
           color_id: this.selectedVariant.color_id,
           price: this.selectedVariant.price
-        },
+        } : null,
         this.quantity,
         isBuyNow, // isSelected
         isBuyNow // replaceQuantity: Nếu là Mua ngay thì thay thế số lượng cũ
@@ -302,6 +369,18 @@ export default {
         // Chuyển hướng ngay đến trang thanh toán
         this.$router.push("/checkout");
       }
+    },
+    chatNow() {
+      this.$router.push({
+        name: 'contact',
+        query: {
+          productId: this.product._id,
+          productName: this.product.name,
+          productImage: this.displayedImage,
+          productPrice: this.selectedVariant ? this.selectedVariant.price : this.product.price,
+          productRating: this.averageRating
+        }
+      });
     },
     formatPrice(price) {
       return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
@@ -338,6 +417,45 @@ export default {
 
 .product-image-gallery { flex: 1; min-width: 300px; max-width: 50%; }
 .main-image { width: 100%; height: auto; border-radius: 8px; object-fit: contain; max-height: 500px; }
+
+.main-image-container { position: relative; }
+.img-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.4);
+  border: none;
+  color: white;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.img-nav.prev { left: 10px; }
+.img-nav.next { right: 10px; }
+.img-nav:hover { background: rgba(0,0,0,0.6); }
+
+/* gallery thumbnails */
+.thumbnails {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.thumbnails .thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border 0.2s;
+}
+.thumbnails .thumb:hover {
+  border-color: #ccc;
+}
+.thumbnails .thumb.active {
+  border-color: #ee4d2d;
+}
 
 .product-details { flex: 1; min-width: 350px; }
 .product-name { font-size: 2.2rem; font-weight: 700; color: #2c3e50; margin-bottom: 15px; }
@@ -429,6 +547,22 @@ export default {
 }
 .btn-buy-now:hover:not(:disabled) {
   background: linear-gradient(135deg, #f4511e, #e64a19);
+  transform: translateY(-2px);
+}
+
+.btn-chat-now {
+  background: #3498db;
+  color: white;
+  padding: 15px 30px;
+  border: none;
+  border-radius: 30px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.btn-chat-now:hover {
+  background: #2980b9;
   transform: translateY(-2px);
 }
 

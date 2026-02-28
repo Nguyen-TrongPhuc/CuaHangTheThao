@@ -37,12 +37,26 @@ export const cartStore = {
             }
             if (isSelected) existingItem.selected = true;
         } else {
+            // determine image to store: prefer color-specific or first from images array
+            let imgUrl = product.image || '';
+            if (product.images && product.images.length) {
+                if (variant && variant.color_id) {
+                    const match = product.images.find(i => String(i.color_id) === String(variant.color_id));
+                    if (match && match.url) {
+                        imgUrl = match.url;
+                    } else if (product.images[0].url) {
+                        imgUrl = product.images[0].url;
+                    }
+                } else if (product.images[0].url) {
+                    imgUrl = product.images[0].url;
+                }
+            }
             state.items.push({ 
                 _id: product._id,
                 name: product.name,
                 // Nếu có biến thể thì lấy giá của biến thể, ngược lại lấy giá gốc
                 price: variant?.price || product.price,
-                image: product.image,
+                image: imgUrl,
                 variant: variant ? { size_id: variant.size_id, color_id: variant.color_id } : null,
                 quantity,
                 selected: isSelected

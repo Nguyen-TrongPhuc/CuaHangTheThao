@@ -150,10 +150,29 @@ class OrdersService {
 
             const itemsWithProductInfo = await Promise.all(details.map(async (detail) => {
                 const product = await this.Products.findOne({ _id: detail.product_id });
+                // determine image based on variant color if available
+                let product_image = null;
+                if (product) {
+                    // first prefer color-specific image
+                    if (detail.variant_color_id && Array.isArray(product.images)) {
+                        const match = product.images.find(i => String(i.color_id) === String(detail.variant_color_id));
+                        if (match && match.url) {
+                            product_image = match.url;
+                        }
+                    }
+                    // fallback to first image in array
+                    if (!product_image && Array.isArray(product.images) && product.images.length) {
+                        product_image = product.images[0].url || null;
+                    }
+                    // last fallback to legacy field
+                    if (!product_image && product.image) {
+                        product_image = product.image;
+                    }
+                }
                 return {
                     ...detail,
                     product_name: product ? product.name : "Sản phẩm đã bị xóa",
-                    product_image: product ? product.image : null
+                    product_image
                 };
             }));
 

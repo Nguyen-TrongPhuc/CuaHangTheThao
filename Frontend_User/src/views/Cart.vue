@@ -19,7 +19,7 @@
             <h3>{{ item.name }}</h3>
             <div class="item-variant" v-if="item.variant">
                <span v-if="item.variant.size_id">Size: {{ getSizeName(item.variant.size_id) }}</span>
-               <span v-if="item.variant.size_id && item.variant.color_id"> - </span>
+               <span v-if="item.variant.size_id && item.variant.color_id"> | </span>
                <span v-if="item.variant.color_id">Màu: {{ getColorName(item.variant.color_id) }}</span>
             </div>
             <p class="item-price">{{ formatPrice(item.price) }}đ</p>
