@@ -151,7 +151,7 @@ export default {
       name: '',
       email: '',
       phone: '', 
-      subject: 'product', // Mặc định là product để backend nhận diện
+      subject: 'other', // Mặc định là other
       message: ''
     });
 
@@ -347,6 +347,7 @@ export default {
               price: route.query.productPrice,
               rating: route.query.productRating
           };
+          formData.value.subject = 'product';
       }
 
       // Tự động cập nhật tin nhắn mỗi 5 giây
