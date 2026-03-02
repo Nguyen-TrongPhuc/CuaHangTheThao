@@ -4,7 +4,17 @@
       <h2>Admin SportStore</h2>
       <form @submit.prevent="handleLogin">
         <input v-model="admin_code" type="text" placeholder="Mã Admin" required />
-        <input v-model="password" type="password" placeholder="Mật khẩu" required />
+        <div class="input-with-icon">
+          <input
+            :type="showPwd ? 'text' : 'password'"
+            v-model="password"
+            placeholder="Mật khẩu"
+            required
+          />
+          <span class="toggle-pass" @click="showPwd = !showPwd" title="Hiện/Ẩn mật khẩu">
+            <i :class="showPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+          </span>
+        </div>
         <button type="submit">Đăng nhập</button>
       </form>
     </div>
@@ -17,7 +27,7 @@ import { showToast } from "@/utils/toast";
 
 export default {
   data() {
-    return { admin_code: "", password: "" };
+    return { admin_code: "", password: "", showPwd: false };
   },
   methods: {
     async handleLogin() {
@@ -45,6 +55,11 @@ export default {
 .login-box { background: rgba(15, 12, 41, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 15px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); width: 350px; color: white; text-align: center; }
 input { width: 100%; margin-bottom: 20px; padding: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; background: rgba(255, 255, 255, 0.05); color: white; box-sizing: border-box; transition: 0.3s; }
 input:focus { border-color: #00c6ff; background: rgba(255, 255, 255, 0.1); outline: none; box-shadow: 0 0 10px rgba(0, 198, 255, 0.3); }
+/* show/hide icon wrapper */
+.input-with-icon { position: relative; margin-bottom: 20px; }
+.input-with-icon input { margin-bottom: 0; }
+.toggle-pass { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.7); z-index: 2; transition: color 0.3s; }
+.toggle-pass:hover { color: rgba(255,255,255,1); }
 button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); }
 button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 114, 255, 0.5); }
 </style>

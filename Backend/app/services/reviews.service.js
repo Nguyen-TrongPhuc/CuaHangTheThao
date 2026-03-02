@@ -20,6 +20,7 @@ class ReviewsService {
     }
 
     async findByProduct(productId) {
+        if (!ObjectId.isValid(productId)) return [];
         return await this.Reviews.aggregate([
             { $match: { product_id: new ObjectId(productId) } },
             {
@@ -33,6 +34,12 @@ class ReviewsService {
             { $unwind: "$user" },
             { $sort: { createdAt: -1 } }
         ]).toArray();
+    }
+
+    async findByUserId(userId) {
+        return await this.Reviews.find({ 
+            user_id: ObjectId.isValid(userId) ? new ObjectId(userId) : null 
+        }).toArray();
     }
 
     async findAll() {

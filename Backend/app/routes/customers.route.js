@@ -16,6 +16,18 @@ router.route("/login")
 router.route("/change-password")
     .post([auth.verifyToken], customers.changePassword);
 
+// Quên mật khẩu (Gửi OTP)
+router.route("/forgot-password")
+    .post(customers.forgotPassword);
+
+// ✅ Xác thực OTP (kiểm tra OTP đúng)
+router.route("/verify-otp")
+    .post(customers.verifyOtp);
+
+// Đặt lại mật khẩu (Dùng OTP)
+router.route("/reset-password")
+    .post(customers.resetPassword);
+
 // Cập nhật hồ sơ cá nhân
 router.route("/profile")
     .get([auth.verifyToken], customers.getProfile)

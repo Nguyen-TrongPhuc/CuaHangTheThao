@@ -16,7 +16,10 @@ exports.findAll = async (req, res, next) => {
         const service = new ColorsService(MongoDB.client);
         const documents = await service.find({});
         return res.send(documents);
-    } catch (error) { return next(new ApiError(500, "An error occurred")); }
+    } catch (error) { 
+        console.error("Lỗi findAll colors:", error);
+        return next(new ApiError(500, "An error occurred")); 
+    }
 };
 
 exports.findOne = async (req, res, next) => {

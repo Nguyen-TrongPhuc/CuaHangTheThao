@@ -26,6 +26,29 @@
               <textarea v-model="form.note" placeholder="Ghi chú về đơn hàng (tùy chọn)"></textarea>
             </div>
           </form>
+
+          <!-- Phương thức thanh toán -->
+          <div class="payment-section">
+            <h2>Phương thức thanh toán</h2>
+            <div class="payment-options">
+              <label class="payment-option" :class="{ selected: paymentMethod === 'cod' }">
+                <input type="radio" v-model="paymentMethod" value="cod" hidden>
+                <div class="option-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="option-info">
+                  <span class="opt-title">Thanh toán khi nhận hàng (COD)</span>
+                  <span class="opt-desc">Thanh toán tiền mặt cho shipper khi nhận hàng.</span>
+                </div>
+              </label>
+              <label class="payment-option" :class="{ selected: paymentMethod === 'vnpay' }">
+                <input type="radio" v-model="paymentMethod" value="vnpay" hidden>
+                <div class="option-icon"><i class="fa-solid fa-credit-card"></i></div>
+                <div class="option-info">
+                  <span class="opt-title">Thanh toán Online (VNPAY)</span>
+                  <span class="opt-desc">Thanh toán qua ví VNPAY hoặc tài khoản ngân hàng.</span>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- Tóm tắt đơn hàng -->
@@ -90,6 +113,7 @@ export default {
     const isProcessing = ref(false);
     const sizes = ref([]);
     const colors = ref([]);
+    const paymentMethod = ref("cod");
 
     // Lấy các item đã chọn từ giỏ hàng
     const selectedItems = computed(() => cartStore.state.items.filter(item => item.selected));
@@ -165,12 +189,13 @@ export default {
 
             const orderData = {
                 customer_id: customerId,
-                employee_id: null, // FIX: Gửi null để backend biết đây là đơn online
+                employee_id: null,
                 // employee_id: null, // Không gửi trường này để tránh lỗi validation
                 name: form.name,
                 phone: form.phone,
                 address: form.address,
                 note: form.note,
+                payment_method: paymentMethod.value,
                 items: selectedItems.value.map(item => ({
                     product_id: item._id,
                     quantity: item.quantity,
@@ -188,6 +213,10 @@ export default {
             // Xóa các sản phẩm đã mua khỏi giỏ hàng
             selectedItems.value.forEach(item => cartStore.removeFromCart(item._id));
 
+            if (paymentMethod.value === 'vnpay') {
+                // Nếu tích hợp thật, backend sẽ trả về URL thanh toán và bạn sẽ redirect tại đây
+                showToast("Đơn hàng VNPAY đã được tạo. Vui lòng kiểm tra email để thanh toán.", "info");
+            }
             showToast("Đặt hàng thành công!", "success");
             router.push("/"); // Hoặc chuyển đến trang lịch sử đơn hàng
         } catch (error) {
@@ -196,7 +225,7 @@ export default {
                 console.error("Chi tiết lỗi từ server:", error.response.data);
             }
             // Hiển thị lỗi chi tiết từ Backend trả về
-            const msg = error.response?.data?.message || error.message || "Đặt hàng thất bại, vui lòng thử lại";
+            const msg = error.response?.data?.message || "Đặt hàng thất bại. Vui lòng kiểm tra lại số lượng tồn kho.";
             showToast(msg, "error");
         } finally {
             isProcessing.value = false;
@@ -205,7 +234,7 @@ export default {
 
     return {
         form, selectedItems, totalAmount, isProcessing,
-        formatPrice, submitOrder, getSizeName, getColorName
+        formatPrice, submitOrder, getSizeName, getColorName, paymentMethod
     };
   }
 };
@@ -236,4 +265,15 @@ h2 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 1.2rem; bord
 .btn-confirm { width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 20px; transition: 0.3s; }
 .btn-confirm:hover:not(:disabled) { background: linear-gradient(135deg, #218838, #1e7e34); transform: translateY(-2px); }
 .btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
+
+.payment-section { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
+.payment-options { display: flex; flex-direction: column; gap: 15px; }
+.payment-option { display: flex; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.payment-option:hover { background: #f9f9f9; }
+.payment-option.selected { border-color: #28a745; background: #f0fff4; box-shadow: 0 0 0 1px #28a745; }
+.option-icon { font-size: 1.5rem; color: #555; margin-right: 15px; width: 30px; text-align: center; }
+.payment-option.selected .option-icon { color: #28a745; }
+.option-info { display: flex; flex-direction: column; }
+.opt-title { font-weight: bold; color: #333; }
+.opt-desc { font-size: 0.85rem; color: #777; margin-top: 3px; }
 </style>

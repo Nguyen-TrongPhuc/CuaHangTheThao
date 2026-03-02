@@ -19,6 +19,8 @@ class CustomerService {
             avatar: payload.avatar,
             customer_type: payload.customer_type,
             password: payload.password,
+            otp: payload.otp,
+            otp_expiry: payload.otp_expiry,
         };
 
         Object.keys(customer).forEach(
@@ -31,6 +33,7 @@ class CustomerService {
     /* ================= CREATE ================= */
     async create(payload) {
         const customer = this.extractCustomerData(payload);
+        customer.createdAt = new Date(); // Thêm dòng này để lưu thời gian tạo
         const result = await this.Customers.insertOne(customer);
         return await this.findById(result.insertedId);
     }

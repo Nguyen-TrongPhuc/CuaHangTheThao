@@ -30,8 +30,36 @@
     <div class="footer-bottom">
       &copy; 2026 SportStore. All rights reserved.
     </div>
+
+    <!-- Nút quay lại đầu trang -->
+    <button 
+      v-show="showBackToTop" 
+      class="back-to-top" 
+      @click="scrollToTop"
+      title="Lên đầu trang"
+    >
+      <i class="fa-solid fa-arrow-up"></i>
+    </button>
   </footer>
 </template>
+
+<script>
+export default {
+  data() {
+    return { showBackToTop: false };
+  },
+  methods: {
+    scrollToTop() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    handleScroll() {
+      this.showBackToTop = window.scrollY > 300;
+    }
+  },
+  mounted() { window.addEventListener('scroll', this.handleScroll); },
+  unmounted() { window.removeEventListener('scroll', this.handleScroll); }
+};
+</script>
 
 <style scoped>
 .footer {
@@ -101,5 +129,30 @@
   padding: 20px;
   font-size: 14px;
   color: #7f8c8d;
+}
+
+.back-to-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #302b63;
+  color: white;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.3s;
+  z-index: 999;
+}
+
+.back-to-top:hover {
+  background: #00c6ff;
+  transform: translateY(-5px);
 }
 </style>

@@ -46,7 +46,7 @@
 
               <div class="form-group">
                 <label>Email</label>
-                <input v-model="user.email" type="email" disabled class="disabled-input" />
+                <input v-model="user.email" type="email" required />
               </div>
 
               <div class="form-group">
@@ -76,16 +76,28 @@
             <h2 class="section-title">Đổi mật khẩu</h2>
             <form @submit.prevent="changePassword">
               <div class="form-group">
-                <label>Mật khẩu cũ</label>
-                <input v-model="passwordForm.oldPassword" type="password" required />
+                <div class="label-wrapper">
+                  <label>Mật khẩu cũ</label>
+                  <router-link to="/forgot-password" class="forgot-pass-link">Quên mật khẩu?</router-link>
+                </div>
+                <input v-model="passwordForm.oldPassword" type="password" placeholder="Nhập mật khẩu hiện tại" required />
+                  <span class="toggle-pass" @click="showOldPwd = !showOldPwd">
+                    <i :class="showOldPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                  </span>
               </div>
               <div class="form-group">
                 <label>Mật khẩu mới</label>
                 <input v-model="passwordForm.newPassword" type="password" required />
+                  <span class="toggle-pass" @click="showNewPwd = !showNewPwd">
+                    <i :class="showNewPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                  </span>
               </div>
               <div class="form-group">
                 <label>Nhập lại mật khẩu mới</label>
                 <input v-model="passwordForm.confirmPassword" type="password" required />
+                  <span class="toggle-pass" @click="showConfirmPwd = !showConfirmPwd">
+                    <i :class="showConfirmPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                  </span>
               </div>
 
               <button type="submit" class="btn-save">Đổi mật khẩu</button>
@@ -117,6 +129,10 @@ export default {
       passwordForm: {
         oldPassword: "", newPassword: "", confirmPassword: ""
       }
+      ,
+      showOldPwd: false,
+      showNewPwd: false,
+      showConfirmPwd: false
     };
   },
   computed: {
@@ -130,7 +146,13 @@ export default {
       try {
         this.user = await CustomerService.getProfile();
       } catch (error) {
-        showToast("Lỗi tải thông tin hồ sơ", "error");
+        // Nếu lỗi 401 (Unauthorized), chuyển hướng về trang đăng nhập
+        if (error.response && error.response.status === 401) {
+          showToast("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "warning");
+          this.$router.push("/login");
+        } else {
+          showToast("Lỗi tải thông tin hồ sơ", "error");
+        }
       }
     },
     async updateInfo() {
@@ -138,6 +160,7 @@ export default {
         await CustomerService.updateProfile(this.user);
         // Cập nhật tên hiển thị trên Header
         localStorage.setItem("user_name", this.user.last_name + " " + this.user.first_name);
+        localStorage.setItem("user_email", this.user.email);
         if (this.user.avatar) {
             localStorage.setItem("user_avatar", this.user.avatar);
         } else {
@@ -157,6 +180,7 @@ export default {
         showToast("Mật khẩu xác nhận không khớp!", "error");
         return;
       }
+      
       try {
         await CustomerService.changePassword({
           oldPassword: this.passwordForm.oldPassword,
@@ -213,9 +237,15 @@ export default {
 .half { flex: 1; }
 .form-group { margin-bottom: 20px; }
 .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #34495e; }
+.label-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.label-wrapper label { margin-bottom: 0; }
+.forgot-pass-link { font-size: 0.9rem; color: #302b63; text-decoration: none; transition: 0.3s; }
+.forgot-pass-link:hover { color: #e74c3c; text-decoration: underline; }
 .form-group input { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
 .input-group { display: flex; gap: 10px; }
 .btn-upload { padding: 0 15px; background: #e9ecef; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; color: #2c3e50; }
+.btn-otp { padding: 0 15px; background: #302b63; color: white; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap; min-width: 100px; }
+.btn-otp:disabled { background: #ccc; cursor: not-allowed; }
 .disabled-input { background-color: #f0f2f5; color: #7f8c8d; cursor: not-allowed; }
 .btn-save { padding: 12px 30px; background: linear-gradient(135deg, #0f0c29, #302b63); color: white; border: none; border-radius: 25px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(48, 43, 99, 0.3); }

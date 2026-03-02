@@ -13,6 +13,7 @@ const colorsRouter = require("./app/routes/colors.route");
 const sizesRouter = require("./app/routes/sizes.route");
 const reviewsRouter = require("./app/routes/reviews.route");
 const contactRouter = require("./app/routes/contact.route");
+const dashboardRouter = require("./app/routes/dashboard.route");
 
 const ApiError = require("./app/api-error");
 const app = express();
@@ -44,6 +45,7 @@ app.use("/api/colors", colorsRouter);
 app.use("/api/sizes", sizesRouter);
 app.use("/api/reviews", reviewsRouter);
 app.use("/api/contacts", contactRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 app.use((req, res, next) => {
   return next(new ApiError(404, "Resource not found"));

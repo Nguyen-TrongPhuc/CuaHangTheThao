@@ -56,8 +56,9 @@ export const cartStore = {
                 name: product.name,
                 // Nếu có biến thể thì lấy giá của biến thể, ngược lại lấy giá gốc
                 price: variant?.price || product.price,
+                stock: variant ? variant.stock : product.stock, // Lưu tồn kho để validate
                 image: imgUrl,
-                variant: variant ? { size_id: variant.size_id, color_id: variant.color_id } : null,
+                variant: variant ? { size_id: variant.size_id, color_id: variant.color_id, stock: variant.stock } : null,
                 quantity,
                 selected: isSelected
             });

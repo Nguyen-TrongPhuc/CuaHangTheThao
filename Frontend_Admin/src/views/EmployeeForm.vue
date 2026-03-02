@@ -20,9 +20,19 @@
           <input v-model="employee.phone" placeholder="Nhập số điện thoại" />
         </div>
 
-        <div class="form-group">
+        <div class="form-group password-wrapper">
           <label>Mật khẩu:</label>
-          <input v-model="employee.password" type="password" :required="!isEditMode" placeholder="Nhập mật khẩu" />
+          <input
+            :type="showPwd ? 'text' : 'password'"
+            v-model="employee.password"
+            :required="!isEditMode"
+            placeholder="Nhập mật khẩu"
+          />
+          <i
+            :class="['fa-solid', showPwd ? 'fa-eye-slash' : 'fa-eye']"
+            class="toggle-pwd"
+            @click="showPwd = !showPwd"
+          ></i>
           <small v-if="isEditMode">Để trống nếu không muốn đổi mật khẩu</small>
         </div>
 
@@ -59,6 +69,7 @@ export default {
         password: "",
         role: "staff", // Mặc định là nhân viên thường
       },
+      showPwd: false
     };
   },
   computed: {
@@ -84,6 +95,15 @@ export default {
         if (this.isEditMode && !data.password) {
             delete data.password;
         }
+
+      // validate password strength when provided
+      if (data.password) {
+        const pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!pwdRegex.test(data.password)) {
+          showToast("Mật khẩu phải ít nhất 8 ký tự và bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt", "warning");
+          return;
+        }
+      }
 
         if (this.isEditMode) {
           await EmployeesService.update(this.id, data);

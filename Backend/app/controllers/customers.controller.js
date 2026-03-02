@@ -4,11 +4,18 @@ const ApiError = require("../api-error");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const config = require("../config/index.js");
+const sendEmail = require("../utils/mailer.util"); // Import hàm gửi mail
 
 /* ================= CREATE ================= */
 exports.create = async (req, res, next) => {
     if (!req.body?.email || !req.body?.password) {
         return next(new ApiError(400, "Email and password can not be empty"));
+    }
+
+    // Validate định dạng Email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(req.body.email)) {
+        return next(new ApiError(400, "Địa chỉ Email không hợp lệ"));
     }
 
     // Validate số điện thoại (10 số, bắt đầu bằng 0)
@@ -261,5 +268,137 @@ exports.changePassword = async (req, res, next) => {
         return res.send({ message: "Password changed successfully!" });
     } catch (error) {
         return next(new ApiError(500, "Error changing password"));
+    }
+};
+
+/* ================= FORGOT PASSWORD (GỬI OTP) ================= */
+exports.forgotPassword = async (req, res, next) => {
+    if (!req.body?.email) {
+        return next(new ApiError(400, "Vui lòng cung cấp email"));
+    }
+
+    try {
+        const customerService = new CustomerService(MongoDB.client);
+        const user = await customerService.findByEmail(req.body.email);
+
+        if (!user) {
+            return next(new ApiError(404, "Email không tồn tại trong hệ thống"));
+        }
+
+        // Tạo OTP ngẫu nhiên 6 số
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // Hết hạn sau 5 phút
+
+        // Lưu OTP vào database
+        console.log(`📧 Tạo OTP cho ${req.body.email}: ${otp}`);
+        console.log(`⏰ OTP hết hạn lúc: ${otpExpiry}`);
+        await customerService.update(user._id, {
+            otp: otp,
+            otp_expiry: otpExpiry
+        });
+
+        // Gửi email thật qua Nodemailer
+        const subject = "Mã xác thực OTP - SportStore";
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Xin chào,</h2>
+                <p>Bạn đã yêu cầu khôi phục mật khẩu tại SportStore.</p>
+                <p>Mã OTP của bạn là: <b style="font-size: 24px; color: #302b63;">${otp}</b></p>
+                <p>Mã này sẽ hết hạn sau 5 phút.</p>
+                <p>Nếu bạn không yêu cầu, vui lòng bỏ qua email này.</p>
+            </div>
+        `;
+        
+        const emailResult = await sendEmail(req.body.email, subject, htmlContent);
+        if (!emailResult) {
+            console.error("❌ Không gửi được email OTP");
+            throw new Error("Gửi email thất bại. Vui lòng kiểm tra cấu hình email server.");
+        }
+        console.log(`✅ OTP gửi thành công tới ${req.body.email}`);
+        return res.send({ message: "✅ Mã OTP đã được gửi thành công!" });
+    } catch (error) {
+        console.error("❌ Lỗi tại forgotPassword:", error.message);
+        if (error.code === 'EAUTH') console.error("--> Gợi ý: Kiểm tra lại Email và Mật khẩu ứng dụng trong file .env");
+        return next(new ApiError(500, "Lỗi hệ thống: " + error.message));
+    }
+};
+
+/* ================= XÁC THỰC OTP (Bước kiểm tra OTP) ================= */
+exports.verifyOtp = async (req, res, next) => {
+    if (!req.body?.email || !req.body?.otp) {
+        return next(new ApiError(400, "Vui lòng cung cấp email và mã OTP"));
+    }
+
+    try {
+        const customerService = new CustomerService(MongoDB.client);
+        const user = await customerService.findByEmail(req.body.email);
+
+        console.log(`🔍 Kiểm tra OTP cho email: ${req.body.email}`);
+        if (!user) {
+            console.error(`❌ Email không tồn tại: ${req.body.email}`);
+            return next(new ApiError(404, "Email không tồn tại"));
+        }
+        
+        console.log(`OTP nhập vào: ${req.body.otp}, OTP lưu: ${user.otp}`);
+        if (user.otp !== req.body.otp) {
+            console.error(`❌ OTP sai! Nhập: ${req.body.otp}, Đúng: ${user.otp}`);
+            return next(new ApiError(400, "❌ Mã OTP không chính xác"));
+        }
+        
+        console.log(`OTP hết hạn lúc: ${user.otp_expiry}, Hiện tại: ${new Date()}`);
+        if (new Date() > new Date(user.otp_expiry)) {
+            console.error(`❌ OTP đã hết hạn`);
+            return next(new ApiError(400, "❌ Mã OTP đã hết hạn (5 phút)"));
+        }
+        
+        console.log(`✅ OTP chính xác!`);
+        return res.send({ message: "✅ Mã OTP chính xác! Vui lòng tạo mật khẩu mới." });
+    } catch (error) {
+        return next(new ApiError(500, "Lỗi khi xác thực OTP"));
+    }
+};
+
+/* ================= RESET PASSWORD (ĐỔI MẬT KHẨU SAU KHI OTP ĐÃ XÁC THỰC) ================= */
+exports.resetPassword = async (req, res, next) => {
+    if (!req.body?.email || !req.body?.otp || !req.body?.newPassword) {
+        return next(new ApiError(400, "Vui lòng nhập đầy đủ thông tin"));
+    }
+
+    try {
+        const customerService = new CustomerService(MongoDB.client);
+        const user = await customerService.findByEmail(req.body.email);
+
+        console.log(`🔐 Kiểm tra reset password cho email: ${req.body.email}`);
+        if (!user) {
+            console.error(`❌ Email không tồn tại: ${req.body.email}`);
+            return next(new ApiError(404, "Email không tồn tại"));
+        }
+        
+        // ✅ Kiểm tra lại OTP (an toàn)
+        console.log(`OTP nhập vào: ${req.body.otp}, OTP lưu: ${user.otp}`);
+        if (user.otp !== req.body.otp) {
+            console.error(`❌ OTP sai! Nhập: ${req.body.otp}, Đúng: ${user.otp}`);
+            return next(new ApiError(400, "❌ Mã OTP không chính xác"));
+        }
+        
+        console.log(`OTP hết hạn lúc: ${user.otp_expiry}, Hiện tại: ${new Date()}`);
+        if (new Date() > new Date(user.otp_expiry)) {
+            console.error(`❌ OTP đã hết hạn`);
+            return next(new ApiError(400, "❌ Mã OTP đã hết hạn (5 phút)"));
+        }
+        
+        console.log(`✅ OTP chính xác, tiếp tục cập nhật mật khẩu`);
+        
+        // Cập nhật mật khẩu mới và xóa OTP
+        await customerService.update(user._id, {
+            password: req.body.newPassword, // Service sẽ tự hash password này
+            otp: null,
+            otp_expiry: null
+        });
+        console.log(`✅ Đổi mật khẩu thành công cho email: ${req.body.email}`);
+        return res.send({ message: "✅ Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới." });
+    } catch (error) {
+        console.error("❌ Lỗi tại resetPassword:", error.message);
+        return next(new ApiError(500, "Lỗi khi đặt lại mật khẩu"));
     }
 };

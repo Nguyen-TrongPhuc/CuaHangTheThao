@@ -1,0 +1,86 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔧 QUICK FIX: Email Password Reset Error (Gmail App Password)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ ERROR:
+  534-5.7.9 Application-specific password required
+
+✅ ROOT CAUSE:
+  Gmail requires an "App Password" when 2-Step Verification is enabled.
+  The password "juqmkcprokiztovd" is NOT valid for Gmail SMTP.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 STEP-BY-STEP FIX:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to: https://myaccount.google.com/apppasswords
+   (You must be logged into SportStore1508@gmail.com)
+
+2. If you don't see "App passwords" option:
+   ➜ Go to https://myaccount.google.com/security first
+   ➜ Enable "2-Step Verification" if not already enabled
+   ➜ Then go back to apppasswords
+
+3. Select:
+   ✓ App: Mail
+   ✓ Device: Windows Computer (or your device type)
+
+4. Click "Generate"
+   ➜ Google will give you a 16-character password (with spaces)
+   ➜ Copy it WITHOUT spaces
+   ➜ Example: xxxx xxxx xxxx xxxx  →  xxxxxxxxxxxxxxxx
+
+5. Update Backend/.env:
+   ─────────────────────────────────────────────────────────────
+   MAIL_USER=SportStore1508@gmail.com
+   MAIL_PASSWORD=xxxxxxxxxxxxxxxx
+   ─────────────────────────────────────────────────────────────
+   (Replace xxxxxxxxxxxxxxxx with your App Password - NO SPACES)
+
+6. Save file and restart Backend:
+   ➜ Stop current Backend (Ctrl+C)
+   ➜ Run: npm start (or npm run dev)
+
+7. Test the "Forgot Password" feature:
+   ➜ Go to Frontend Login page
+   ➜ Click "Quên mật khẩu?" (Forgot Password)
+   ➜ Enter your test email
+   ➜ Check Backend console for:
+     ✅ "Gửi email thành công tới: example@mail.com"
+   ➜ Check email inbox for OTP
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔍 TROUBLESHOOTING:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Still seeing errors? Check Backend console for these hints:
+
+❌ "Application-specific password required"
+   → You created the App Password but didn't update .env yet
+   → Or you copied it WITH spaces (remove them)
+
+❌ "Invalid login"
+   → Email or password is wrong
+   → Check MAIL_USER and MAIL_PASSWORD spelling
+
+❌ "verify()" failed
+   → Gmail server can't authenticate you
+   → Check if password has spaces or is wrong
+
+❌ Connection timeout
+   → Check firewall/antivirus blocking port 587
+   → Check internet connection
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 IMPORTANT NOTES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Backend/.env is already in .gitignore (won't be committed to GitHub)
+✓ App Password is specific to this app only
+✓ You can delete and regenerate App Passwords anytime
+✓ If password leaks, remove it from Google Account Security immediately
+✓ OTP expires after 5 minutes (check mailer.util.js line 25)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Need more help? See SETUP_EMAIL_GUIDE.md for detailed instructions.

@@ -18,6 +18,11 @@ const routes = [
         component: () => import('@/views/Register.vue')
     },
     {
+        path: '/forgot-password',
+        name: 'forgot-password',
+        component: () => import('@/views/ForgotPassword.vue')
+    },
+    {
         path: '/search',
         name: 'product.search',
         component: () => import('@/views/SearchView.vue')

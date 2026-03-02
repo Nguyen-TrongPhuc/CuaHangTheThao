@@ -120,11 +120,18 @@ export default {
       return new Intl.NumberFormat('vi-VN').format(value);
     },
     updateQuantity(item, change) {
-      if (item.quantity + change > 0) {
-        item.quantity += change;
+      const newQuantity = item.quantity + change;
+      // Lấy tồn kho từ variant (nếu có) hoặc từ item gốc (nếu backend trả về cấu trúc đó)
+      // Lưu ý: Cần đảm bảo addToCart đã lưu stock vào item hoặc item.variant
+      const maxStock = item.variant?.stock !== undefined ? item.variant.stock : (item.stock || 999);
+
+      if (newQuantity > 0 && newQuantity <= maxStock) {
+        item.quantity = newQuantity;
         // Trigger save state manually or update cart store logic to watch changes
         if (this.cart.save) this.cart.save();
         else localStorage.setItem("cart_items", JSON.stringify(this.cart.state.items));
+      } else if (newQuantity > maxStock) {
+        showToast(`Số lượng tối đa chỉ còn ${maxStock} sản phẩm!`, "warning");
       }
     },
     removeItem(index) {

@@ -40,6 +40,7 @@ exports.findAll = async (req, res, next) => {
         }
 
     } catch (error) {
+        console.error("Lỗi findAll products:", error);
         return next(
             new ApiError(500, "An error occurred while retrieving products")
         );
@@ -61,6 +62,7 @@ exports.findOne = async (req, res, next) => {
         return res.send(document);
 
     } catch (error) {
+        console.error("Lỗi findOne product:", error);
         return next(
             new ApiError(500, `Error retrieving product with id=${req.params.id}`)
         );

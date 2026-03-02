@@ -18,9 +18,9 @@
           <!-- Danh sách sản phẩm trong đơn -->
           <div class="order-items-list">
             <div v-for="item in order.items" :key="item._id" class="order-item-row">
-                <img :src="item.product_image || 'https://via.placeholder.com/60'" class="item-thumb" />
+                <img :src="item.product_image || 'https://via.placeholder.com/60'" class="item-thumb" @click="goToProduct(item.product_id)" />
                 <div class="item-details">
-                    <div class="item-name">{{ item.product_name }}</div>
+                    <div class="item-name" @click="goToProduct(item.product_id)">{{ item.product_name }}</div>
                     <div class="item-meta">
                         <span v-if="item.variant_size_id">Size: {{ getSizeName(item.variant_size_id) }}</span>
                         <span v-if="item.variant_size_id && item.variant_color_id"> - </span>
@@ -52,6 +52,7 @@
                 <button v-if="order.status === 'delivered'" class="btn-return" @click="openReturnModal(order)">Trả hàng</button>
                 <button v-if="order.status === 'delivered'" class="btn-confirm-received" @click="confirmReceived(order)">Đã nhận hàng</button>
                 <span v-if="order.status === 'return_requested'" class="text-warning">Đang chờ duyệt trả hàng...</span>
+                <span v-if="order.status === 'return_accepted'" class="text-info">Đã đồng ý trả hàng. Vui lòng gửi hàng về shop.</span>
              </div>
           </div>
         </div>
@@ -113,16 +114,39 @@ export default {
     async fetchOrders() {
       try {
         // Tải dữ liệu đơn hàng và metadata (size, color) song song
-        const [ordersData, sizesData, colorsData] = await Promise.all([
+        const [ordersData, sizesData, colorsData, reviewsData] = await Promise.all([
             OrderService.getHistory(),
             SizesService.getAll(),
-            ColorsService.getAll()
+            ColorsService.getAll(),
+            ReviewsService.getMyReviews().catch(() => []) // Lấy danh sách đánh giá của user để kiểm tra
         ]);
-        this.orders = ordersData;
+        
+        const reviews = Array.isArray(reviewsData) ? reviewsData : (reviewsData.data || []);
+
+        // Map trạng thái đã đánh giá vào đơn hàng
+        this.orders = ordersData.map(order => {
+            if (order.items) {
+                order.items.forEach(item => {
+                    // Kiểm tra xem có đánh giá nào khớp với order_id và product_id không
+                    const productId = item.product_id || item._id;
+                    const isReviewed = reviews.some(r => 
+                        String(r.order_id) === String(order._id) && 
+                        String(r.product_id) === String(productId)
+                    );
+                    if (isReviewed) item.is_reviewed = true;
+                });
+            }
+            return order;
+        });
+
         this.sizes = sizesData;
         this.colors = colorsData;
       } catch (error) {
         console.error("Lỗi tải đơn hàng:", error);
+        if (error.response && error.response.status === 401) {
+          showToast("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "error");
+          this.$router.push("/login");
+        }
       } finally {
         this.isLoading = false;
       }
@@ -141,6 +165,7 @@ export default {
         'completed': 'Hoàn thành',
         'cancelled': 'Đã hủy',
         'return_requested': 'Yêu cầu trả hàng',
+        'return_accepted': 'Đồng ý trả hàng',
         'returned': 'Đã trả hàng'
       };
       return map[status] || status;
@@ -153,6 +178,7 @@ export default {
         'completed': 'status-delivered',
         'cancelled': 'status-cancelled',
         'return_requested': 'status-pending',
+        'return_accepted': 'status-delivered',
         'returned': 'status-returned'
       };
       return map[status] || '';
@@ -212,6 +238,7 @@ export default {
         }
     },
     openReviewModal(item, order) {
+      if (item.is_reviewed) return;
         this.selectedProductForReview = item;
         this.selectedOrderForReview = order;
         this.showReviewModal = true;
@@ -234,6 +261,11 @@ export default {
         } catch (error) {
             console.error(error);
             showToast("Lỗi khi gửi đánh giá", "error");
+        }
+    },
+    goToProduct(id) {
+        if (id) {
+            this.$router.push({ name: 'product.detail', params: { id: id } });
         }
     }
   },
@@ -269,9 +301,10 @@ export default {
 
 .order-items-list { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px; }
 .order-item-row { display: flex; align-items: center; margin-bottom: 10px; }
-.item-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 15px; border: 1px solid #eee; }
+.item-thumb { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; margin-right: 15px; border: 1px solid #eee; cursor: pointer; }
 .item-details { flex: 1; }
-.item-name { font-weight: 600; color: #333; font-size: 0.95rem; }
+.item-name { font-weight: 600; color: #333; font-size: 0.95rem; cursor: pointer; transition: color 0.2s; }
+.item-name:hover { color: #007bff; }
 .item-meta { font-size: 0.85rem; color: #777; margin-top: 2px; }
 .item-qty { font-size: 0.85rem; color: #555; margin-top: 2px; }
 .item-price { font-weight: bold; color: #333; }
@@ -299,6 +332,7 @@ export default {
 .btn-return { background: linear-gradient(135deg, #6c757d, #5a6268); margin-right: 10px; }
 
 .text-warning { color: #d35400; font-weight: bold; font-size: 0.9rem; font-style: italic; }
+.text-info { color: #17a2b8; font-weight: bold; font-size: 0.9rem; font-style: italic; }
 
 .no-orders { text-align: center; margin-top: 50px; color: #777; }
 .btn-shop { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #2c3e50; color: white; text-decoration: none; border-radius: 20px; }

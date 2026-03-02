@@ -4,8 +4,16 @@
       <h2>Đăng nhập Khách hàng</h2>
       <form @submit.prevent="handleLogin">
         <input type="email" v-model="email" required placeholder="Email" />
-        <input type="password" v-model="password" required placeholder="Mật khẩu" />
+          <div class="input-with-icon">
+            <input :type="showPwd ? 'text' : 'password'" v-model="password" required placeholder="Mật khẩu" />
+            <span class="toggle-pass" @click="showPwd = !showPwd">
+              <i :class="showPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+            </span>
+          </div>
         <button type="submit" class="btn-login">Đăng nhập</button>
+        <div class="forgot-password">
+            <router-link to="/forgot-password">Quên mật khẩu?</router-link>
+        </div>
       </form>
       <p class="register-link">
         Chưa có tài khoản? <router-link to="/register">Đăng ký ngay</router-link>
@@ -22,7 +30,8 @@ export default {
   data() {
     return {
       email: "",
-      password: ""
+      password: "",
+      showPwd: false
     };
   },
   methods: {
@@ -68,8 +77,18 @@ h2 { margin-bottom: 30px; font-weight: bold; letter-spacing: 1px; }
 input { width: 100%; margin-bottom: 20px; padding: 12px 20px; border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; background: rgba(255, 255, 255, 0.05); color: white; box-sizing: border-box; transition: 0.3s; font-size: 15px; }
 input:focus { border-color: #00c6ff; background: rgba(255, 255, 255, 0.1); outline: none; box-shadow: 0 0 10px rgba(0, 198, 255, 0.3); }
 
+/* style for input-with-icon */
+.input-with-icon { position: relative; margin-bottom: 20px; }
+.input-with-icon input { margin-bottom: 0; }
+.input-with-icon .toggle-pass { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.7); z-index: 2; }
+.input-with-icon .toggle-pass:hover { color: rgba(255,255,255,1); }
+
 button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); font-size: 16px; }
 button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 114, 255, 0.5); }
+
+.forgot-password { text-align: right; margin-top: 10px; font-size: 0.9rem; }
+.forgot-password a { color: rgba(255,255,255,0.8); text-decoration: none; transition: 0.3s; }
+.forgot-password a:hover { color: #00c6ff; text-decoration: underline; }
 
 .register-link { margin-top: 20px; font-size: 0.9rem; color: rgba(255,255,255,0.7); }
 .register-link a { color: #00c6ff; text-decoration: none; font-weight: bold; transition: 0.3s; }

@@ -42,6 +42,7 @@ exports.findAll = async (req, res, next) => {
         }
 
     } catch (error) {
+        console.error("Lỗi findAll categories:", error);
         return next(
             new ApiError(500, "An error occurred while retrieving categories")
         );

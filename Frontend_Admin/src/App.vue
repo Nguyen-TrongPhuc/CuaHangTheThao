@@ -92,6 +92,11 @@ body { margin: 0; font-family: Arial, sans-serif; }
     z-index: 10;
     display: flex;
     flex-direction: column;
+  /* allow user to resize sidebar by dragging its right edge */
+  resize: horizontal;
+  overflow: auto; /* required for resize to work */
+  min-width: 180px;
+  max-width: 400px;
 }
 
 /* Khi ở trang Login, Sidebar mở rộng full màn hình */

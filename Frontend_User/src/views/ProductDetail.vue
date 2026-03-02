@@ -90,7 +90,7 @@
               <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ hàng
             </button>
             <button class="btn-buy-now" @click="buyNow" :disabled="maxQuantity === 0 || quantity <= 0 || (hasVariants && !selectedVariant)">
-              Mua ngay
+              <i class="fa-solid fa-bag-shopping"></i> Mua ngay
             </button>
             <button class="btn-chat-now" @click="chatNow">
               <i class="fa-solid fa-comments"></i> Chat ngay
@@ -107,7 +107,7 @@
             <h2>Đánh giá từ khách hàng</h2>
             <div v-if="reviews.length === 0" class="no-reviews">Chưa có đánh giá nào cho sản phẩm này.</div>
             <div v-else class="reviews-list">
-                <div v-for="review in reviews" :key="review._id" class="review-item">
+                <div v-for="review in visibleReviews" :key="review._id" class="review-item">
                     <div class="review-header">
                         <img :src="review.user.avatar || 'https://via.placeholder.com/40'" class="user-avatar" />
                         <div class="user-info">
@@ -119,6 +119,11 @@
                     <p class="review-content">{{ review.comment }}</p>
                     <img v-if="review.image" :src="review.image" class="review-image-attachment" @click="openImage(review.image)" />
                     <div v-if="review.reply" class="store-reply"><strong>Phản hồi từ cửa hàng:</strong> {{ review.reply.text }}</div>
+                </div>
+                
+                <div v-if="reviews.length > 3" class="review-actions">
+                    <button v-if="visibleReviewsCount < reviews.length" @click="showMoreReviews" class="btn-show-more">Xem thêm đánh giá <i class="fa-solid fa-chevron-down"></i></button>
+                    <button v-if="visibleReviewsCount > 3" @click="showLessReviews" class="btn-show-less">Thu gọn <i class="fa-solid fa-chevron-up"></i></button>
                 </div>
             </div>
           </div>
@@ -160,6 +165,7 @@ export default {
       quantity: 1,
       reviews: []
       ,
+      visibleReviewsCount: 3,
       displayedImage: ''
     };
   },
@@ -201,6 +207,9 @@ export default {
         if (!this.reviews.length) return 0;
         const total = this.reviews.reduce((sum, r) => sum + r.rating, 0);
         return (total / this.reviews.length).toFixed(1);
+    },
+    visibleReviews() {
+        return this.reviews.slice(0, this.visibleReviewsCount);
     }
   },
   methods: {
@@ -332,9 +341,17 @@ export default {
             showToast("Vui lòng chọn biến thể và số lượng hợp lệ.", "warning");
             return false;
           }
+          if (this.quantity > this.selectedVariant.stock) {
+            showToast(`Số lượng mua (${this.quantity}) vượt quá tồn kho (${this.selectedVariant.stock}).`, "warning");
+            return false;
+          }
       } else {
           if (this.product.stock === 0 || this.quantity <= 0) {
               showToast("Sản phẩm đã hết hàng.", "warning");
+              return false;
+          }
+          if (this.quantity > this.product.stock) {
+              showToast(`Số lượng mua (${this.quantity}) vượt quá tồn kho (${this.product.stock}).`, "warning");
               return false;
           }
       }
@@ -350,7 +367,8 @@ export default {
         this.hasVariants ? {
           size_id: this.selectedVariant.size_id,
           color_id: this.selectedVariant.color_id,
-          price: this.selectedVariant.price
+          price: this.selectedVariant.price,
+          stock: this.selectedVariant.stock // Thêm stock để validate bên Cart
         } : null,
         this.quantity,
         isBuyNow, // isSelected
@@ -387,9 +405,16 @@ export default {
     },
     openImage(url) {
         window.open(url, '_blank');
+    },
+    showMoreReviews() {
+        this.visibleReviewsCount += 5;
+    },
+    showLessReviews() {
+        this.visibleReviewsCount = 3;
     }
   },
   async created() {
+    window.scrollTo(0, 0);
     await this.loadFilterData(); // Tải Size và Color trước
     await this.fetchProduct(); // Sau đó tải sản phẩm
     await this.fetchReviews(); // Tải đánh giá
@@ -397,9 +422,17 @@ export default {
   watch: {
     // Theo dõi thay đổi ID sản phẩm trên URL để tải lại dữ liệu
     "$route.params.id": function() {
+        window.scrollTo(0, 0);
         this.fetchProduct();
         this.fetchReviews();
     },
+    // Tự động điều chỉnh nếu nhập quá số lượng tồn kho
+    quantity(newVal) {
+        if (this.maxQuantity > 0 && newVal > this.maxQuantity) {
+            this.quantity = this.maxQuantity;
+            showToast(`Số lượng tối đa là ${this.maxQuantity}`, "info");
+        }
+    }
   },
 };
 </script>
@@ -504,66 +537,69 @@ export default {
 .quantity-selector label { font-weight: 600; margin-right: 15px; color: #34495e; }
 .quantity-selector input { width: 80px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; text-align: center; font-size: 1rem; }
 
-.action-buttons { display: flex; gap: 15px; }
+.action-buttons { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 10px; }
 
-.btn-add-to-cart {
-  background: linear-gradient(135deg, #28a745, #218838);
-  color: white;
-  padding: 15px 30px;
-  border: none;
-  border-radius: 30px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+.btn-add-to-cart, .btn-buy-now, .btn-chat-now {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-}
-.btn-add-to-cart:hover:not(:disabled) {
-  background: linear-gradient(135deg, #218838, #1e7e34);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
-}
-.btn-add-to-cart:disabled {
-  background: #cccccc;
-  cursor: not-allowed;
-  box-shadow: none;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  flex: 1;
+  min-width: 140px;
+  height: 48px;
 }
 
+/* Thêm vào giỏ: Style nhẹ nhàng, nền xanh nhạt, viền xanh */
+.btn-add-to-cart {
+  background-color: #ffffff;
+  color: #ff5722;
+  border: 1px solid #f4511e;
+}
+.btn-add-to-cart:hover:not(:disabled) {
+  background-color: #ed6f1b;
+}
+
+/* Mua ngay: Nổi bật nhất với Gradient Cam/Đỏ */
 .btn-buy-now {
   background: linear-gradient(135deg, #ff5722, #f4511e);
   color: white;
-  padding: 15px 30px;
-  border: none;
-  border-radius: 30px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(255, 87, 34, 0.3);
 }
 .btn-buy-now:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f4511e, #e64a19);
+  background: linear-gradient(135deg, #f4511e, #d84315);
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 87, 34, 0.4);
 }
 
+/* Chat ngay: Màu xanh Messenger đặc trưng */
 .btn-chat-now {
-  background: #3498db;
+  background-color: #0084ff;
   color: white;
-  padding: 15px 30px;
-  border: none;
-  border-radius: 30px;
-  font-size: 1.1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 132, 255, 0.3);
+  flex: 0 0 auto; /* Không giãn quá rộng */
+  min-width: 120px;
 }
 .btn-chat-now:hover {
-  background: #2980b9;
+  background-color: #0073e6;
   transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 132, 255, 0.4);
+}
+
+/* Trạng thái Disabled chung cho các nút */
+button:disabled {
+  background: #f5f5f5 !important;
+  color: #aaa !important;
+  border: 1px solid #ddd !important;
+  cursor: not-allowed;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 .product-description { margin-top: 40px; border-top: 1px solid #eee; padding-top: 30px; }
@@ -585,6 +621,10 @@ export default {
 .review-content { color: #555; line-height: 1.5; margin-bottom: 10px; }
 .review-image-attachment { width: 100px; height: 100px; object-fit: cover; border-radius: 5px; cursor: pointer; border: 1px solid #eee; }
 .store-reply { background: #f9f9f9; padding: 10px; border-radius: 5px; margin-top: 10px; font-size: 0.9rem; color: #333; border-left: 3px solid #302b63; }
+.review-actions { text-align: center; margin-top: 20px; }
+.btn-show-more, .btn-show-less { background: none; border: 1px solid #ddd; padding: 8px 20px; border-radius: 20px; cursor: pointer; color: #555; font-size: 0.9rem; transition: 0.3s; margin: 0 5px; }
+.btn-show-more:hover, .btn-show-less:hover { background: #f0f0f0; color: #302b63; border-color: #302b63; }
+
 
 @media (max-width: 768px) {
   .product-content { flex-direction: column; }

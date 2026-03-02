@@ -21,7 +21,18 @@ exports.findByProduct = async (req, res, next) => {
         const documents = await reviewsService.findByProduct(req.params.id);
         return res.send(documents);
     } catch (error) {
+        console.error("Lỗi findByProduct reviews:", error);
         return next(new ApiError(500, "An error occurred while retrieving reviews"));
+    }
+};
+
+exports.findAllByUser = async (req, res, next) => {
+    try {
+        const reviewsService = new ReviewsService(MongoDB.client);
+        const documents = await reviewsService.findByUserId(req.user.userId || req.user.id || req.user._id);
+        return res.send(documents);
+    } catch (error) {
+        return next(new ApiError(500, "An error occurred while retrieving user reviews"));
     }
 };
 

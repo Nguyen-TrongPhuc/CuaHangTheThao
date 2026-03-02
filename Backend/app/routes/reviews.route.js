@@ -8,6 +8,9 @@ router.route("/")
     .post([auth.verifyToken], reviews.create)
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], reviews.findAll);
 
+router.route("/my-reviews")
+    .get([auth.verifyToken], reviews.findAllByUser);
+
 router.route("/product/:id")
     .get(reviews.findByProduct);
 

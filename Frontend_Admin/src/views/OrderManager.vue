@@ -30,6 +30,7 @@
                 <option value="completed">Hoàn thành</option>
                 <option value="cancelled">Đã hủy</option>
                 <option value="return_requested">Yêu cầu trả hàng</option>
+                <option value="return_accepted">Chấp nhận trả hàng</option>
                 <option value="returned">Đã trả hàng</option>
             </select>
             <div v-if="order.status === 'return_requested' && order.return_reason" class="return-reason">

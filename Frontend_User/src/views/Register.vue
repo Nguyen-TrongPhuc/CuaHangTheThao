@@ -11,7 +11,19 @@
         <input type="email" v-model="user.email" required placeholder="Email" />
         <input type="text" v-model="user.phone" required placeholder="Số điện thoại" />
         <input type="text" v-model="user.address" required placeholder="Địa chỉ" />
-        <input type="password" v-model="user.password" required placeholder="Mật khẩu" />
+        <div class="password-wrapper">
+          <input
+            :type="showPwd ? 'text' : 'password'"
+            v-model="user.password"
+            required
+            placeholder="Mật khẩu (8+ ký tự, Hoa, thường, số, ký tự đặc biệt)"
+          />
+          <i
+            :class="['fa-solid', showPwd ? 'fa-eye-slash' : 'fa-eye']"
+            class="toggle-pwd"
+            @click="showPwd = !showPwd"
+          ></i>
+        </div>
 
         <button type="submit" class="btn-register">Đăng ký</button>
       </form>
@@ -37,7 +49,8 @@ export default {
         address: "",
         password: "",
         customer_type: "member"
-      }
+      },
+      showPwd: false
     };
   },
   methods: {
@@ -48,6 +61,20 @@ export default {
     async handleRegister() {
       if (!this.isValidPhone(this.user.phone)) {
         showToast("Số điện thoại không hợp lệ (phải có 10 số và bắt đầu bằng 0)", "error");
+        return;
+      }
+
+      // Kiểm tra định dạng Email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(this.user.email)) {
+        showToast("Địa chỉ Email không hợp lệ.", "error");
+        return;
+      }
+
+      // Kiểm tra mật khẩu mạnh
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!passwordRegex.test(this.user.password)) {
+        showToast("Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.", "error");
         return;
       }
 
@@ -80,6 +107,12 @@ h2 { margin-bottom: 30px; font-weight: bold; letter-spacing: 1px; }
 
 input { width: 100%; margin-bottom: 20px; padding: 12px 20px; border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; background: rgba(255, 255, 255, 0.05); color: white; box-sizing: border-box; transition: 0.3s; font-size: 15px; }
 input:focus { border-color: #00c6ff; background: rgba(255, 255, 255, 0.1); outline: none; box-shadow: 0 0 10px rgba(0, 198, 255, 0.3); }
+
+/* eye icon for password toggle */
+.password-wrapper { position: relative; margin-bottom: 20px; }
+.password-wrapper input { margin-bottom: 0; }
+.password-wrapper .toggle-pwd { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.7); z-index: 2; }
+.password-wrapper .toggle-pwd:hover { color: rgba(255,255,255,1); }
 
 button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); font-size: 16px; }
 button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 114, 255, 0.5); }

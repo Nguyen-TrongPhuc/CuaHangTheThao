@@ -13,6 +13,13 @@ exports.create = async (req, res, next) => {
         return next(new ApiError(400, "Full name, admin code and password can not be empty"));
     }
 
+    // password complexity validation
+    const pwd = req.body.password || "";
+    const pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!pwdRegex.test(pwd)) {
+        return next(new ApiError(400, "Password must be at least 8 characters and include uppercase, lowercase, number, and special character"));
+    }
+
     try {
         const employeesService = new EmployeesService(MongoDB.client);
 
@@ -95,8 +102,13 @@ exports.update = async (req, res, next) => {
     try {
         const employeesService = new EmployeesService(MongoDB.client);
 
-        // nếu đổi mật khẩu thì mã hóa lại
+        // nếu đổi mật khẩu thì kiểm tra độ mạnh rồi mã hóa lại
         if (req.body.password) {
+            const pwd = req.body.password;
+            const pwdRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+            if (!pwdRegex.test(pwd)) {
+                return next(new ApiError(400, "Password must be at least 8 characters and include uppercase, lowercase, number, and special character"));
+            }
             const salt = await bcrypt.genSalt(10);
             req.body.password = await bcrypt.hash(req.body.password, salt);
         }

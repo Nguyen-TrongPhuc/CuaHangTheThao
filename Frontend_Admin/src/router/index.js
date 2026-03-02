@@ -81,6 +81,7 @@ const routes = [
         name: "contact.manager",
         component: ContactManager,
     },
+    
 ];
 
 const router = createRouter({
