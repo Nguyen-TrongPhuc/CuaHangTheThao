@@ -20,6 +20,7 @@
         <router-link to="/orders" class="nav-item">Quản lý Đơn hàng</router-link>
         <router-link to="/customers" class="nav-item">Quản lý Khách hàng</router-link>
         <router-link v-if="isAdmin" to="/employees" class="nav-item">Quản lý Nhân viên</router-link>
+        <router-link to="/warehouse" class="nav-item">Quản lý Kho hàng</router-link>
         <router-link to="/contacts" class="nav-item">Quản lý Liên hệ</router-link>
       </nav>
       <button v-show="!isLoginPage" class="nav-item logout-btn" @click="handleLogout">Đăng xuất</button>

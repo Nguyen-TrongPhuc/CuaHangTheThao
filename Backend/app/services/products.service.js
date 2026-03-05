@@ -160,9 +160,21 @@ class ProductsService {
     // XÓA 1 SẢN PHẨM
     // =======================
     async delete(id) {
-        const result = await this.Products.findOneAndDelete({
-            _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
-        });
+        const _id = ObjectId.isValid(id) ? new ObjectId(id) : null;
+
+        // 1. Tìm sản phẩm để kiểm tra trước
+        const product = await this.Products.findOne({ _id });
+        if (!product) {
+            return null;
+        }
+
+        // 2. Nếu sản phẩm đã có lượt bán (sold > 0), chặn xóa và báo lỗi
+        if (product.sold && product.sold > 0) {
+            throw new Error(`Không thể xóa sản phẩm "${product.name}" vì đã có ${product.sold} lượt mua. Vui lòng ẩn sản phẩm thay vì xóa.`);
+        }
+
+        // 3. Nếu chưa bán, tiến hành xóa
+        const result = await this.Products.findOneAndDelete({ _id });
 
         return result;
     }
@@ -171,7 +183,14 @@ class ProductsService {
     // XÓA TẤT CẢ SẢN PHẨM
     // =======================
     async deleteAll() {
-        const result = await this.Products.deleteMany({});
+        // Chỉ xóa những sản phẩm chưa có lượt bán nào
+        const result = await this.Products.deleteMany({
+            $or: [
+                { sold: 0 },
+                { sold: { $exists: false } },
+                { sold: null }
+            ]
+        });
         return result.deletedCount;
     }
 }

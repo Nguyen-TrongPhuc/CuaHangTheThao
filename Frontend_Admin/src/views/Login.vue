@@ -42,7 +42,12 @@ export default {
           this.$router.push("/dashboard"); // Chuyển vào trang quản trị
         }
       } catch (error) {
-        showToast("Mã Admin hoặc mật khẩu không đúng!", "error");
+        console.error("Lỗi đăng nhập:", error);
+        if (error.response && error.response.status >= 500) {
+          showToast("Lỗi hệ thống (500). Vui lòng kiểm tra Terminal Backend.", "error");
+        } else {
+          showToast("Mã Admin hoặc mật khẩu không đúng!", "error");
+        }
       }
     }
   }

@@ -3,11 +3,21 @@
     <AppHeader />
 
     <div class="container">
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <router-link to="/">Trang chủ</router-link> 
+        <i class="fa-solid fa-chevron-right"></i>
+        <router-link to="/products">Sản phẩm</router-link>
+        <i class="fa-solid fa-chevron-right"></i>
+        <span>{{ product ? product.name : 'Chi tiết' }}</span>
+      </div>
+
       <div v-if="isLoading" class="loading-state">
         <i class="fa-solid fa-spinner fa-spin"></i> Đang tải sản phẩm...
       </div>
 
-      <div v-else-if="product" class="product-content">
+      <div v-else-if="product" class="product-main-wrapper">
+        <div class="product-overview-card">
         <div class="product-image-gallery">
             <div class="main-image-container">
               <img :src="displayedImage" :alt="product.name" class="main-image" />
@@ -30,7 +40,7 @@
             </div>
         </div>
 
-        <div class="product-details">
+        <div class="product-summary-info">
           <h1 class="product-name">{{ product.name }}</h1>
           
           <div class="product-rating-summary" v-if="reviews.length > 0">
@@ -38,11 +48,13 @@
              <span class="rating-text">({{ averageRating }}/5 - {{ reviews.length }} đánh giá)</span>
           </div>
 
-          <p class="product-price">{{ formatPrice(selectedVariant ? selectedVariant.price : product.price) }}</p>
+          <div class="price-box">
+            <p class="product-price">{{ formatPrice(selectedVariant ? selectedVariant.price : product.price) }}</p>
+          </div>
 
           <div class="variant-selection" v-if="hasVariants">
             <div class="variant-group" v-if="availableSizes.length > 0">
-              <span class="variant-label">Kích thước:</span>
+              <span class="variant-label">Kích thước</span>
               <div class="variant-options">
                 <button 
                   v-for="size in availableSizes" 
@@ -55,7 +67,7 @@
             </div>
 
             <div class="variant-group" v-if="availableColors.length > 0">
-              <span class="variant-label">Màu sắc:</span>
+              <span class="variant-label">Màu sắc</span>
               <div class="variant-options">
                 <button 
                   v-for="color in availableColors" 
@@ -68,21 +80,14 @@
             </div>
           </div>
 
-          <div v-if="hasVariants && selectedVariant" class="variant-info-display">
-            <p><strong>Tồn kho:</strong> {{ selectedVariant.stock }} sản phẩm</p>
-            <p v-if="selectedVariant.stock === 0" class="out-of-stock">Hết hàng!</p>
-          </div>
-          <div v-else-if="hasVariants && (selectedSizeId || selectedColorId)" class="no-variant-match">
-            <p>Không có biến thể phù hợp với lựa chọn của bạn.</p>
-          </div>
-          <div v-else-if="!hasVariants" class="variant-info-display">
-             <p><strong>Tồn kho:</strong> {{ product.stock }} sản phẩm</p>
-             <p v-if="product.stock === 0" class="out-of-stock">Hết hàng!</p>
-          </div>
-
           <div class="quantity-selector">
-            <label for="quantity">Số lượng:</label>
-            <input type="number" id="quantity" v-model.number="quantity" min="1" :max="maxQuantity" :disabled="maxQuantity === 0" />
+            <label for="quantity">Số lượng</label>
+            <div class="qty-input-group">
+                <button @click="quantity > 1 ? quantity-- : null">-</button>
+                <input type="number" id="quantity" v-model.number="quantity" min="1" :max="maxQuantity" :disabled="maxQuantity === 0" />
+                <button @click="quantity < maxQuantity ? quantity++ : null">+</button>
+            </div>
+            <span class="stock-info">{{ maxQuantity }} sản phẩm có sẵn</span>
           </div>
 
           <div class="action-buttons">
@@ -90,21 +95,54 @@
               <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ hàng
             </button>
             <button class="btn-buy-now" @click="buyNow" :disabled="maxQuantity === 0 || quantity <= 0 || (hasVariants && !selectedVariant)">
-              <i class="fa-solid fa-bag-shopping"></i> Mua ngay
+              Mua ngay
             </button>
             <button class="btn-chat-now" @click="chatNow">
               <i class="fa-solid fa-comments"></i> Chat ngay
             </button>
           </div>
+        </div>
+        </div>
 
-          <div class="product-description">
-            <h2>Mô tả sản phẩm</h2>
-            <p>{{ product.description || 'Chưa có mô tả chi tiết cho sản phẩm này.' }}</p>
+        <!-- Phần dưới: Chi tiết, Mô tả, Đánh giá (Full width) -->
+        <div class="product-details-container">
+          <div class="details-section">
+            <h2 class="section-header">CHI TIẾT SẢN PHẨM</h2>
+            <div class="detail-grid">
+                <div class="detail-row">
+                    <label>Danh mục</label>
+                    <div class="breadcrumb-link">
+                        <router-link to="/">Trang chủ</router-link> &gt; 
+                        <router-link to="/products">Sản phẩm</router-link> &gt; 
+                        <span>{{ getCategoryName(product.category_id) }}</span>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <label>Kho hàng</label>
+                    <div>{{ product.stock }}</div>
+                </div>
+                <div class="detail-row">
+                    <label>Đã bán</label>
+                    <div>{{ product.sold || 0 }}</div>
+                </div>
+                <div class="detail-row">
+                    <label>Gửi từ</label>
+                    <div>Cần Thơ</div>
+                </div>
+            </div>
+          </div>
+
+          <div class="description-section">
+            <h2 class="section-header">MÔ TẢ SẢN PHẨM</h2>
+            <div class="description-content">
+                <p class="disclaimer-text">✨ SẢN PHẨM CHÍNH HÃNG - CHẤT LƯỢNG CAO ✨</p>
+                <div class="formatted-text">{{ product.description || 'Chưa có mô tả chi tiết cho sản phẩm này.' }}</div>
+            </div>
           </div>
 
           <!-- Phần Đánh giá -->
           <div class="product-reviews-section">
-            <h2>Đánh giá từ khách hàng</h2>
+            <h2 class="section-header">ĐÁNH GIÁ SẢN PHẨM</h2>
             <div v-if="reviews.length === 0" class="no-reviews">Chưa có đánh giá nào cho sản phẩm này.</div>
             <div v-else class="reviews-list">
                 <div v-for="review in visibleReviews" :key="review._id" class="review-item">
@@ -128,6 +166,7 @@
             </div>
           </div>
         </div>
+
       </div>
 
       <div v-else class="no-product-found">
@@ -145,6 +184,7 @@
 import ProductService from "@/services/products.service";
 import SizesService from "@/services/sizes.service";
 import ColorsService from "@/services/colors.service";
+import CategoryService from "@/services/categories.service";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
 import { showToast } from "@/utils/toast";
@@ -159,6 +199,7 @@ export default {
       isLoading: true,
       sizes: [],
       colors: [],
+      categories: [],
       selectedSizeId: "",
       selectedColorId: "",
       selectedVariant: null,
@@ -175,7 +216,19 @@ export default {
     },
     maxQuantity() {
         if (this.hasVariants) {
-            return this.selectedVariant ? this.selectedVariant.stock : 0;
+            if (this.selectedVariant) {
+                return this.selectedVariant.stock;
+            }
+            // Nếu chỉ chọn Size, tính tổng tồn kho của tất cả biến thể có Size đó
+            if (this.selectedSizeId) {
+                return this.product.variants.filter(v => String(v.size_id) === String(this.selectedSizeId)).reduce((sum, v) => sum + v.stock, 0);
+            }
+            // Nếu chỉ chọn Color, tính tổng tồn kho của tất cả biến thể có Color đó
+            if (this.selectedColorId) {
+                return this.product.variants.filter(v => String(v.color_id) === String(this.selectedColorId)).reduce((sum, v) => sum + v.stock, 0);
+            }
+            // Nếu chưa chọn gì, hiển thị tổng tồn kho của sản phẩm
+            return this.product.variants.reduce((sum, v) => sum + v.stock, 0);
         }
         return this.product ? this.product.stock : 0;
     },
@@ -218,12 +271,6 @@ export default {
       try {
         const productId = this.$route.params.id;
         this.product = await ProductService.findById(productId);
-        if (this.product && this.product.variants && this.product.variants.length > 0) {
-          // Chọn biến thể đầu tiên làm mặc định nếu có
-          this.selectedSizeId = this.product.variants[0].size_id;
-          this.selectedColorId = this.product.variants[0].color_id;
-          this.updateSelectedVariant();
-        }
         // thiết lập ảnh hiển thị mặc định
         const imgs = this.imageList;
         this.displayedImage = imgs.length ? imgs[0] : 'https://via.placeholder.com/600x400';
@@ -243,9 +290,10 @@ export default {
     },
     async loadFilterData() {
       try {
-        [this.sizes, this.colors] = await Promise.all([
+        [this.sizes, this.colors, this.categories] = await Promise.all([
           SizesService.getAll(),
           ColorsService.getAll(),
+          CategoryService.getAll(),
         ]);
       } catch (error) {
         console.error("Lỗi tải dữ liệu Size/Color:", error);
@@ -327,11 +375,20 @@ export default {
         (v.size_id ? String(v.size_id) === String(this.selectedSizeId) : !this.selectedSizeId) &&
         (v.color_id ? String(v.color_id) === String(this.selectedColorId) : !this.selectedColorId)
       );
-      // Đảm bảo số lượng không vượt quá tồn kho
-      if (this.selectedVariant && this.quantity > this.selectedVariant.stock) {
-        this.quantity = this.selectedVariant.stock > 0 ? 1 : 0;
-      } else if (!this.selectedVariant || this.selectedVariant.stock === 0) {
-        this.quantity = 0;
+      
+      // Logic cập nhật số lượng
+      if (this.selectedVariant) {
+        if (this.selectedVariant.stock > 0) {
+            // Nếu số lượng đang là 0 (do trước đó chọn biến thể hết hàng), reset về 1
+            if (this.quantity === 0) this.quantity = 1;
+            // Nếu số lượng đang chọn lớn hơn tồn kho mới, giảm xuống bằng tồn kho
+            if (this.quantity > this.selectedVariant.stock) this.quantity = this.selectedVariant.stock;
+        } else {
+            this.quantity = 0;
+        }
+      } else {
+        // Trường hợp chưa chọn đủ biến thể, nếu có hàng tổng thì để mặc định là 1
+        if (this.maxQuantity > 0 && this.quantity === 0) this.quantity = 1;
       }
     },
     // Hàm xử lý logic thêm vào giỏ hàng (dùng chung cho cả 2 nút)
@@ -401,7 +458,7 @@ export default {
       });
     },
     formatPrice(price) {
-      return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
+      return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
     },
     openImage(url) {
         window.open(url, '_blank');
@@ -411,6 +468,11 @@ export default {
     },
     showLessReviews() {
         this.visibleReviewsCount = 3;
+    }
+    ,
+    getCategoryName(id) {
+        const cat = this.categories.find(c => String(c._id) === String(id));
+        return cat ? cat.name : "Khác";
     }
   },
   async created() {
@@ -440,13 +502,18 @@ export default {
 <style scoped>
 .product-detail-page { display: flex; flex-direction: column; min-height: 100vh; }
 .container { flex: 1; max-width: 1200px; margin: 0 auto; padding: 40px 20px; width: 100%; box-sizing: border-box; }
+.breadcrumb { margin-bottom: 20px; font-size: 0.9rem; color: #555; display: flex; align-items: center; gap: 8px; }
+.breadcrumb a { text-decoration: none; color: #0055aa; }
+.breadcrumb i { font-size: 0.7rem; color: #999; }
 
 .loading-state, .no-product-found { text-align: center; padding: 100px 20px; font-size: 1.2rem; color: #7f8c8d; }
 .loading-state i, .no-product-found i { font-size: 3rem; margin-bottom: 20px; color: #bdc3c7; }
 .no-product-found .btn-back { display: inline-block; margin-top: 20px; padding: 10px 25px; background: #2c3e50; color: white; text-decoration: none; border-radius: 25px; transition: 0.3s; }
 .no-product-found .btn-back:hover { background: #34495e; }
 
-.product-content { display: flex; flex-wrap: wrap; gap: 40px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+.product-main-wrapper { display: flex; flex-direction: column; gap: 20px; }
+
+.product-overview-card { display: flex; flex-wrap: wrap; gap: 30px; background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 
 .product-image-gallery { flex: 1; min-width: 300px; max-width: 50%; }
 .main-image { width: 100%; height: auto; border-radius: 8px; object-fit: contain; max-height: 500px; }
@@ -490,9 +557,11 @@ export default {
   border-color: #ee4d2d;
 }
 
-.product-details { flex: 1; min-width: 350px; }
-.product-name { font-size: 2.2rem; font-weight: 700; color: #2c3e50; margin-bottom: 15px; }
-.product-price { font-size: 1.8rem; font-weight: bold; color: #e74c3c; margin-bottom: 25px; }
+.product-summary-info { flex: 1; min-width: 350px; padding-left: 20px; }
+.product-name { font-size: 1.5rem; font-weight: 500; color: #333; margin-bottom: 10px; line-height: 1.4; }
+
+.price-box { background: #fafafa; padding: 15px; margin-bottom: 20px; }
+.product-price { font-size: 1.8rem; font-weight: bold; color: #ee4d2d; margin: 0; }
 
 .product-rating-summary { margin-bottom: 15px; color: #f1c40f; font-size: 1.1rem; }
 .product-rating-summary .stars .active { color: #f1c40f; }
@@ -528,14 +597,14 @@ export default {
   color: #999;
 }
 
-.variant-info-display { background: #f0f8ff; border: 1px solid #e0f0ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-.variant-info-display p { margin: 5px 0; color: #34495e; }
-.out-of-stock { color: #e74c3c; font-weight: bold; }
-.no-variant-match { background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px; margin-bottom: 20px; color: #856404; }
-
 .quantity-selector { display: flex; align-items: center; margin-bottom: 30px; }
 .quantity-selector label { font-weight: 600; margin-right: 15px; color: #34495e; }
-.quantity-selector input { width: 80px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; text-align: center; font-size: 1rem; }
+.qty-input-group { display: flex; border: 1px solid #ddd; border-radius: 2px; }
+.qty-input-group button { background: white; border: none; width: 32px; height: 32px; cursor: pointer; font-size: 1.2rem; color: #555; border-right: 1px solid #ddd; }
+.qty-input-group button:last-child { border-right: none; border-left: 1px solid #ddd; }
+.qty-input-group input { width: 50px; text-align: center; border: none; outline: none; font-size: 1rem; -moz-appearance: textfield; }
+.qty-input-group input::-webkit-outer-spin-button, .qty-input-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.stock-info { margin-left: 15px; color: #757575; font-size: 0.9rem; }
 
 .action-buttons { display: flex; gap: 15px; flex-wrap: wrap; margin-top: 10px; }
 
@@ -558,38 +627,32 @@ export default {
 
 /* Thêm vào giỏ: Style nhẹ nhàng, nền xanh nhạt, viền xanh */
 .btn-add-to-cart {
-  background-color: #ffffff;
-  color: #ff5722;
-  border: 1px solid #f4511e;
+  background-color: rgba(255,87,34,0.1);
+  color: #ee4d2d;
+  border: 1px solid #ee4d2d;
 }
 .btn-add-to-cart:hover:not(:disabled) {
-  background-color: #ed6f1b;
+  background-color: rgba(255,87,34,0.2);
 }
 
 /* Mua ngay: Nổi bật nhất với Gradient Cam/Đỏ */
 .btn-buy-now {
-  background: linear-gradient(135deg, #ff5722, #f4511e);
+  background: #ee4d2d;
   color: white;
-  box-shadow: 0 4px 15px rgba(255, 87, 34, 0.3);
+  border: 1px solid #ee4d2d;
 }
 .btn-buy-now:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f4511e, #d84315);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(255, 87, 34, 0.4);
+  background: #d73211;
 }
 
-/* Chat ngay: Màu xanh Messenger đặc trưng */
+/* Chat ngay: Màu xanh dương/tím than */
 .btn-chat-now {
-  background-color: #0084ff;
+  background: #302b63;
   color: white;
-  box-shadow: 0 4px 10px rgba(0, 132, 255, 0.3);
-  flex: 0 0 auto; /* Không giãn quá rộng */
-  min-width: 120px;
+  border: 1px solid #302b63;
 }
 .btn-chat-now:hover {
-  background-color: #0073e6;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(0, 132, 255, 0.4);
+  background: #241f4b;
 }
 
 /* Trạng thái Disabled chung cho các nút */
@@ -602,13 +665,23 @@ button:disabled {
   transform: none !important;
 }
 
-.product-description { margin-top: 40px; border-top: 1px solid #eee; padding-top: 30px; }
-.product-description h2 { font-size: 1.5rem; color: #2c3e50; margin-bottom: 15px; }
-.product-description p { line-height: 1.8; color: #555; }
+/* Full width details section */
+.product-details-container { background: white; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 20px; }
+.section-header { background: #fafafa; padding: 15px; font-size: 1.1rem; font-weight: 500; color: #333; margin: 0 0 20px 0; text-transform: uppercase; }
+
+.details-section, .description-section, .product-reviews-section { margin-bottom: 40px; }
+
+.detail-grid { display: flex; flex-direction: column; gap: 15px; padding: 0 15px; }
+.detail-row { display: flex; align-items: flex-start; }
+.detail-row label { width: 150px; color: #999; font-size: 0.95rem; }
+.detail-row div { color: #333; font-size: 0.95rem; }
+.breadcrumb-link a { color: #0055aa; text-decoration: none; }
+
+.description-content { padding: 0 15px; color: #333; line-height: 1.8; font-size: 0.95rem; }
+.disclaimer-text { font-weight: bold; color: #ee4d2d; margin-bottom: 15px; }
+.formatted-text { white-space: pre-line; }
 
 /* Reviews Styles */
-.product-reviews-section { margin-top: 40px; border-top: 1px solid #eee; padding-top: 30px; }
-.product-reviews-section h2 { font-size: 1.5rem; color: #2c3e50; margin-bottom: 20px; }
 .no-reviews { color: #777; font-style: italic; }
 .review-item { border-bottom: 1px solid #f1f1f1; padding-bottom: 20px; margin-bottom: 20px; }
 .review-header { display: flex; align-items: center; margin-bottom: 10px; }

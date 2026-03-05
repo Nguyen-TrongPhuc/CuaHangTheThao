@@ -1,4 +1,5 @@
 const { ObjectId } = require("mongodb");
+const { calculateShippingFee } = require("../utils/shipping.util");
 
 class OrderService {
     constructor(client) {
@@ -7,13 +8,34 @@ class OrderService {
     }
 
     async create(payload) {
+        // Calculate shipping fee
+        // Ưu tiên phí vận chuyển từ payload (frontend), nếu không có thì tính lại để dự phòng.
+        // Điều này đảm bảo số tiền hiển thị cho người dùng và số tiền lưu trong DB là nhất quán.
+        const subtotal = Number(payload.subtotal) || 0;
+        const shipping_fee = (payload.shipping_fee !== undefined)
+            ? Number(payload.shipping_fee)
+            : calculateShippingFee(subtotal, payload.shipping_type || 'standard');
+        
+        // Determine payment status based on payment method
+        let payment_status = 'unpaid';
+        if (payload.payment_method === 'cod') {
+            payment_status = 'pending'; // COD - wait for cash on delivery
+        } else if (['vnpay', 'momo', 'bank_transfer'].includes(payload.payment_method)) {
+            payment_status = payload.payment_status || 'unpaid';
+        }
+
         const order = {
             customer_id: payload.customer_id ? new ObjectId(payload.customer_id) : null,
             name: payload.name,
             phone: payload.phone,
             address: payload.address,
             note: payload.note,
-            total_amount: payload.total_amount,
+            payment_method: payload.payment_method || 'cod',
+            payment_status: payment_status,
+            shipping_type: payload.shipping_type || 'standard',
+            shipping_fee: shipping_fee,
+            subtotal: subtotal,
+            total_amount: subtotal + shipping_fee, // Total including shipping
             status: "pending", // Trạng thái mặc định
             items: payload.items.map(item => ({
                 product_id: new ObjectId(item._id || item.product_id),
@@ -24,6 +46,9 @@ class OrderService {
                 variant_size_id: item.variant_size_id ? new ObjectId(item.variant_size_id) : (item.variant?.size_id ? new ObjectId(item.variant.size_id) : null),
                 variant_color_id: item.variant_color_id ? new ObjectId(item.variant_color_id) : (item.variant?.color_id ? new ObjectId(item.variant.color_id) : null),
             })),
+            // Payment transaction info (for online payments)
+            transaction_id: payload.transaction_id || null,
+            vnpay_info: payload.vnpay_info || null,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -122,6 +147,49 @@ class OrderService {
 
     async update(id, payload) {
         const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
+        
+        // Logic hoàn kho (Restocking) khi hủy đơn hàng
+        if (payload.status === 'cancelled') {
+            const order = await this.Orders.findOne(filter);
+            // Chỉ hoàn kho nếu đơn hàng tồn tại và trạng thái trước đó KHÔNG phải là cancelled
+            if (order && order.status !== 'cancelled') {
+                for (const item of order.items) {
+                    if (item.variant_size_id || item.variant_color_id) {
+                        // Hoàn kho cho biến thể: Cộng lại stock, Trừ đi sold
+                        await this.Products.updateOne(
+                            { 
+                                _id: item.product_id,
+                                variants: { 
+                                    $elemMatch: { 
+                                        size_id: item.variant_size_id, 
+                                        color_id: item.variant_color_id 
+                                    } 
+                                }
+                            },
+                            { 
+                                $inc: { 
+                                    "variants.$.stock": +item.quantity, 
+                                    "stock": +item.quantity,            
+                                    "sold": -item.quantity              
+                                } 
+                            }
+                        );
+                    } else {
+                        // Hoàn kho cho sản phẩm đơn giản
+                        await this.Products.updateOne(
+                            { _id: item.product_id },
+                            { 
+                                $inc: { 
+                                    stock: +item.quantity, 
+                                    sold: -item.quantity 
+                                } 
+                            }
+                        );
+                    }
+                }
+            }
+        }
+
         const update = { $set: { ...payload, updatedAt: new Date() } };
         return await this.Orders.findOneAndUpdate(filter, update, { returnDocument: "after" });
     }

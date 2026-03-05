@@ -56,16 +56,28 @@
 
               <div class="form-group">
                 <label>Địa chỉ</label>
-                <input v-model="user.address" type="text" />
+                <p v-if="user.address" class="current-address"><strong>Địa chỉ hiện tại:</strong> {{ user.address }}</p>
+                <small v-if="user.address" class="text-muted">Để thay đổi, vui lòng nhập địa chỉ mới bên dưới. Nếu không, địa chỉ hiện tại sẽ được giữ nguyên.</small>
+                
+                <div class="address-selection">
+                    <select v-model="addressState.selectedProvince" @change="fetchDistricts" class="form-control">
+                        <option :value="null">-- Tỉnh/Thành phố --</option>
+                        <option v-for="p in addressState.provinces" :key="p.code" :value="p">{{ p.name }}</option>
+                    </select>
+                    <select v-model="addressState.selectedDistrict" @change="fetchWards" class="form-control" :disabled="!addressState.selectedProvince">
+                        <option :value="null">-- Quận/Huyện --</option>
+                        <option v-for="d in addressState.districts" :key="d.code" :value="d">{{ d.name }}</option>
+                    </select>
+                    <select v-model="addressState.selectedWard" class="form-control" :disabled="!addressState.selectedDistrict">
+                        <option :value="null">-- Phường/Xã --</option>
+                        <option v-for="w in addressState.wards" :key="w.code" :value="w">{{ w.name }}</option>
+                    </select>
+                </div>
+                <input v-model="addressState.street" type="text" placeholder="Số nhà, tên đường..." class="street-input" />
               </div>
 
-              <div class="form-group">
-                <label>Avatar</label>
-                <div class="input-group">
-                    <input v-model="user.avatar" type="text" placeholder="Link ảnh hoặc tải lên" />
-                    <button type="button" class="btn-upload" @click="triggerFileInput"><i class="fa-solid fa-upload"></i></button>
-                </div>
-              </div>
+              <!-- Avatar is handled by the sidebar now -->
+              <!-- <div class="form-group"> ... </div> -->
 
               <button type="submit" class="btn-save">Cập nhật thông tin</button>
             </form>
@@ -130,6 +142,15 @@ export default {
         oldPassword: "", newPassword: "", confirmPassword: ""
       }
       ,
+      addressState: {
+        provinces: [],
+        districts: [],
+        wards: [],
+        selectedProvince: null,
+        selectedDistrict: null,
+        selectedWard: null,
+        street: ""
+      },
       showOldPwd: false,
       showNewPwd: false,
       showConfirmPwd: false
@@ -139,6 +160,14 @@ export default {
     userAvatar() {
       const name = this.user.first_name || "U";
       return name.charAt(0).toUpperCase();
+    },
+    newAddressString() {
+        const parts = [];
+        if (this.addressState.street) parts.push(this.addressState.street);
+        if (this.addressState.selectedWard) parts.push(this.addressState.selectedWard.name);
+        if (this.addressState.selectedDistrict) parts.push(this.addressState.selectedDistrict.name);
+        if (this.addressState.selectedProvince) parts.push(this.addressState.selectedProvince.name);
+        return parts.join(", ");
     }
   },
   methods: {
@@ -157,10 +186,16 @@ export default {
     },
     async updateInfo() {
       try {
-        await CustomerService.updateProfile(this.user);
+        const dataToUpdate = { ...this.user };
+
+        // Nếu người dùng đã nhập địa chỉ mới, sử dụng nó.
+        if (this.newAddressString) {
+            dataToUpdate.address = this.newAddressString;
+        }
+
+        await CustomerService.updateProfile(dataToUpdate);
         // Cập nhật tên hiển thị trên Header
         localStorage.setItem("user_name", this.user.last_name + " " + this.user.first_name);
-        localStorage.setItem("user_email", this.user.email);
         if (this.user.avatar) {
             localStorage.setItem("user_avatar", this.user.avatar);
         } else {
@@ -170,6 +205,8 @@ export default {
         // Phát sự kiện để AppHeader cập nhật lại avatar ngay lập tức
         window.dispatchEvent(new Event("user-updated"));
 
+        // Tải lại hồ sơ để hiển thị địa chỉ mới nhất
+        await this.fetchProfile();
         showToast("Cập nhật hồ sơ thành công!", "success");
       } catch (error) {
         showToast(error.response?.data?.message || "Cập nhật thất bại", "error");
@@ -209,17 +246,49 @@ export default {
         console.log(error);
         showToast("Lỗi tải ảnh lên", "error");
       }
+    },
+    // API Địa chính
+    async fetchProvinces() {
+        try {
+            const res = await fetch("https://provinces.open-api.vn/api/?depth=1");
+            this.addressState.provinces = await res.json();
+        } catch (e) { console.error(e); }
+    },
+    async fetchDistricts() {
+        this.addressState.districts = [];
+        this.addressState.wards = [];
+        this.addressState.selectedDistrict = null;
+        this.addressState.selectedWard = null;
+        if (this.addressState.selectedProvince) {
+            try {
+                const res = await fetch(`https://provinces.open-api.vn/api/p/${this.addressState.selectedProvince.code}?depth=2`);
+                const data = await res.json();
+                this.addressState.districts = data.districts;
+            } catch (e) { console.error(e); }
+        }
+    },
+    async fetchWards() {
+        this.addressState.wards = [];
+        this.addressState.selectedWard = null;
+        if (this.addressState.selectedDistrict) {
+            try {
+                const res = await fetch(`https://provinces.open-api.vn/api/d/${this.addressState.selectedDistrict.code}?depth=2`);
+                const data = await res.json();
+                this.addressState.wards = data.wards;
+            } catch (e) { console.error(e); }
+        }
     }
   },
-  mounted() {
-    this.fetchProfile();
+  async mounted() {
+    await this.fetchProfile();
+    await this.fetchProvinces();
   }
 };
 </script>
 
 <style scoped>
-.profile-page-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
-.profile-container { flex: 1; padding: 40px 10%; background-color: #f9f9f9; display: flex; justify-content: center; }
+.page-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+.container { flex: 1; padding: 40px 10%; background-color: #f9f9f9; display: flex; justify-content: center; }
 .profile-card { display: flex; background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); width: 100%; max-width: 900px; overflow: hidden; }
 .profile-sidebar { width: 250px; background: #f8f9fa; padding: 30px 20px; text-align: center; border-right: 1px solid #eee; }
 .avatar-large { width: 80px; height: 80px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; margin: 0 auto 15px; overflow: hidden; position: relative; cursor: pointer; }
@@ -243,11 +312,14 @@ export default {
 .forgot-pass-link:hover { color: #e74c3c; text-decoration: underline; }
 .form-group input { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
 .input-group { display: flex; gap: 10px; }
-.btn-upload { padding: 0 15px; background: #e9ecef; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; color: #2c3e50; }
-.btn-otp { padding: 0 15px; background: #302b63; color: white; border: none; border-radius: 8px; cursor: pointer; white-space: nowrap; min-width: 100px; }
-.btn-otp:disabled { background: #ccc; cursor: not-allowed; }
-.disabled-input { background-color: #f0f2f5; color: #7f8c8d; cursor: not-allowed; }
+.form-group select { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: white; }
+.address-selection { display: flex; gap: 10px; margin-bottom: 10px; }
+.street-input { margin-top: 10px; }
+.current-address { background: #f0f0f0; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.95rem; color: #333; }
+.text-muted { font-size: 0.85rem; color: #888; margin-bottom: 10px; display: block; }
+
 .btn-save { padding: 12px 30px; background: linear-gradient(135deg, #0f0c29, #302b63); color: white; border: none; border-radius: 25px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(48, 43, 99, 0.3); }
 @media (max-width: 768px) { .profile-card { flex-direction: column; } .profile-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #eee; } }
+.form-group .toggle-pass { position: absolute; right: 15px; top: 50%; transform: translateY(50%); cursor: pointer; }
 </style>

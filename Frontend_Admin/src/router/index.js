@@ -9,6 +9,8 @@ import SizeManager from '@/views/SizeManager.vue'
 import Login from "@/views/Login.vue";
 import EmployeeForm from "@/views/EmployeeForm.vue";
 import ContactManager from "@/views/ContactManager.vue";
+import WarehouseManager from "@/views/WarehouseManager.vue";
+import WarehouseImport from "@/views/WarehouseImport.vue";
 
 const routes = [
     {
@@ -80,6 +82,21 @@ const routes = [
         path: "/contacts",
         name: "contact.manager",
         component: ContactManager,
+    },
+    {
+        path: "/warehouse",
+        name: "warehouse.manager",
+        component: WarehouseManager,
+    },
+    {
+        path: "/warehouse/import",
+        name: "warehouse.import",
+        component: WarehouseImport,
+    },
+    {
+        path: "/shop-config",
+        name: "shop.config",
+        component: () => import("@/views/ShopConfig.vue"),
     },
     
 ];

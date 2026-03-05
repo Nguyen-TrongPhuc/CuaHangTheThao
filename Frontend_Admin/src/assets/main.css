@@ -1,5 +1,17 @@
 @import './base.css';
 
+/* Force Font Awesome icons to display */
+.fa, .fas, .far, .fal, .fab, i[class^="fa-"], i[class*=" fa-"] {
+  display: inline-block !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 1em !important;
+  min-height: 1em !important;
+  font-size: 1em !important;
+  line-height: 1 !important;
+  overflow: visible !important;
+}
+
 #app {
   max-width: 1280px;
   margin: 0 auto;

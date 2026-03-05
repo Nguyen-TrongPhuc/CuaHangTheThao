@@ -42,33 +42,6 @@
             </div>
           </div>
 
-          <div class="filter-group">
-            <h3>Kích thước</h3>
-            <div class="size-options">
-              <button 
-                v-for="size in sizes" 
-                :key="size._id" 
-                :class="['size-tag', { active: selectedSizes.includes(size._id) }]"
-                @click="toggleSize(size._id)"
-              >{{ size.name }}</button>
-            </div>
-          </div>
-
-          <div class="filter-group">
-            <h3>Màu sắc</h3>
-            <div class="color-options">
-              <button 
-                v-for="color in colors" 
-                :key="color._id" 
-                :class="['color-tag', { active: selectedColors.includes(color._id) }]"
-                @click="toggleColor(color._id)"
-              >
-                <span class="color-dot" :style="{ backgroundColor: color.hex || '#ccc' }"></span>
-                {{ color.name }}
-              </button>
-            </div>
-          </div>
-
           <button class="btn-reset-filter" @click="resetFilters">Xóa bộ lọc</button>
         </aside>
 
@@ -142,8 +115,6 @@
 import ProductService from "@/services/products.service";
 import CategoryService from "@/services/categories.service";
 import SportService from "@/services/sports.service";
-import SizesService from "@/services/sizes.service";
-import ColorsService from "@/services/colors.service";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
 
@@ -158,8 +129,6 @@ export default {
       // Filter Data
       categories: [],
       sports: [],
-      sizes: [],
-      colors: [],
 
       // Filter State
       localSearch: "",
@@ -167,8 +136,6 @@ export default {
       selectedSport: "",
       minPrice: null,
       maxPrice: null,
-      selectedSizes: [],
-      selectedColors: [],
       sortBy: "newest",
 
       // Pagination
@@ -248,20 +215,6 @@ export default {
         filtered = filtered.filter(p => p.price <= this.maxPrice);
       }
 
-      // 5. Sizes (Nếu sản phẩm có biến thể chứa size đã chọn)
-      if (this.selectedSizes.length > 0) {
-        filtered = filtered.filter(p => 
-            p.variants && p.variants.some(v => this.selectedSizes.includes(v.size_id))
-        );
-      }
-
-      // 6. Colors (Nếu sản phẩm có biến thể chứa màu đã chọn)
-      if (this.selectedColors.length > 0) {
-        filtered = filtered.filter(p => 
-            p.variants && p.variants.some(v => this.selectedColors.includes(v.color_id))
-        );
-      }
-
       this.filteredProducts = filtered;
       this.handleSort(); // Sắp xếp lại sau khi lọc
       this.currentPage = 1; // Reset về trang 1
@@ -285,30 +238,12 @@ export default {
         }
         this.filteredProducts = sorted;
     },
-    toggleSize(id) {
-        if (this.selectedSizes.includes(id)) {
-            this.selectedSizes = this.selectedSizes.filter(s => s !== id);
-        } else {
-            this.selectedSizes.push(id);
-        }
-        this.applyFilters();
-    },
-    toggleColor(id) {
-        if (this.selectedColors.includes(id)) {
-            this.selectedColors = this.selectedColors.filter(c => c !== id);
-        } else {
-            this.selectedColors.push(id);
-        }
-        this.applyFilters();
-    },
     resetFilters() {
         this.localSearch = "";
         this.selectedCategory = "";
         this.selectedSport = "";
         this.minPrice = null;
         this.maxPrice = null;
-        this.selectedSizes = [];
-        this.selectedColors = [];
         this.sortBy = "newest";
         this.applyFilters();
     },
@@ -320,11 +255,9 @@ export default {
     },
     async loadFilterData() {
       try {
-        [this.categories, this.sports, this.sizes, this.colors] = await Promise.all([
+        [this.categories, this.sports] = await Promise.all([
           CategoryService.getAll(),
           SportService.getAll(),
-          SizesService.getAll(),
-          ColorsService.getAll(),
         ]);
       } catch (error) {
         console.error("Lỗi tải dữ liệu bộ lọc:", error);

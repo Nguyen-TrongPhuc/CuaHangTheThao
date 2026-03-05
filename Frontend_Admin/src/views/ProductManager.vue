@@ -72,8 +72,9 @@
             <input v-model="form.price" type="number" placeholder="Giá chung" required class="input-field" />
             </div>
             <div class="form-group">
-            <label>Tồn kho (Cho sản phẩm không biến thể):</label>
-            <input v-model="form.stock" type="number" placeholder="Số lượng" class="input-field" min="0" />
+            <label>Tồn kho (Quản lý qua Nhập kho):</label>
+            <input v-model="form.stock" type="number" placeholder="0" class="input-field" disabled />
+            <small style="color: #7f8c8d; font-style: italic;">* Số lượng tồn kho sẽ được cập nhật tự động khi tạo phiếu nhập hàng.</small>
             </div>
             <div class="form-group">
             <label>Hình ảnh sản phẩm:</label>
@@ -130,7 +131,7 @@
                         <option v-for="c in colors" :key="c._id" :value="c._id">{{ c.name }}</option>
                     </select>
 
-                    <input type="number" v-model="variant.stock" placeholder="Kho" style="width: 70px;" min="0">
+                    <input type="number" v-model="variant.stock" placeholder="Kho" style="width: 70px;" disabled>
                     <input type="number" v-model="variant.price" placeholder="Giá riêng" style="width: 100px;">
                     
                     <button type="button" @click="removeVariant(index)" class="btn-del-variant" style="width: 32px; padding: 5px 0;">X</button>

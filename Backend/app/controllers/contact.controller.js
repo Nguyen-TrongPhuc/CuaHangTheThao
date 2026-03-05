@@ -70,7 +70,7 @@ exports.delete = async (req, res, next) => {
     try {
         const contactService = new ContactService(MongoDB.client);
         const result = await contactService.delete(req.params.id);
-        if (!result || !result._id) {
+        if (!result) {
             return next(new ApiError(404, "Không tìm thấy liên hệ"));
         }
         return res.status(200).json({ message: "Liên hệ đã được xóa thành công" });

@@ -13,7 +13,9 @@ class OrderService {
         return (await this.api.put(`/${id}`, data)).data;
     }
 
-    // Có thể thêm delete nếu cần
+    async delete(id) {
+        return (await this.api.delete(`/${id}`)).data;
+    }
 }
 
 export default new OrderService();

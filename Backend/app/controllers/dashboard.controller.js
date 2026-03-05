@@ -14,3 +14,51 @@ exports.getSummary = async (req, res, next) => {
         );
     }
 };
+
+exports.getMonthlySales = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const { year } = req.query;
+        const data = await dashboardService.getMonthlySales(year);
+        res.send(data);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving monthly sales"));
+    }
+};
+
+exports.getTopCustomers = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const { startDate, endDate, limit } = req.query;
+        const data = await dashboardService.getTopCustomers(startDate, endDate, limit);
+        res.send(data);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving top customers"));
+    }
+};
+
+exports.getLowStockProducts = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const { threshold } = req.query;
+        const data = await dashboardService.getLowStockProducts(threshold);
+        res.send(data);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving low stock products"));
+    }
+};
+
+exports.getImportReport = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const { startDate, endDate } = req.query;
+        const data = await dashboardService.getImportReport(startDate, endDate);
+        res.send(data);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving import report"));
+    }
+};

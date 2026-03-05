@@ -1,25 +1,16 @@
 
 @import './base.css';
 
-/* Ensure Font Awesome icons display correctly */
-i[class^="fa-"],
-i[class*=" fa-"] {
-  display: inline-block;
-  font-style: normal;
-  font-variant: normal;
-  text-rendering: auto;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  line-height: 1;
-  vertical-align: -0.125em;
-}
-
-.fa-solid,
-.fa-regular,
-.fas,
-.far {
-  font-family: 'Font Awesome 6 Free';
-  font-weight: 900;
+/* Force Font Awesome icons to display */
+.fa, .fas, .far, .fal, .fab, i[class^="fa-"], i[class*=" fa-"] {
+  display: inline-block !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 1em !important;
+  min-height: 1em !important;
+  font-size: 1em !important;
+  line-height: 1 !important;
+  overflow: visible !important;
 }
 
 #app {

@@ -39,6 +39,11 @@
           <div class="order-body">
             <p class="order-date">Ngày đặt: {{ formatDate(order.createdAt) }}</p>
             <p class="order-total">Tổng tiền: <strong>{{ formatPrice(order.total_amount) }}đ</strong></p>
+            <p class="order-shipping" v-if="order.shipping_fee">Phí vận chuyển: {{ formatPrice(order.shipping_fee) }}đ</p>
+            <p class="order-payment">
+              <span>Thanh toán: <strong>{{ getPaymentMethodName(order.payment_method) }}</strong></span>
+              <span :class="['payment-status', order.payment_status]">{{ getPaymentStatusName(order.payment_status) }}</span>
+            </p>
             <p class="order-info" v-if="order.name">Người nhận: {{ order.name }} ({{ order.phone }})</p>
             <p class="order-address">Địa chỉ: {{ order.address || 'Chưa cập nhật (Đơn hàng cũ)' }}</p>
           </div>
@@ -152,7 +157,8 @@ export default {
       }
     },
     formatPrice(value) {
-      return new Intl.NumberFormat('vi-VN').format(value);
+      const num = Number(value);
+      return new Intl.NumberFormat('vi-VN').format(isNaN(num) ? 0 : num);
     },
     formatDate(dateString) {
       return new Date(dateString).toLocaleString('vi-VN');
@@ -190,6 +196,25 @@ export default {
     getColorName(id) {
         const c = this.colors.find(x => String(x._id) === String(id));
         return c ? c.name : '';
+    },
+    getPaymentMethodName(method) {
+        const methods = {
+            'cod': 'COD',
+            'vnpay': 'VNPAY',
+            'momo': 'MoMo',
+            'bank_transfer': 'Chuyển khoản'
+        };
+        return methods[method] || method || 'COD';
+    },
+    getPaymentStatusName(status) {
+        const statuses = {
+            'unpaid': 'Chưa thanh toán',
+            'paid': 'Đã thanh toán',
+            'pending': 'Chờ thanh toán',
+            'failed': 'Thất bại',
+            'refunded': 'Đã hoàn tiền'
+        };
+        return statuses[status] || status || 'Chưa thanh toán';
     },
     async confirmReceived(order) {
       if (confirm("Bạn xác nhận đã nhận được hàng và muốn hoàn thành đơn hàng này?")) {
@@ -336,4 +361,11 @@ export default {
 
 .no-orders { text-align: center; margin-top: 50px; color: #777; }
 .btn-shop { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #2c3e50; color: white; text-decoration: none; border-radius: 20px; }
+
+.order-payment { display: flex; align-items: center; gap: 10px; }
+.payment-status { padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; }
+.payment-status.unpaid { background: #fff3e0; color: #f57c00; }
+.payment-status.paid { background: #e8f5e9; color: #388e3c; }
+.payment-status.pending { background: #e3f2fd; color: #1976d2; }
+.payment-status.failed { background: #ffebee; color: #d32f2f; }
 </style>

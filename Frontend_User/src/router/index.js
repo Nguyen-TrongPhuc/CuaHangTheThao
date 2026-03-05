@@ -104,6 +104,11 @@ const routes = [
             if (!localStorage.getItem("user_token")) next({ name: 'login' });
             else next();
         }
+    },
+    {
+        path: '/payment-result',
+        name: 'payment-result',
+        component: () => import('@/views/PaymentResult.vue')
     }
     
 ];

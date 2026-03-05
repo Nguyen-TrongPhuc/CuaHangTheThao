@@ -64,6 +64,139 @@
           </li>
         </ul>
       </div>
+
+      <!-- NEW: Detailed Reports Tabs -->
+      <div class="detailed-reports-container">
+        <div class="dashboard-tabs">
+          <button :class="{ active: activeTab === 'sales' }" @click="activeTab = 'sales'">Doanh số tháng</button>
+          <button :class="{ active: activeTab === 'customers' }" @click="activeTab = 'customers'">Top Khách hàng</button>
+          <button :class="{ active: activeTab === 'stock' }" @click="activeTab = 'stock'">Sắp hết hàng</button>
+          <button :class="{ active: activeTab === 'import' }" @click="activeTab = 'import'">Lịch sử nhập kho</button>
+        </div>
+
+        <div class="tab-content">
+          <!-- 1. Doanh số theo tháng -->
+          <div v-if="activeTab === 'sales'" class="report-section">
+            <div class="section-header">
+              <h3>Thống kê doanh số theo tháng</h3>
+              <div class="filters">
+                <select v-model="salesYear" @change="fetchMonthlySales">
+                  <option v-for="y in years" :key="y" :value="y">Năm {{ y }}</option>
+                </select>
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tháng</th>
+                  <th>Số đơn hàng</th>
+                  <th>Doanh thu</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in monthlySales" :key="item.month">
+                  <td>Tháng {{ item.month }}</td>
+                  <td>{{ item.orderCount }}</td>
+                  <td class="price-col">{{ formatPrice(item.totalRevenue) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 2. Top Khách hàng -->
+          <div v-if="activeTab === 'customers'" class="report-section">
+            <div class="section-header">
+              <h3>Khách hàng mua nhiều nhất</h3>
+              <div class="filters">
+                <input type="date" v-model="customerStart" @change="fetchTopCustomers">
+                <span>đến</span>
+                <input type="date" v-model="customerEnd" @change="fetchTopCustomers">
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Khách hàng</th>
+                  <th>Email</th>
+                  <th>Số đơn</th>
+                  <th>Tổng chi tiêu</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in topCustomers" :key="c._id">
+                  <td>{{ c.name }}</td>
+                  <td>{{ c.email }}</td>
+                  <td>{{ c.orderCount }}</td>
+                  <td class="price-col">{{ formatPrice(c.totalSpent) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 3. Sản phẩm sắp hết hàng -->
+          <div v-if="activeTab === 'stock'" class="report-section">
+            <div class="section-header">
+              <h3>Sản phẩm tồn kho thấp</h3>
+              <div class="filters">
+                <label>Mức cảnh báo:</label>
+                <input type="number" v-model="stockThreshold" @change="fetchLowStock" min="1" style="width: 60px">
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Hình ảnh</th>
+                  <th>Tên sản phẩm</th>
+                  <th>Giá bán</th>
+                  <th>Tồn kho</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in lowStockProducts" :key="p._id">
+                  <td><img :src="p.image || 'https://via.placeholder.com/40'" class="thumb-img"></td>
+                  <td>{{ p.name }}</td>
+                  <td>{{ formatPrice(p.price) }}</td>
+                  <td style="color: red; font-weight: bold">{{ p.stock }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 4. Báo cáo nhập hàng -->
+          <div v-if="activeTab === 'import'" class="report-section">
+            <div class="section-header">
+              <h3>Báo cáo nhập hàng</h3>
+              <div class="filters">
+                <input type="date" v-model="importStart" @change="fetchImportReport">
+                <span>đến</span>
+                <input type="date" v-model="importEnd" @change="fetchImportReport">
+              </div>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Ngày nhập</th>
+                  <th>Sản phẩm</th>
+                  <th>Người nhập</th>
+                  <th>Số lượng</th>
+                  <th>Đơn giá gốc</th>
+                  <th>Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="i in importReport" :key="i._id">
+                  <td>{{ formatDate(i.createdAt) }}</td>
+                  <td>{{ i.product_name }}</td>
+                  <td>{{ i.importer }}</td>
+                  <td>{{ i.quantity }}</td>
+                  <td>{{ formatPrice(i.import_price) }}</td>
+                  <td class="price-col">{{ formatPrice(i.total_cost) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -105,13 +238,36 @@ export default {
       topProducts: [],
       chartOptions: {
         responsive: true,
-        maintainAspectRatio: false
-      }
+        maintainAspectRatio: false,
+      },
+      // New Data
+      activeTab: 'sales',
+      salesYear: new Date().getFullYear(),
+      years: [ 2024, 2025, 2026],
+      monthlySales: [],
+      customerStart: '',
+      customerEnd: '',
+      topCustomers: [],
+      stockThreshold: 10,
+      lowStockProducts: [],
+      importStart: '',
+      importEnd: '',
+      importReport: []
     };
   },
   methods: {
     formatPrice(value) {
       return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+    },
+    formatDate(date) {
+      return new Date(date).toLocaleString('vi-VN');
+    },
+    initDates() {
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const formatDateInput = (date) => date.toISOString().split('T')[0];
+      this.customerStart = this.importStart = formatDateInput(firstDay);
+      this.customerEnd = this.importEnd = formatDateInput(today);
     },
     async fetchDashboardData() {
       this.isLoading = true;
@@ -170,10 +326,30 @@ export default {
             'returned': 'Đã trả hàng'
         };
         return map[status] || status;
+    },
+    // New Fetch Methods
+    async fetchMonthlySales() {
+      try { this.monthlySales = await DashboardService.getMonthlySales(this.salesYear); } catch (e) { console.error(e); }
+    },
+    async fetchTopCustomers() {
+      try { this.topCustomers = await DashboardService.getTopCustomers(this.customerStart, this.customerEnd); } catch (e) { console.error(e); }
+    },
+    async fetchLowStock() {
+      try { this.lowStockProducts = await DashboardService.getLowStockProducts(this.stockThreshold); } catch (e) { console.error(e); }
+    },
+    async fetchImportReport() {
+      try { this.importReport = await DashboardService.getImportReport(this.importStart, this.importEnd); } catch (e) { console.error(e); }
     }
   },
   mounted() {
+    this.initDates();
     this.fetchDashboardData();
+    
+    // Fetch new reports
+    this.fetchMonthlySales();
+    this.fetchTopCustomers();
+    this.fetchLowStock();
+    this.fetchImportReport();
   }
 };
 </script>
@@ -207,4 +383,22 @@ export default {
 .product-sold { font-size: 14px; color: #28a745; font-weight: bold; }
 @media (max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } }
 @media (max-width: 768px) { .summary-cards { grid-template-columns: 1fr; } }
+
+/* New Styles for Tabs and Tables */
+.detailed-reports-container { margin-top: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); padding: 20px; }
+.dashboard-tabs { margin-bottom: 20px; border-bottom: 1px solid #ddd; display: flex; gap: 10px; overflow-x: auto; }
+.dashboard-tabs button { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 16px; color: #555; font-weight: 500; white-space: nowrap; }
+.dashboard-tabs button.active { border-bottom-color: #3498db; color: #3498db; }
+.dashboard-tabs button:hover { color: #3498db; }
+
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.section-header h3 { margin: 0; color: #2c3e50; font-size: 18px; }
+.filters { display: flex; align-items: center; gap: 10px; }
+.filters input, .filters select { padding: 5px 10px; border: 1px solid #ddd; border-radius: 4px; }
+
+.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+.data-table th, .data-table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+.data-table th { background-color: #f8f9fa; font-weight: 600; color: #2c3e50; }
+.price-col { font-weight: bold; color: #2c3e50; }
+.thumb-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; }
 </style>

@@ -1,34 +1,46 @@
 <template>
   <div class="register-container">
     <div class="register-box">
-      <h2>Đăng ký Tài khoản</h2>
+      <h2>Đăng ký tài khoản</h2>
       <form @submit.prevent="handleRegister">
-        <div class="form-row">
-            <input type="text" v-model="user.last_name" required placeholder="Họ" class="half" />
-            <input type="text" v-model="user.first_name" required placeholder="Tên" class="half" />
+        <div class="name-group">
+            <input v-model="form.last_name" type="text" placeholder="Họ" required />
+            <input v-model="form.first_name" type="text" placeholder="Tên" required />
+        </div>
+        <input v-model="form.email" type="email" placeholder="Email" required />
+        <input v-model="form.phone" type="tel" placeholder="Số điện thoại" required />
+        
+        <div class="input-with-icon">
+            <input :type="showPwd ? 'text' : 'password'" v-model="form.password" placeholder="Mật khẩu" required />
+            <span class="toggle-pass" @click="showPwd = !showPwd">
+                <i :class="showPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+            </span>
         </div>
 
-        <input type="email" v-model="user.email" required placeholder="Email" />
-        <input type="text" v-model="user.phone" required placeholder="Số điện thoại" />
-        <input type="text" v-model="user.address" required placeholder="Địa chỉ" />
-        <div class="password-wrapper">
-          <input
-            :type="showPwd ? 'text' : 'password'"
-            v-model="user.password"
-            required
-            placeholder="Mật khẩu (8+ ký tự, Hoa, thường, số, ký tự đặc biệt)"
-          />
-          <i
-            :class="['fa-solid', showPwd ? 'fa-eye-slash' : 'fa-eye']"
-            class="toggle-pwd"
-            @click="showPwd = !showPwd"
-          ></i>
+        <!-- Chọn địa chỉ -->
+        <div class="address-group">
+            <label>Địa chỉ:</label>
+            <div class="address-selection">
+                <select v-model="addressState.selectedProvince" @change="fetchDistricts" class="form-control">
+                    <option :value="null">-- Tỉnh/Thành phố --</option>
+                    <option v-for="p in addressState.provinces" :key="p.code" :value="p">{{ p.name }}</option>
+                </select>
+                <select v-model="addressState.selectedDistrict" @change="fetchWards" class="form-control" :disabled="!addressState.selectedProvince">
+                    <option :value="null">-- Quận/Huyện --</option>
+                    <option v-for="d in addressState.districts" :key="d.code" :value="d">{{ d.name }}</option>
+                </select>
+                <select v-model="addressState.selectedWard" @change="updateFullAddress" class="form-control" :disabled="!addressState.selectedDistrict">
+                    <option :value="null">-- Phường/Xã --</option>
+                    <option v-for="w in addressState.wards" :key="w.code" :value="w">{{ w.name }}</option>
+                </select>
+            </div>
+            <input v-model="addressState.street" @input="updateFullAddress" type="text" placeholder="Số nhà, tên đường..." required />
         </div>
 
         <button type="submit" class="btn-register">Đăng ký</button>
       </form>
       <p class="login-link">
-        Đã có tài khoản? <router-link to="/login">Đăng nhập ngay</router-link>
+        Đã có tài khoản? <router-link to="/login">Đăng nhập</router-link>
       </p>
     </div>
   </div>
@@ -37,56 +49,97 @@
 <script>
 import AuthService from "@/services/auth.service";
 import { showToast } from "@/utils/toast";
+import { reactive, ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 
 export default {
-  data() {
-    return {
-      user: {
+  setup() {
+    const router = useRouter();
+    const showPwd = ref(false);
+    const form = reactive({
         first_name: "",
         last_name: "",
         email: "",
-        phone: "",
-        address: "",
         password: "",
-        customer_type: "member"
-      },
-      showPwd: false
+        phone: "",
+        address: ""
+    });
+
+    // State cho địa chỉ
+    const addressState = reactive({
+        provinces: [],
+        districts: [],
+        wards: [],
+        selectedProvince: null,
+        selectedDistrict: null,
+        selectedWard: null,
+        street: ""
+    });
+
+    // API Địa chính
+    const fetchProvinces = async () => {
+        try {
+            const res = await fetch("https://provinces.open-api.vn/api/?depth=1");
+            addressState.provinces = await res.json();
+        } catch (e) { console.error(e); }
     };
-  },
-  methods: {
-    isValidPhone(phone) {
-      const phoneRegex = /^0\d{9}$/;
-      return phoneRegex.test(phone);
-    },
-    async handleRegister() {
-      if (!this.isValidPhone(this.user.phone)) {
-        showToast("Số điện thoại không hợp lệ (phải có 10 số và bắt đầu bằng 0)", "error");
-        return;
-      }
 
-      // Kiểm tra định dạng Email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(this.user.email)) {
-        showToast("Địa chỉ Email không hợp lệ.", "error");
-        return;
-      }
+    const fetchDistricts = async () => {
+        addressState.districts = [];
+        addressState.wards = [];
+        addressState.selectedDistrict = null;
+        addressState.selectedWard = null;
+        updateFullAddress();
+        if (addressState.selectedProvince) {
+            try {
+                const res = await fetch(`https://provinces.open-api.vn/api/p/${addressState.selectedProvince.code}?depth=2`);
+                const data = await res.json();
+                addressState.districts = data.districts;
+            } catch (e) { console.error(e); }
+        }
+    };
 
-      // Kiểm tra mật khẩu mạnh
-      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-      if (!passwordRegex.test(this.user.password)) {
-        showToast("Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.", "error");
-        return;
-      }
+    const fetchWards = async () => {
+        addressState.wards = [];
+        addressState.selectedWard = null;
+        updateFullAddress();
+        if (addressState.selectedDistrict) {
+            try {
+                const res = await fetch(`https://provinces.open-api.vn/api/d/${addressState.selectedDistrict.code}?depth=2`);
+                const data = await res.json();
+                addressState.wards = data.wards;
+            } catch (e) { console.error(e); }
+        }
+    };
 
+    const updateFullAddress = () => {
+        const parts = [];
+        if (addressState.street) parts.push(addressState.street);
+        if (addressState.selectedWard) parts.push(addressState.selectedWard.name);
+        if (addressState.selectedDistrict) parts.push(addressState.selectedDistrict.name);
+        if (addressState.selectedProvince) parts.push(addressState.selectedProvince.name);
+        form.address = parts.join(", ");
+    };
+
+    const handleRegister = async () => {
       try {
-        await AuthService.register(this.user);
+        // Validation đã có ở backend, có thể thêm ở đây nếu muốn
+        await AuthService.register(form);
         showToast("Đăng ký thành công! Vui lòng đăng nhập.", "success");
-        this.$router.push("/login");
+        router.push("/login");
       } catch (error) {
-        console.log(error);
-        showToast(error.response?.data?.message || "Đăng ký thất bại.", "error");
+        showToast(error.response?.data?.message || "Đăng ký thất bại", "error");
       }
-    }
+    };
+
+    onMounted(() => {
+        fetchProvinces();
+    });
+
+    return {
+        form, showPwd, addressState,
+        fetchDistricts, fetchWards, updateFullAddress, handleRegister
+    };
   }
 };
 </script>
@@ -99,29 +152,28 @@ export default {
   min-height: 100vh;
   background: linear-gradient(135deg, #ffffff, #ffffff, #ffffff);
 }
-.register-box { background: rgba(15, 12, 41, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 15px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); width: 100%; max-width: 450px; color: white; text-align: center; }
+.register-box { background: rgba(15, 12, 41, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.1); padding: 40px; border-radius: 15px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); width: 100%; max-width: 450px; color: white; }
+h2 { text-align: center; margin-bottom: 30px; }
 
-h2 { margin-bottom: 30px; font-weight: bold; letter-spacing: 1px; }
+input, select { width: 100%; margin-bottom: 15px; padding: 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; background: rgba(255, 255, 255, 0.05); color: white; box-sizing: border-box; }
+input:focus, select:focus { border-color: #00c6ff; outline: none; background: rgba(255, 255, 255, 0.1); }
+select option { background: #333; color: white; }
 
-.form-row { display: flex; gap: 15px; margin-bottom: 0; }
+.name-group { display: flex; gap: 10px; }
+.input-with-icon { position: relative; }
+.toggle-pass { position: absolute; right: 15px; top: 12px; cursor: pointer; color: rgba(255,255,255,0.7); }
 
-input { width: 100%; margin-bottom: 20px; padding: 12px 20px; border: 1px solid rgba(255,255,255,0.2); border-radius: 25px; background: rgba(255, 255, 255, 0.05); color: white; box-sizing: border-box; transition: 0.3s; font-size: 15px; }
-input:focus { border-color: #00c6ff; background: rgba(255, 255, 255, 0.1); outline: none; box-shadow: 0 0 10px rgba(0, 198, 255, 0.3); }
+.address-group label { display: block; margin-bottom: 5px; font-weight: bold; padding-left: 15px; }
+.address-selection { display: flex; gap: 5px; margin-bottom: 10px; }
+.address-selection select { padding: 8px; border-radius: 5px; font-size: 0.9rem; }
 
-/* eye icon for password toggle */
-.password-wrapper { position: relative; margin-bottom: 20px; }
-.password-wrapper input { margin-bottom: 0; }
-.password-wrapper .toggle-pwd { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.7); z-index: 2; }
-.password-wrapper .toggle-pwd:hover { color: rgba(255,255,255,1); }
+button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); }
 
-button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); font-size: 16px; }
-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 114, 255, 0.5); }
+.login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: rgba(255,255,255,0.7); }
+.login-link a { color: #00c6ff; text-decoration: none; font-weight: bold; }
+.login-link a:hover { text-decoration: underline; }
 
-.login-link { margin-top: 20px; font-size: 0.9rem; color: rgba(255,255,255,0.7); }
-.login-link a { color: #00c6ff; text-decoration: none; font-weight: bold; transition: 0.3s; }
-.login-link a:hover { text-decoration: underline; color: #0072ff; }
-
-/* Placeholder color */
 ::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }

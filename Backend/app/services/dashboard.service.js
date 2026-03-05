@@ -6,6 +6,7 @@ class DashboardService {
         this.OrderDetails = client.db().collection("order_details");
         this.Products = client.db().collection("products");
         this.Customers = client.db().collection("customers");
+        this.Warehouse = client.db().collection("warehouse");
     }
 
     async getSummary() {
@@ -176,6 +177,129 @@ class DashboardService {
                     totalSold: "$totalSold"
                 }
             }
+        ]).toArray();
+    }
+
+    // 1. Thống kê doanh số theo tháng trong năm
+    async getMonthlySales(year) {
+        const y = parseInt(year) || new Date().getFullYear();
+        const startOfYear = new Date(y, 0, 1);
+        const endOfYear = new Date(y, 11, 31, 23, 59, 59);
+
+        const result = await this.Orders.aggregate([
+            {
+                $match: {
+                    status: { $in: ["completed", "delivered", "paid"] },
+                    createdAt: { $gte: startOfYear, $lte: endOfYear }
+                }
+            },
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    totalRevenue: { $sum: "$total_amount" },
+                    orderCount: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+        
+        // Điền dữ liệu cho các tháng không có doanh thu
+        const fullData = [];
+        for (let m = 1; m <= 12; m++) {
+            const found = result.find(r => r._id === m);
+            fullData.push({
+                month: m,
+                totalRevenue: found ? found.totalRevenue : 0,
+                orderCount: found ? found.orderCount : 0
+            });
+        }
+        return fullData;
+    }
+
+    // 2. Khách hàng mua nhiều nhất trong khoảng thời gian
+    async getTopCustomers(startDate, endDate, limit = 10) {
+        const start = startDate ? new Date(startDate) : new Date(0);
+        const end = endDate ? new Date(endDate) : new Date();
+        // Đảm bảo lấy hết ngày cuối cùng
+        if (endDate && endDate.indexOf('T') === -1) {
+             end.setHours(23, 59, 59, 999);
+        }
+
+        return await this.Orders.aggregate([
+            {
+                $match: {
+                    status: { $in: ["completed", "delivered", "paid"] },
+                    createdAt: { $gte: start, $lte: end }
+                }
+            },
+            {
+                $group: {
+                    _id: "$customer_id",
+                    totalSpent: { $sum: "$total_amount" },
+                    orderCount: { $sum: 1 }
+                }
+            },
+            { $sort: { totalSpent: -1 } },
+            { $limit: parseInt(limit) },
+            {
+                $lookup: {
+                    from: "customers",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "customer"
+                }
+            },
+            { $unwind: "$customer" },
+            {
+                $project: {
+                    _id: 1,
+                    name: { $concat: ["$customer.last_name", " ", "$customer.first_name"] },
+                    email: "$customer.email",
+                    phone: "$customer.phone",
+                    totalSpent: 1,
+                    orderCount: 1
+                }
+            }
+        ]).toArray();
+    }
+
+    // 3. Sản phẩm sắp hết hàng (Low Stock)
+    async getLowStockProducts(threshold = 10) {
+        return await this.Products.find({ 
+            stock: { $lte: parseInt(threshold) } 
+        })
+        .sort({ stock: 1 })
+        .project({ name: 1, stock: 1, image: 1, price: 1 })
+        .toArray();
+    }
+
+    // 4. Báo cáo nhập hàng (Đơn giá gốc, ngày nhập, người nhập, số lượng)
+    async getImportReport(startDate, endDate) {
+        const start = startDate ? new Date(startDate) : new Date(0);
+        const end = endDate ? new Date(endDate) : new Date();
+        if (endDate && endDate.indexOf('T') === -1) {
+             end.setHours(23, 59, 59, 999);
+        }
+
+        // Kết nối bảng warehouse -> products -> employees
+        return await this.Warehouse.aggregate([
+            { $match: { createdAt: { $gte: start, $lte: end } } },
+            { $lookup: { from: "products", localField: "product_id", foreignField: "_id", as: "product" } },
+            { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+            { $lookup: { from: "employees", localField: "employee_id", foreignField: "_id", as: "employee" } },
+            { $unwind: { path: "$employee", preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    _id: 1,
+                    product_name: "$product.name",
+                    import_price: "$import_price", // Đơn giá gốc
+                    quantity: "$quantity",         // Số lượng
+                    total_cost: { $multiply: ["$import_price", "$quantity"] },
+                    importer: "$employee.full_name", // Người nhập
+                    createdAt: 1                   // Ngày nhập
+                }
+            },
+            { $sort: { createdAt: -1 } }
         ]).toArray();
     }
 }

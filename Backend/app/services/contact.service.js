@@ -36,14 +36,14 @@ class ContactService {
         const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
         const update = { $set: { ...payload, updated_at: new Date() } };
         const result = await this.Contacts.findOneAndUpdate(filter, update, { returnDocument: "after" });
-        return result.value;
+        return result;
     }
 
     async delete(id) {
         const result = await this.Contacts.findOneAndDelete({
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         });
-        return result.value;
+        return result;
     }
 
     async deleteAll() {
@@ -55,7 +55,7 @@ class ContactService {
         const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
         const update = { $set: { status: "read", read_at: new Date() } };
         const result = await this.Contacts.findOneAndUpdate(filter, update, { returnDocument: "after" });
-        return result.value;
+        return result;
     }
 
     async reply(id, replyMessage) {
@@ -68,7 +68,7 @@ class ContactService {
             } 
         };
         const result = await this.Contacts.findOneAndUpdate(filter, update, { returnDocument: "after" });
-        return result.value;
+        return result;
     }
 }
 

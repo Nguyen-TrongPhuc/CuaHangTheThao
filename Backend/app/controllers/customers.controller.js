@@ -150,6 +150,10 @@ exports.login = async (req, res, next) => {
             return next(new ApiError(401, "Incorrect email or password"));
         }
 
+        if (!user.password) {
+            return next(new ApiError(500, "Dữ liệu tài khoản lỗi (Thiếu mật khẩu)"));
+        }
+
         const passwordMatch = await bcrypt.compare(
             req.body.password,
             user.password
@@ -157,6 +161,11 @@ exports.login = async (req, res, next) => {
 
         if (!passwordMatch) {
             return next(new ApiError(401, "Incorrect email or password"));
+        }
+
+        if (!config.jwt.secret) {
+            console.error("❌ Lỗi: Chưa cấu hình JWT_SECRET trong .env hoặc config");
+            return next(new ApiError(500, "Lỗi cấu hình Server (Thiếu JWT Secret)"));
         }
 
         const token = jwt.sign(
@@ -173,6 +182,7 @@ exports.login = async (req, res, next) => {
             user: userWithoutPassword,
         });
     } catch (error) {
+        console.error("❌ Lỗi đăng nhập:", error);
         return next(new ApiError(500, "An error occurred during login"));
     }
 };
