@@ -51,25 +51,14 @@
         </div>
       </div>
 
-      <!-- Top Products -->
-      <div class="top-products-container">
-        <h3>Top 5 sản phẩm bán chạy nhất</h3>
-        <div v-if="topProducts.length === 0" class="empty-list">Chưa có dữ liệu.</div>
-        <ul v-else class="product-list">
-          <li v-for="(product, index) in topProducts" :key="product._id">
-            <span class="rank">{{ index + 1 }}</span>
-            <img :src="product.image || 'https://via.placeholder.com/40'" class="product-img" />
-            <span class="product-name">{{ product.name }}</span>
-            <span class="product-sold">{{ product.totalSold }} lượt bán</span>
-          </li>
-        </ul>
-      </div>
+    
 
       <!-- NEW: Detailed Reports Tabs -->
       <div class="detailed-reports-container">
         <div class="dashboard-tabs">
           <button :class="{ active: activeTab === 'sales' }" @click="activeTab = 'sales'">Doanh số tháng</button>
           <button :class="{ active: activeTab === 'customers' }" @click="activeTab = 'customers'">Top Khách hàng</button>
+          <button :class="{ active: activeTab === 'topProducts' }" @click="activeTab = 'topProducts'">Sản phẩm bán chạy</button>
           <button :class="{ active: activeTab === 'stock' }" @click="activeTab = 'stock'">Sắp hết hàng</button>
           <button :class="{ active: activeTab === 'import' }" @click="activeTab = 'import'">Lịch sử nhập kho</button>
         </div>
@@ -90,14 +79,24 @@
                 <tr>
                   <th>Tháng</th>
                   <th>Số đơn hàng</th>
+                  <th>SL Bán ra</th>
                   <th>Doanh thu</th>
+                  <th>SL Nhập vào</th>
+                  <th>Chi phí nhập</th>
+                  <th>Lợi nhuận gộp</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="item in monthlySales" :key="item.month">
                   <td>Tháng {{ item.month }}</td>
                   <td>{{ item.orderCount }}</td>
-                  <td class="price-col">{{ formatPrice(item.totalRevenue) }}</td>
+                  <td>{{ item.totalSoldQuantity || 0 }}</td>
+                  <td class="price-col text-success">+{{ formatPrice(item.totalRevenue) }}</td>
+                  <td>{{ item.totalImportQuantity || 0 }}</td>
+                  <td class="price-col text-danger">-{{ formatPrice(item.totalImportCost || 0) }}</td>
+                  <td class="price-col" :class="item.profit >= 0 ? 'text-success' : 'text-danger'">
+                    {{ item.profit > 0 ? '+' : '' }}{{ formatPrice(item.profit || 0) }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -133,10 +132,42 @@
             </table>
           </div>
 
+          <!-- 5. Top Sản phẩm bán chạy -->
+          <div v-if="activeTab === 'topProducts'" class="report-section">
+            <div class="section-header">
+              <h3>Top 5 Sản phẩm bán chạy nhất</h3>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Hạng</th>
+                  <th>Hình ảnh</th>
+                  <th>Tên sản phẩm</th>
+                  <th>Lượt mua (số đơn)</th>
+                  <th>Số lượng đã bán</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="topProducts.length === 0">
+                  <td colspan="5" style="text-align: center; padding: 20px;">Chưa có dữ liệu</td>
+                </tr>
+                <tr v-for="(p, index) in topProducts" :key="p._id">
+                  <td>
+                    <span class="rank-badge" :class="'rank-' + (index + 1)">#{{ index + 1 }}</span>
+                  </td>
+                  <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img"></td>
+                  <td style="font-weight: 500;">{{ p.name }}</td>
+                  <td>{{ p.totalSold }}</td>
+                  <td class="price-col text-success">{{ p.totalQuantity }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <!-- 3. Sản phẩm sắp hết hàng -->
           <div v-if="activeTab === 'stock'" class="report-section">
             <div class="section-header">
-              <h3>Sản phẩm tồn kho thấp</h3>
+              <h3>Sản phẩm tồn kho thấp (≤ {{ stockThreshold }})</h3>
               <div class="filters">
                 <label>Mức cảnh báo:</label>
                 <input type="number" v-model="stockThreshold" @change="fetchLowStock" min="1" style="width: 60px">
@@ -148,15 +179,24 @@
                   <th>Hình ảnh</th>
                   <th>Tên sản phẩm</th>
                   <th>Giá bán</th>
-                  <th>Tồn kho</th>
+                  <th>Tồn kho / Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="p in lowStockProducts" :key="p._id">
-                  <td><img :src="p.image || 'https://via.placeholder.com/40'" class="thumb-img"></td>
+                  <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img"></td>
                   <td>{{ p.name }}</td>
                   <td>{{ formatPrice(p.price) }}</td>
-                  <td style="color: red; font-weight: bold">{{ p.stock }}</td>
+                  <td>
+                    <div v-if="p.lowStockVariants && p.lowStockVariants.length > 0">
+                      <span v-for="(v, idx) in p.lowStockVariants" :key="idx" class="variant-badge">
+                        {{ getVariantName(v) }}: <b style="color: #dc3545; font-weight: 800;">{{ v.stock }}</b>
+                      </span>
+                    </div>
+                    <div v-else>
+                        <b style="color: #dc3545;">{{ p.stock }}</b> <span style="font-size: 0.9em; color: #777;">(Sản phẩm đơn giản)</span>
+                    </div>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -205,6 +245,7 @@
 import DashboardService from '@/services/dashboard.service';
 import { Line, Doughnut } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, PointElement, LineElement, ArcElement } from 'chart.js';
+import { showToast } from "@/utils/toast";
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, PointElement, LineElement, ArcElement);
 
@@ -243,7 +284,7 @@ export default {
       // New Data
       activeTab: 'sales',
       salesYear: new Date().getFullYear(),
-      years: [ 2024, 2025, 2026],
+      years: [ 2024, 2025, 2026,2027],
       monthlySales: [],
       customerStart: '',
       customerEnd: '',
@@ -262,6 +303,11 @@ export default {
     formatDate(date) {
       return new Date(date).toLocaleString('vi-VN');
     },
+    getVariantName(variant) {
+      const size = variant.size_name || (variant.size_id ? 'Size?' : '---');
+      const color = variant.color_name || (variant.color_id ? 'Màu?' : '---');
+      return `${size} - ${color}`;
+    },
     initDates() {
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -275,7 +321,7 @@ export default {
         const data = await DashboardService.getSummary();
         
         // Summary Cards
-        this.summary = {
+      this.summary = {
           totalRevenueMonth: data.totalRevenueMonth,
           newOrdersToday: data.newOrdersToday,
           newUsersMonth: data.newUsersMonth,
@@ -368,6 +414,8 @@ export default {
 .card-icon.cancelled { background: linear-gradient(135deg, #dc3545, #c82333); }
 .card-content .card-title { font-size: 14px; color: #6c757d; margin-bottom: 5px; }
 .card-content .card-value { font-size: 24px; font-weight: bold; color: #343a40; }
+
+/* Charts Grid */
 .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
 .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 400px; }
 .chart-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #343a40; }
@@ -381,7 +429,13 @@ export default {
 .product-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
 .product-name { flex: 1; font-weight: 500; color: #343a40; }
 .product-sold { font-size: 14px; color: #28a745; font-weight: bold; }
-@media (max-width: 992px) { .charts-grid { grid-template-columns: 1fr; } }
+
+/* Bottom Grid */
+.bottom-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 30px; }
+
+@media (max-width: 992px) { 
+  .charts-grid, .bottom-grid { grid-template-columns: 1fr; } 
+}
 @media (max-width: 768px) { .summary-cards { grid-template-columns: 1fr; } }
 
 /* New Styles for Tabs and Tables */
@@ -401,4 +455,25 @@ export default {
 .data-table th { background-color: #f8f9fa; font-weight: 600; color: #2c3e50; }
 .price-col { font-weight: bold; color: #2c3e50; }
 .thumb-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; }
+
+.variant-badge {
+  display: inline-block;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  margin-right: 5px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.text-success { color: #28a745 !important; }
+.text-danger { color: #dc3545 !important; }
+
+/* Rank Badge */
+.rank-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; background: #f0f0f0; color: #555; }
+.rank-1 { background: #fff3cd; color: #856404; } /* Vàng */
+.rank-2 { background: #e2e3e5; color: #383d41; } /* Bạc */
+.rank-3 { background: #f8d7da; color: #721c24; } /* Đồng/Đỏ nhạt */
 </style>

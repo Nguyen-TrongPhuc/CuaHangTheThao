@@ -76,7 +76,12 @@
                 </div>
                 <div class="info">
                   <h3 class="product-name">{{ product.name }}</h3>
-                  <p class="price">{{ formatPrice(product.price) }}</p>
+                  <div class="price-box" style="margin-bottom: 5px;">
+                    <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.9rem; color: #999; text-decoration: line-through; margin-right: 8px;">
+                        {{ formatPrice(product.price) }}
+                    </span>
+                    <span class="price">{{ formatPrice(getDisplayPrice(product.price)) }}</span>
+                  </div>
                   <div class="card-actions">
                     <span class="btn-card-buy">Xem chi tiết</span>
                   </div>
@@ -117,6 +122,7 @@ import CategoryService from "@/services/categories.service";
 import SportService from "@/services/sports.service";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
+import CustomerService from "@/services/customer.service";
 
 export default {
   components: { AppHeader, AppFooter, },
@@ -141,6 +147,7 @@ export default {
       // Pagination
       currentPage: 1,
       itemsPerPage: 12,
+      loyalty: null,
     };
   },
   computed: {
@@ -263,12 +270,29 @@ export default {
         console.error("Lỗi tải dữ liệu bộ lọc:", error);
       }
     },
+    async fetchLoyalty() {
+        const token = localStorage.getItem("user_token");
+        if (!token) return;
+
+        try {
+            this.loyalty = await CustomerService.getLoyalty();
+        } catch (e) {
+            // Ignore
+        }
+    },
+    getDisplayPrice(price) {
+        if (this.loyalty && this.loyalty.discountPercent > 0) {
+            return Math.round(price * (1 - this.loyalty.discountPercent / 100));
+        }
+        return price;
+    },
     formatPrice(price) {
       return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
     },
   },
   created() {
     this.loadFilterData();
+    this.fetchLoyalty();
     // fetchProducts sẽ được gọi bởi watcher nếu có query, hoặc gọi thủ công nếu không
     if (!this.$route.query.q && !this.$route.query.category) {
         this.fetchProducts();

@@ -19,7 +19,7 @@
           <td><strong>{{ item.name }}</strong></td>
           <td>{{ item.description }}</td>
           <td>
-            <button @click="edit(item)">Sửa</button>
+            <button class="btn-edit" @click="edit(item)">Sửa</button>
             <button class="btn-del" @click="remove(item._id)">Xóa</button>
           </td>
         </tr>
@@ -113,6 +113,7 @@ export default {
 .btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; }
 .btn-add:hover { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 .btn-del { color: #e74c3c; margin-left: 10px; cursor: pointer; border: none; background: none; }
+.btn-edit { color: #3498db; cursor: pointer; border: none; background: none; margin-right: 5px; }
 .form-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
 .form-container { background: white; padding: 30px; border-radius: 8px; width: 400px; }
 .input-field { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; display: block; box-sizing: border-box; }

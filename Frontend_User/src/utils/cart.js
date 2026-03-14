@@ -56,6 +56,8 @@ export const cartStore = {
                 name: product.name,
                 // Nếu có biến thể thì lấy giá của biến thể, ngược lại lấy giá gốc
                 price: variant?.price || product.price,
+                vipPrice: product.vipPrice || product.price,
+                vipDiscountPercent: product.vipDiscountPercent || 0,
                 stock: variant ? variant.stock : product.stock, // Lưu tồn kho để validate
                 image: imgUrl,
                 variant: variant ? { size_id: variant.size_id, color_id: variant.color_id, stock: variant.stock } : null,

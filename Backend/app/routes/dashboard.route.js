@@ -19,4 +19,7 @@ router.route("/low-stock")
 router.route("/import-report")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getImportReport);
 
+router.route("/sync-stock")
+    .post([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.syncStock);
+
 module.exports = router;

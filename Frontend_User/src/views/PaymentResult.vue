@@ -6,7 +6,7 @@
         <div class="icon">
           <i :class="isSuccess ? 'fa-solid fa-check-circle' : 'fa-solid fa-times-circle'"></i>
         </div>
-        <h1>{{ isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại' }}</h1>
+        <h1>{{ isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại!' }}</h1>
         
         <div v-if="orderInfo" class="order-info">
           <p><strong>Mã đơn hàng:</strong> {{ orderInfo.orderId }}</p>
@@ -16,6 +16,10 @@
             <strong>Lý do:</strong> {{ orderInfo.message }}
           </p>
         </div>
+
+        <p v-if="isSuccess" style="color: #28a745; margin-bottom: 20px; font-weight: bold;">
+           Hệ thống sẽ tự động chuyển về trang chủ sau vài giây...
+        </p>
 
         <div class="actions">
           <button class="btn-home" @click="goHome">Về trang chủ</button>
@@ -29,6 +33,7 @@
 
 <script>
 import { ref, onMounted } from "vue";
+import PaymentService from "@/services/payment.service";
 import { useRouter, useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
@@ -57,11 +62,12 @@ export default {
     const goHome = () => router.push("/");
     const viewOrders = () => router.push("/orders");
 
-    onMounted(() => {
+    onMounted(async () => {
         const success = route.query.success === 'true';
         const orderId = route.query.orderId;
         const message = route.query.message;
 
+        // Fallback to URL params
         isSuccess.value = success;
         orderInfo.value = {
             orderId: orderId || 'N/A',
@@ -70,8 +76,33 @@ export default {
             message: message
         };
 
-        if (success) {
-            showToast("Cảm ơn bạn đã mua sắm tại SportStore!", "success");
+        const handleSuccess = () => {
+            showToast("Thanh toán thành công! Đang chuyển về trang chủ...", "success");
+            setTimeout(() => {
+                router.push("/");
+            }, 3000); // Tự động chuyển về trang chủ sau 3 giây
+        };
+
+        // ✅ CHECK REAL DB STATUS (PRIORITY)
+        if (orderId) {
+            try {
+                const status = await PaymentService.checkPaymentStatus(orderId);
+                console.log('Real payment status:', status);
+                isSuccess.value = status.payment_status === 'paid';
+                orderInfo.value.method = status.payment_method || 'vnpay';
+                orderInfo.value.amount = status.total_amount || 0;
+                
+                if (isSuccess.value) {
+                    handleSuccess();
+                } else {
+                    showToast(`Trạng thái: ${status.payment_status}`, "error");
+                }
+            } catch (error) {
+                console.log('Cannot check status, use URL params:', error.message);
+                if (success) handleSuccess();
+            }
+        } else if (success) {
+            handleSuccess();
         }
     });
 
@@ -182,4 +213,3 @@ h1 {
   background: #0056b3;
 }
 </style>
-

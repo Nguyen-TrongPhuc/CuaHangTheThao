@@ -24,6 +24,10 @@ class DashboardService {
     async getImportReport(startDate, endDate) {
         return (await this.api.get(`/import-report?startDate=${startDate}&endDate=${endDate}`)).data;
     }
+
+    async syncStock() {
+        return (await this.api.post("/sync-stock")).data;
+    }
 }
 
 export default new DashboardService();

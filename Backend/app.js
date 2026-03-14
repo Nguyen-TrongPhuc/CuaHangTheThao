@@ -16,6 +16,7 @@ const contactRouter = require("./app/routes/contact.route");
 const dashboardRouter = require("./app/routes/dashboard.route");
 const warehouseRouter = require("./app/routes/warehouse.route");
 const paymentRouter = require("./app/routes/payment.route");
+const vouchersRouter = require("./app/routes/vouchers.route");
 
 const ApiError = require("./app/api-error");
 const app = express();
@@ -50,6 +51,7 @@ app.use("/api/contacts", contactRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/warehouse", warehouseRouter);
 app.use("/api/payment", paymentRouter);
+app.use("/api/vouchers", vouchersRouter);
 
 app.use((req, res, next) => {
   return next(new ApiError(404, "Resource not found"));

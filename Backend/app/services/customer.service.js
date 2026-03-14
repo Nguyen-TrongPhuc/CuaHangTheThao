@@ -21,6 +21,8 @@ class CustomerService {
             password: payload.password,
             otp: payload.otp,
             otp_expiry: payload.otp_expiry,
+            totalSpent: payload.totalSpent,
+            customerRank: payload.customerRank,
         };
 
         Object.keys(customer).forEach(
@@ -107,6 +109,44 @@ class CustomerService {
     async deleteAll() {
         const result = await this.Customers.deleteMany({});
         return result.deletedCount;
+    }
+    /* ================= LOYALTY PROGRAM ================= */
+    getCustomerRank(totalSpent) {
+        if (totalSpent >= 2000000) return 'gold';      // 50tr+
+        if (totalSpent >= 1000000) return 'silver';    // 10tr+
+        return 'normal';
+    }
+
+    getDiscountPercent(rank) {
+        const discounts = { normal: 0, silver: 0.05, gold: 0.10 };
+        return discounts[rank] || 0;
+    }
+
+    async getLoyaltyInfo(id) {
+        const customer = await this.findById(id);
+        if (!customer) return null;
+        const rank = customer.customerRank || this.getCustomerRank(customer.totalSpent || 0);
+        return {
+            totalSpent: customer.totalSpent || 0,
+            customerRank: rank,
+            discountPercent: this.getDiscountPercent(rank) * 100, // %
+        };
+    }
+
+    async addTotalSpent(id, amount) {
+        const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
+        return await this.Customers.findOneAndUpdate(
+            filter,
+            { $inc: { totalSpent: amount || 0 } },
+            { returnDocument: "after" }
+        );
+    }
+
+    async updateRank(id) {
+        const customer = await this.findById(id);
+        if (!customer) return null;
+        const newRank = this.getCustomerRank(customer.totalSpent || 0);
+        return await this.update(id, { customerRank: newRank });
     }
 }
 

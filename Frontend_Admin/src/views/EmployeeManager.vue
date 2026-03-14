@@ -27,7 +27,7 @@
             </span>
           </td>
           <td>
-            <button @click="$router.push({ name: 'employee.edit', params: { id: emp._id } })">Sửa</button>
+            <button class="btn-edit" @click="$router.push({ name: 'employee.edit', params: { id: emp._id } })">Sửa</button>
             <button class="btn-del" @click="remove(emp._id)">Xóa</button>
           </td>
         </tr>
@@ -67,4 +67,5 @@ export default {
 .btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; }
 .btn-add:hover { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 .btn-del { color: #e74c3c; margin-left: 10px; cursor: pointer; border: none; background: none; }
+.btn-edit { color: #3498db; cursor: pointer; border: none; background: none; margin-right: 5px; }
 </style>

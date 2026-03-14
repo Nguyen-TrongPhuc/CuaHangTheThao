@@ -32,6 +32,24 @@
           <!-- TAB THÔNG TIN -->
           <div v-if="activeTab === 'info'">
             <h2 class="section-title">Thông tin cá nhân</h2>
+            
+            <!-- VIP Loyalty Section -->
+            <div v-if="loyaltyInfo" class="vip-section">
+              <h3><i class="fa-solid fa-star"></i> Khách hàng thân thiết</h3>
+              <div class="vip-card">
+                <div class="vip-rank" :class="loyaltyInfo.customerRank">
+                  <span class="rank-label">{{ getRankLabel(loyaltyInfo.customerRank) }}</span>
+                  <div class="progress-bar">
+                    <div class="progress-fill" :style="'width: ' + getProgressPercent(loyaltyInfo.totalSpent) + '%'"></div>
+                  </div>
+                  <div class="vip-stats">
+                    <span>Tổng chi: {{ formatMoney(loyaltyInfo.totalSpent) }}</span>
+                    <span>Giảm giá: {{ loyaltyInfo.discountPercent }}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <form @submit.prevent="updateInfo">
               <div class="form-row">
                 <div class="form-group half">
@@ -138,6 +156,7 @@ export default {
       user: {
         first_name: "", last_name: "", email: "", phone: "", address: "", avatar: ""
       },
+      loyaltyInfo: null,
       passwordForm: {
         oldPassword: "", newPassword: "", confirmPassword: ""
       }
@@ -174,6 +193,7 @@ export default {
     async fetchProfile() {
       try {
         this.user = await CustomerService.getProfile();
+        this.loyaltyInfo = await CustomerService.getLoyalty();
       } catch (error) {
         // Nếu lỗi 401 (Unauthorized), chuyển hướng về trang đăng nhập
         if (error.response && error.response.status === 401) {
@@ -277,7 +297,20 @@ export default {
                 this.addressState.wards = data.wards;
             } catch (e) { console.error(e); }
         }
-    }
+    },
+    formatMoney(amount) {
+      return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+    },
+    getRankLabel(rank) {
+      const labels = { normal: 'Thường', silver: 'Bạc', gold: 'Vàng' };
+      return labels[rank] || 'Thường';
+    },
+    getProgressPercent(totalSpent) {
+      if (totalSpent >= 50000000) return 100;
+      if (totalSpent >= 10000000) return (totalSpent - 10000000) / 40000000 * 100;
+      return totalSpent / 10000000 * 100;
+    },
+    // ... other methods
   },
   async mounted() {
     await this.fetchProfile();
@@ -291,6 +324,7 @@ export default {
 .container { flex: 1; padding: 40px 10%; background-color: #f9f9f9; display: flex; justify-content: center; }
 .profile-card { display: flex; background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); width: 100%; max-width: 900px; overflow: hidden; }
 .profile-sidebar { width: 250px; background: #f8f9fa; padding: 30px 20px; text-align: center; border-right: 1px solid #eee; }
+.profile-sidebar h3 { color: #2c3e50; font-weight: 700; margin-bottom: 5px; }
 .avatar-large { width: 80px; height: 80px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; margin: 0 auto 15px; overflow: hidden; position: relative; cursor: pointer; }
 .avatar-large img { width: 100%; height: 100%; object-fit: cover; }
 .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; opacity: 0; transition: 0.3s; }
@@ -317,6 +351,18 @@ export default {
 .street-input { margin-top: 10px; }
 .current-address { background: #f0f0f0; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.95rem; color: #333; }
 .text-muted { font-size: 0.85rem; color: #888; margin-bottom: 10px; display: block; }
+
+.vip-section { margin-bottom: 30px; }
+.vip-section h3 { color: #2c3e50; font-weight: 600; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; }
+.vip-card { background: linear-gradient(135deg, #f8f9ff, #e8f4fd); border: 1px solid #d1e7ff; border-radius: 12px; padding: 20px; }
+.vip-rank { text-align: center; }
+.vip-rank.normal { color: #6c757d; }
+.vip-rank.silver { color: #6b7280; }
+.vip-rank.gold { color: #b45309; font-weight: bold; }
+.rank-label { display: block; font-size: 1.2em; margin-bottom: 10px; font-weight: 700; color: #2c3e50; }
+.progress-bar { background: #e5e7eb; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.5s ease; }
+.vip-stats { font-size: 0.9em; color: #4b5563; display: flex; justify-content: space-between; }
 
 .btn-save { padding: 12px 30px; background: linear-gradient(135deg, #0f0c29, #302b63); color: white; border: none; border-radius: 25px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(48, 43, 99, 0.3); }

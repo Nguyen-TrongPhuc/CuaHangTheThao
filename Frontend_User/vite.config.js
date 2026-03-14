@@ -11,6 +11,10 @@ export default defineConfig({
   },
   server: {
     port: 3005,
+    hmr: {
+      port: 3005,
+      host: 'localhost'
+    },
     proxy: {
       // Khi thấy đường dẫn bắt đầu bằng /api, Vite sẽ chuyển sang cổng 3003
       '/api': {

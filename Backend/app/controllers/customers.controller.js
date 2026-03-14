@@ -412,3 +412,37 @@ exports.resetPassword = async (req, res, next) => {
         return next(new ApiError(500, "Lỗi khi đặt lại mật khẩu"));
     }
 };
+
+/* ================= LOYALTY INFO (/:id cho Admin) ================= */
+exports.getLoyalty = async (req, res, next) => {
+    try {
+        const customerService = new CustomerService(MongoDB.client);
+        const customerId = req.params.id || req.user.userId;
+        const loyaltyInfo = await customerService.getLoyaltyInfo(customerId);
+        if (!loyaltyInfo) {
+            return next(new ApiError(404, "Customer not found"));
+        }
+        return res.send(loyaltyInfo);
+    } catch (error) {
+        return next(new ApiError(500, "Error retrieving loyalty info"));
+    }
+};
+
+/* ================= UPDATE LOYALTY (ADMIN ONLY) ================= */
+exports.updateLoyalty = async (req, res, next) => {
+    if (Object.keys(req.body).length === 0) {
+        return next(new ApiError(400, "Data to update can not be empty"));
+    }
+
+    try {
+        const customerService = new CustomerService(MongoDB.client);
+        const document = await customerService.update(req.params.id, req.body);
+        if (!document) {
+            return next(new ApiError(404, "Customer not found"));
+        }
+        return res.send({ message: "Loyalty info updated successfully", loyalty: await customerService.getLoyaltyInfo(req.params.id) });
+    } catch (error) {
+        return next(new ApiError(500, `Error updating loyalty for customer ${req.params.id}`));
+    }
+};
+

@@ -5,100 +5,34 @@ class SuppliersService {
         this.Suppliers = client.db().collection("suppliers");
     }
 
-    // =======================
-    // LỌC DỮ LIỆU HỢP LỆ
-    // =======================
-    extractSupplierData(payload) {
+    async create(payload) {
         const supplier = {
             name: payload.name,
-            phone: payload.phone,
             email: payload.email,
+            phone: payload.phone,
             address: payload.address,
-            description: payload.description,
+            createdAt: new Date()
         };
-
-        Object.keys(supplier).forEach(
-            (key) => supplier[key] === undefined && delete supplier[key]
-        );
-
-        return supplier;
-    }
-
-    // =======================
-    // TẠO NHÀ CUNG CẤP
-    // =======================
-    async create(payload) {
-        const supplier = this.extractSupplierData(payload);
-
-        supplier.createdAt = new Date();
-
         const result = await this.Suppliers.insertOne(supplier);
-        return await this.findById(result.insertedId);
+        return { _id: result.insertedId, ...supplier };
     }
 
-    // =======================
-    // TÌM THEO ĐIỀU KIỆN
-    // =======================
-    async find(filter) {
-        const cursor = await this.Suppliers.find(filter).sort({ createdAt: -1 });
-        return await cursor.toArray();
+    async findAll() {
+        return await this.Suppliers.find({}).sort({ createdAt: -1 }).toArray();
     }
 
-    // =======================
-    // TÌM THEO TÊN
-    // =======================
-    async findByName(name) {
-        return await this.Suppliers.findOne({
-            name: { $regex: new RegExp(`^${name}$`, "i") }, // không phân biệt hoa thường
-        });
-    }
-
-    // =======================
-    // TÌM THEO ID
-    // =======================
     async findById(id) {
-        return await this.Suppliers.findOne({
-            _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
-        });
+        return await this.Suppliers.findOne({ _id: ObjectId.isValid(id) ? new ObjectId(id) : null });
     }
 
-    // =======================
-    // CẬP NHẬT
-    // =======================
     async update(id, payload) {
-        const filter = {
-            _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
-        };
-
-        const update = this.extractSupplierData(payload);
-        update.updatedAt = new Date();
-
-        const result = await this.Suppliers.findOneAndUpdate(
-            filter,
-            { $set: update },
-            { returnDocument: "after" }
-        );
-
-        return result;
+        const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
+        const update = { $set: { ...payload, updatedAt: new Date() } };
+        return await this.Suppliers.findOneAndUpdate(filter, update, { returnDocument: "after" });
     }
 
-    // =======================
-    // XÓA 1
-    // =======================
     async delete(id) {
-        const result = await this.Suppliers.findOneAndDelete({
-            _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
-        });
-
-        return result;
-    }
-
-    // =======================
-    // XÓA TẤT CẢ
-    // =======================
-    async deleteAll() {
-        const result = await this.Suppliers.deleteMany({});
-        return result.deletedCount;
+        return await this.Suppliers.deleteOne({ _id: ObjectId.isValid(id) ? new ObjectId(id) : null });
     }
 }
 

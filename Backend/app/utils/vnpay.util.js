@@ -1,5 +1,22 @@
 const crypto = require('crypto');
 const config = require("../config");
+const querystring = require('qs');
+
+function sortObject(obj) {
+    let sorted = {};
+    let str = [];
+    let key;
+    for (key in obj){
+        if (obj.hasOwnProperty(key) && obj[key] !== '' && obj[key] !== undefined && obj[key] !== null) {
+            str.push(encodeURIComponent(key));
+        }
+    }
+    str.sort();
+    for (key = 0; key < str.length; key++) {
+        sorted[str[key]] = encodeURIComponent(String(obj[decodeURIComponent(str[key])])).replace(/%20/g, "+");
+    }
+    return sorted;
+}
 
 /**
  * Create VNPAY payment URL
@@ -11,50 +28,51 @@ const config = require("../config");
  * @returns {string} Payment URL
  */
 const createPaymentUrl = (params) => {
-    const { orderId, amount, orderInfo, returnUrl } = params;
+    const { orderId, amount, orderInfo, returnUrl, ipAddr } = params;
     
-    // Lấy ngày giờ hiện tại theo giờ Việt Nam (UTC+7)
     const date = new Date();
-    const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-    const vnTime = new Date(utc + (3600000 * 7));
-    const createDate = vnTime.getFullYear() +
-        ("0" + (vnTime.getMonth() + 1)).slice(-2) +
-        ("0" + vnTime.getDate()).slice(-2) +
-        ("0" + vnTime.getHours()).slice(-2) +
-        ("0" + vnTime.getMinutes()).slice(-2) +
-        ("0" + vnTime.getSeconds()).slice(-2);
+    
+    const getVnTime = (d) => {
+        // Luôn cộng 7 tiếng vào UTC để đảm bảo ra giờ VN chuẩn xác bất kể máy chủ ở đâu
+        const vnTime = new Date(d.getTime() + (3600000 * 7));
+        return vnTime.getUTCFullYear() +
+        ("0" + (vnTime.getUTCMonth() + 1)).slice(-2) +
+        ("0" + vnTime.getUTCDate()).slice(-2) +
+        ("0" + vnTime.getUTCHours()).slice(-2) +
+        ("0" + vnTime.getUTCMinutes()).slice(-2) +
+        ("0" + vnTime.getUTCSeconds()).slice(-2);
+    };
+
+    const createDate = getVnTime(date);
+    
+    const expireTime = new Date(date.getTime() + 15 * 60000); // Hết hạn sau 15 phút
+    const expireDate = getVnTime(expireTime);
 
     const vnpParams = {
         vnp_Version: '2.1.0',
         vnp_Command: 'pay',
         vnp_TmnCode: config.payment.vnpay.tmnCode,
-        vnp_Amount: amount * 100, // Convert to cents
+        vnp_Amount: Math.round(amount * 100), // Bắt buộc là số nguyên
         vnp_CurrCode: 'VND',
         vnp_TxnRef: orderId,
         vnp_OrderInfo: orderInfo,
-        vnp_OrderType: 'other', // Sử dụng 'other' an toàn hơn cho sandbox
+        vnp_OrderType: 'other',
         vnp_Locale: 'vn',
         vnp_ReturnUrl: returnUrl || config.payment.vnpay.returnUrl,
-        vnp_IpAddr: '127.0.0.1',
-        vnp_CreateDate: createDate
+        vnp_IpAddr: ipAddr || '127.0.0.1',
+        vnp_CreateDate: createDate,
+        vnp_ExpireDate: expireDate // Bắt buộc cho chuẩn v2.1.0 hiện tại
     };
 
-    // Sort parameters by key
-    const sortedParams = Object.keys(vnpParams).sort().reduce((obj, key) => {
-        obj[key] = vnpParams[key];
-        return obj;
-    }, {});
+    const sortedParams = sortObject(vnpParams);
 
-    // Create query string
-    const queryString = Object.keys(sortedParams)
-        .map(key => `${key}=${encodeURIComponent(sortedParams[key])}`)
-        .join('&');
+    // Sử dụng module querystring chuẩn giống hệt code mẫu của VNPAY
+    const signData = querystring.stringify(sortedParams, { encode: false });
 
-    // Create HMAC SHA512 signature (Chuẩn mới của VNPAY)
     const hmac = crypto.createHmac('sha512', config.payment.vnpay.hashSecret);
-    const signed = hmac.update(queryString).digest('hex');
+    const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
     
-    const paymentUrl = `${config.payment.vnpay.url}?${queryString}&vnp_SecureHash=${signed}`;
+    const paymentUrl = `${config.payment.vnpay.url}?${signData}&vnp_SecureHash=${signed}`;
     
     return paymentUrl;
 };
@@ -68,22 +86,14 @@ const verifyCallback = (vnpParams) => {
     const secureHash = vnpParams.vnp_SecureHash;
     
     // Remove secure hash from params to verify
-    const { vnp_SecureHash, ...paramsToVerify } = vnpParams;
+    const { vnp_SecureHash, vnp_SecureHashType, ...paramsToVerify } = vnpParams;
     
-    // Sort parameters by key
-    const sortedParams = Object.keys(paramsToVerify).sort().reduce((obj, key) => {
-        obj[key] = paramsToVerify[key];
-        return obj;
-    }, {});
+    const sortedParams = sortObject(paramsToVerify);
 
-    // Create query string (excluding secure hash)
-    const queryString = Object.keys(sortedParams)
-        .map(key => `${key}=${encodeURIComponent(sortedParams[key])}`)
-        .join('&');
+    const signData = querystring.stringify(sortedParams, { encode: false });
 
-    // Create HMAC SHA512 signature
     const hmac = crypto.createHmac('sha512', config.payment.vnpay.hashSecret);
-    const signed = hmac.update(queryString).digest('hex');
+    const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
 
     return secureHash === signed;
 };

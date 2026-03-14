@@ -39,6 +39,13 @@ router.route("/")
     .post(customers.create)                // đăng ký tài khoản
     .delete([auth.verifyToken, auth.isEmployeeOrAdmin], customers.deleteAll);
 
+// Loyalty endpoints
+router.route("/loyalty")
+    .get([auth.verifyToken], customers.getLoyalty);
+router.route("/loyalty/:id")
+    .get([auth.verifyToken], customers.getLoyalty)
+    .put([auth.verifyToken, auth.isEmployeeOrAdmin], customers.updateLoyalty);
+
 // Lấy 1 + cập nhật + xóa theo id
 router.route("/:id")
     .get(customers.findOne)

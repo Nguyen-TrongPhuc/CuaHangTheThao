@@ -7,7 +7,7 @@
       <div class="checkout-content">
         <!-- Form thông tin giao hàng -->
         <div class="shipping-info">
-          <h2>Thông tin giao hàng</h2>
+          <h2><i class="fa-solid fa-map-location-dot"></i> Thông tin giao hàng</h2>
           <form @submit.prevent="submitOrder">
             <div class="form-group">
               <label>Họ tên người nhận <span class="required">*</span></label>
@@ -84,7 +84,7 @@
 
           <!-- Phương thức vận chuyển -->
           <div class="shipping-section">
-            <h2>Phương thức vận chuyển</h2>
+            <h2><i class="fa-solid fa-truck-fast"></i> Phương thức vận chuyển</h2>
             <div class="shipping-options">
               <label class="shipping-option" :class="{ selected: shippingType === 'standard' }">
                 <input type="radio" v-model="shippingType" value="standard" hidden>
@@ -113,11 +113,11 @@
 
           <!-- Phương thức thanh toán -->
           <div class="payment-section">
-            <h2>Phương thức thanh toán</h2>
+            <h2><i class="fa-solid fa-wallet"></i> Phương thức thanh toán</h2>
             <div class="payment-options">
               <label class="payment-option" :class="{ selected: paymentMethod === 'cod' }">
                 <input type="radio" v-model="paymentMethod" value="cod" hidden>
-                <div class="option-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                <div class="option-icon cod-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
                 <div class="option-info">
                   <span class="opt-title">Thanh toán khi nhận hàng (COD)</span>
                   <span class="opt-desc">Thanh toán tiền mặt cho shipper khi nhận hàng.</span>
@@ -125,7 +125,7 @@
               </label>
               <label class="payment-option" :class="{ selected: paymentMethod === 'vnpay' }">
                 <input type="radio" v-model="paymentMethod" value="vnpay" hidden>
-                <div class="option-icon"><i class="fa-solid fa-credit-card"></i></div>
+                <div class="option-icon vnpay-icon"><i class="fa-solid fa-credit-card"></i></div>
                 <div class="option-info">
                   <span class="opt-title">Thanh toán VNPAY</span>
                   <span class="opt-desc">Thanh toán qua ATM/Visa/MasterCard/QR Code.</span>
@@ -133,7 +133,7 @@
               </label>
               <label class="payment-option" :class="{ selected: paymentMethod === 'momo' }">
                 <input type="radio" v-model="paymentMethod" value="momo" hidden>
-                <div class="option-icon"><i class="fa-solid fa-wallet"></i></div>
+                <div class="option-icon momo-icon"><i class="fa-solid fa-wallet"></i></div>
                 <div class="option-info">
                   <span class="opt-title">Thanh toán MoMo</span>
                   <span class="opt-desc">Thanh toán qua ví điện tử MoMo.</span>
@@ -141,7 +141,7 @@
               </label>
               <label class="payment-option" :class="{ selected: paymentMethod === 'bank_transfer' }">
                 <input type="radio" v-model="paymentMethod" value="bank_transfer" hidden>
-                <div class="option-icon"><i class="fa-solid fa-university"></i></div>
+                <div class="option-icon bank-icon"><i class="fa-solid fa-building-columns"></i></div>
                 <div class="option-info">
                   <span class="opt-title">Chuyển khoản ngân hàng</span>
                   <span class="opt-desc">Chuyển khoản qua STK: 123456789 - Ngân hàng Vietcombank</span>
@@ -153,7 +153,7 @@
 
         <!-- Tóm tắt đơn hàng -->
         <div class="order-summary">
-          <h2>Đơn hàng của bạn</h2>
+          <h2><i class="fa-solid fa-bag-shopping"></i> Đơn hàng của bạn</h2>
           <div class="summary-items">
             <div v-for="item in selectedItems" :key="item._id" class="summary-item">
               <div class="item-info">
@@ -162,8 +162,14 @@
                    Size: {{ getSizeName(item.variant.size_id) }} - Màu: {{ getColorName(item.variant.color_id) }}
                 </div>
                 <span class="item-quantity">x {{ item.quantity }}</span>
+                <div v-if="item.vipDiscountPercent > 0" style="color: #ee4d2d; font-size: 0.8rem; margin-top: 2px;">
+                  <i class="fa-solid fa-crown"></i> VIP -{{ item.vipDiscountPercent }}%
+                </div>
               </div>
-              <span class="item-price">{{ formatPrice(item.price * item.quantity) }}đ</span>
+              <div style="text-align: right;">
+                 <div v-if="item.vipDiscountPercent > 0" style="font-size: 0.85rem; color: #999; text-decoration: line-through;">{{ formatPrice((item.originalPrice || (item.price / (1 - item.vipDiscountPercent/100))) * item.quantity) }}đ</div>
+                 <span class="item-price">{{ formatPrice(item.price * item.quantity) }}đ</span>
+              </div>
             </div>
           </div>
           
@@ -176,13 +182,49 @@
               <span>Phí vận chuyển:</span>
               <span>{{ formatPrice(finalShippingFee) }}đ</span>
             </div>
-            <div v-if="discount > 0" class="row discount">
-              <span>Giảm giá:</span>
-              <span>-{{ formatPrice(discount) }}đ</span>
+            <div v-if="discountVoucher" class="row discount">
+              <span class="voucher-applied-label">
+                Giảm giá ({{ discountVoucher.code }}):
+                <button @click="removeDiscountVoucher" class="btn-reset-voucher-inline" title="Bỏ mã"><i class="fa-solid fa-times"></i></button>
+              </span>
+              <span>-{{ formatPrice(discountVoucher.amount) }}đ</span>
+            </div>
+            <div v-if="shippingVoucher" class="row discount">
+              <span class="voucher-applied-label">
+                Phí ship ({{ shippingVoucher.code }}):
+                <button @click="removeShippingVoucher" class="btn-reset-voucher-inline" title="Bỏ mã"><i class="fa-solid fa-times"></i></button>
+              </span>
+              <span>-{{ formatPrice(shippingVoucher.amount) }}đ</span>
             </div>
             <div class="row total">
               <span>Tổng cộng:</span>
               <span>{{ formatPrice(grandTotal) }}đ</span>
+            </div>
+          </div>
+
+          <!-- Voucher input section -->
+          <div class="voucher-section">
+            <h3 class="voucher-title">Mã giảm giá</h3>
+            <div class="voucher-input-group" :class="{ 'has-error': voucherError }">
+              <div class="input-wrapper">
+                <input 
+                  v-model="voucherInputCode" 
+                  type="text" 
+                  placeholder="Nhập mã giảm giá / freeship" 
+                  @keyup.enter="applyVoucher"
+                  :disabled="isApplyingVoucher"
+                />
+              </div>
+              <button 
+                @click="applyVoucher" 
+                :disabled="!voucherInputCode.trim() || isApplyingVoucher"
+                class="btn-apply-voucher"
+              >
+                {{ isApplyingVoucher ? 'Đang kiểm tra...' : 'Áp dụng' }}
+              </button>
+            </div>
+            <div v-if="voucherError" class="voucher-error">
+              <i class="fa-solid fa-exclamation-triangle"></i> {{ voucherError }}
             </div>
           </div>
 
@@ -241,7 +283,7 @@
 </template>
 
 <script>
-import { computed, reactive, ref, onMounted, watch } from "vue";
+import { computed, reactive, ref, onMounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
@@ -253,6 +295,7 @@ import ColorsService from "@/services/colors.service";
 import { showToast } from "@/utils/toast";
 import { jwtDecode } from "jwt-decode";
 import CustomerService from "@/services/customer.service";
+import VoucherService from "@/services/vouchers.service";
 
 export default {
   components: { AppHeader, AppFooter },
@@ -349,8 +392,19 @@ export default {
     // Nếu backend trả về shippingFee dạng đơn (không chia standard/express), ta xử lý ở đây
     // Tuy nhiên, để đơn giản, ta giả định backend trả về đúng format hoặc ta dùng giá trị trả về làm standardFee
 
-    // Discount (can be extended with coupon system)
-    const discount = computed(() => 0);
+    // --- VOUCHER REFACTOR ---
+    const voucherInputCode = ref(''); // The v-model for the input field
+    const discountVoucher = ref(null); // Stores applied discount voucher { id, code, amount }
+    const shippingVoucher = ref(null); // Stores applied shipping voucher { id, code, amount }
+    const isApplyingVoucher = ref(false);
+    const voucherError = ref('');
+
+    // Total discount from all vouchers
+    const totalDiscount = computed(() => {
+        const dAmount = discountVoucher.value ? discountVoucher.value.amount : 0;
+        const sAmount = shippingVoucher.value ? shippingVoucher.value.amount : 0;
+        return dAmount + sAmount;
+    });
 
     // Grand total
     const grandTotal = computed(() => {
@@ -359,8 +413,46 @@ export default {
             ? shippingFee.value.shippingFee 
             : (shippingType.value === 'express' ? shippingFee.value.expressFee : shippingFee.value.standardFee);
             
-        return totalAmount.value + (fee || 0) - discount.value;
+        return totalAmount.value + (fee || 0) - totalDiscount.value;
     });
+
+    // Apply voucher
+    const applyVoucher = async () => {
+        if (!voucherInputCode.value.trim()) {
+            voucherError.value = 'Vui lòng nhập mã voucher';
+            return;
+        }
+
+        isApplyingVoucher.value = true;
+        voucherError.value = '';
+        try {
+            // Truyền thêm finalShippingFee để xử lý voucher freeship
+            const result = await VoucherService.validateVoucher(voucherInputCode.value, totalAmount.value, finalShippingFee.value);
+            
+            const newVoucher = {
+                id: result.voucher_id,
+                code: result.code,
+                amount: result.discount_amount,
+            };
+
+            if (result.discount_type === 'shipping') {
+                shippingVoucher.value = newVoucher;
+            } else { // 'fixed' or 'percent'
+                discountVoucher.value = newVoucher;
+            }
+
+            showToast(result.message, 'success');
+            voucherInputCode.value = ''; // Clear input on success
+        } catch (error) {
+            voucherError.value = error.response?.data?.message || 'Mã voucher không hợp lệ';
+        } finally {
+            isApplyingVoucher.value = false;
+        }
+    };
+
+    const removeDiscountVoucher = () => { discountVoucher.value = null; };
+    const removeShippingVoucher = () => { shippingVoucher.value = null; };
+    // --- END VOUCHER REFACTOR ---
 
     // Watch for shipping type changes to recalculate
     watch(shippingType, () => {
@@ -501,6 +593,30 @@ export default {
         
         await fetchProvinces();
         await loadMetadata();
+
+        // Cập nhật giá VIP mới nhất cho các sản phẩm trong giỏ
+        const token = localStorage.getItem("user_token");
+        if (token) {
+        try {
+            const loyalty = await CustomerService.getLoyalty();
+            if (loyalty && loyalty.discountPercent > 0) {
+                const discount = loyalty.discountPercent / 100;
+                cartStore.state.items.forEach(item => {
+                     // Nếu item chưa có trường originalPrice (do thêm từ trước), gán nó bằng giá hiện tại
+                     if (!item.originalPrice) item.originalPrice = item.price;
+                     
+                     // Tính lại giá VIP
+                     item.vipDiscountPercent = loyalty.discountPercent;
+                     item.vipPrice = Math.round(item.originalPrice * (1 - discount));
+                     item.price = item.vipPrice; // Cập nhật giá bán thực tế để tính tổng tiền
+                });
+                // Lưu cập nhật vào localStorage
+                if (cartStore.save) cartStore.save();
+            }
+        } catch (e) {
+             console.log("Không thể cập nhật giá VIP (Chưa đăng nhập hoặc lỗi mạng)");
+        }
+        }
         
         // Tự động điền thông tin từ hồ sơ người dùng
         try {
@@ -587,6 +703,9 @@ export default {
                 note: form.note,
                 payment_method: paymentMethod.value,
                 shipping_type: shippingType.value,
+                // Gửi đúng key mà Backend OrderService yêu cầu
+                discount_voucher_code: discountVoucher.value ? discountVoucher.value.code : undefined,
+                shipping_voucher_code: shippingVoucher.value ? shippingVoucher.value.code : undefined,
                 // Sử dụng phí ship đã tính toán (ưu tiên phí từ API)
                 shipping_fee: (typeof shippingFee.value.shippingFee === 'number') 
                     ? shippingFee.value.shippingFee 
@@ -702,8 +821,14 @@ export default {
         shippingFee,
         shippingType,
         finalShippingFee,
-        discount,
+        totalDiscount,
         grandTotal,
+        voucherInputCode,
+        discountVoucher,
+        shippingVoucher,
+        voucherError,
+        isApplyingVoucher,
+        applyVoucher,
         isProcessing,
         paymentMethod,
         formatPrice, 
@@ -725,7 +850,9 @@ export default {
         confirmAddressChange,
         resetLocation,
         userLocation,
-        mapEmbedUrl
+        mapEmbedUrl,
+        removeDiscountVoucher,
+        removeShippingVoucher,
     };
   }
 };
@@ -734,28 +861,32 @@ export default {
 <style scoped>
 .checkout-page-wrapper { display: flex; flex-direction: column; min-height: 100vh; background: #f9f9f9; }
 .container { flex: 1; max-width: 1200px; margin: 0 auto; padding: 40px 20px; width: 100%; box-sizing: border-box; }
-.page-title { text-align: center; margin-bottom: 30px; color: #2c3e50; }
+.page-title { text-align: center; margin-bottom: 40px; color: #2c3e50; font-size: 2rem; font-weight: 800; text-transform: uppercase; position: relative; }
+.page-title::after { content: ''; display: block; width: 60px; height: 4px; background: #ee4d2d; margin: 10px auto 0; border-radius: 2px; }
 .checkout-content { display: flex; gap: 30px; flex-wrap: wrap; }
-.shipping-info { flex: 2; min-width: 300px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-.order-summary { flex: 1; min-width: 300px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); height: fit-content; }
-h2 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 1.2rem; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+.shipping-info { flex: 2; min-width: 300px; background: white; padding: 35px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f5f5f5; }
+.order-summary { flex: 1; min-width: 300px; background: white; padding: 35px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f5f5f5; height: fit-content; }
+h2 { margin-top: 0; margin-bottom: 25px; color: #2c3e50; font-size: 1.3rem; font-weight: 700; border-bottom: 2px solid #f0f0f0; padding-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+h2 i { color: #ee4d2d; font-size: 1.4rem; }
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
 .required { color: red; }
-.form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+.form-group input, .form-group textarea { width: 100%; padding: 10px 15px; border: 1px solid #e0e0e0; border-radius: 8px; box-sizing: border-box; transition: all 0.3s ease; background-color: #fafafa; }
+.form-group input:focus, .form-group textarea:focus { border-color: #302b63; background-color: #fff; box-shadow: 0 0 0 3px rgba(48, 43, 99, 0.1); outline: none; }
 .current-address-box { background: #f8f9fa; padding: 12px; border: 1px solid #ddd; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-.current-address-box span {
-  font-weight: 500;
-  color: #2c3e50;
-}
-.btn-change-addr { background: #3498db; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
-.btn-change-addr:hover { background: #2980b9; }
+.current-address-box span { font-weight: 500; color: #2c3e50; }
+.btn-change-addr { background: #302b63; color: white; border: none; padding: 6px 15px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: background 0.3s; }
+.btn-change-addr:hover { background: #1a1639; }
 .address-edit-container { animation: fadeIn 0.3s; }
 .address-selection { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.address-selection select { flex: 1; min-width: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; }
+.voucher-input-group { position: relative; display: flex; gap: 10px; align-items: stretch; margin-bottom: 5px;}
+.input-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
+.input-wrapper input { width: 100%; padding-right: 35px; }
+.address-selection select { flex: 1; min-width: 150px; padding: 10px 15px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; transition: all 0.3s ease;}
+.address-selection select:focus { border-color: #302b63; background-color: #fff; box-shadow: 0 0 0 3px rgba(48, 43, 99, 0.1); outline: none; }
 .address-input-group { display: flex; gap: 10px; }
-.btn-location { padding: 0 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; transition: 0.2s; }
-.btn-location:hover { background: #2980b9; }
+.btn-location { padding: 0 15px; background: #302b63; color: white; border: none; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+.btn-location:hover { background: #1a1639; }
 .location-success { color: #27ae60; font-size: 0.85rem; margin-top: 5px; display: block; }
 .location-selected-box { text-align: center; padding: 15px; background: #e8f5e9; border: 1px solid #c8e6c9; border-radius: 4px; }
 .location-text { color: #2e7d32; font-weight: bold; margin: 0 0 5px 0; }
@@ -776,28 +907,51 @@ h2 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 1.2rem; bord
 }
 
 .form-group textarea { height: 100px; resize: vertical; }
-.summary-item { display: flex; justify-content: space-between; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #f5f5f5; }
-.item-info { display: flex; flex-direction: column; }
-.item-name { font-weight: 600; color: #333; }
+.summary-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px dashed #eee; }
+.item-info { display: flex; flex-direction: column; flex: 1; padding-right: 15px; }
+.item-name { font-weight: 600; color: #2c3e50; line-height: 1.4; }
 .item-variant { font-size: 0.85rem; color: #777; margin-top: 2px; }
 .item-quantity { font-size: 0.85rem; color: #777; }
 .item-price { font-weight: bold; color: #333; }
 .summary-totals { margin-top: 20px; }
-.row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #555; }
+.row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #555; font-size: 1.05rem; }
 .row.discount { color: #28a745; }
-.row.total { font-weight: bold; color: #e74c3c; font-size: 1.2rem; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
-.btn-confirm { width: 100%; padding: 15px; background: linear-gradient(135deg, #28a745, #218838); color: white; border: none; border-radius: 5px; font-weight: bold; font-size: 1.1rem; cursor: pointer; margin-top: 20px; transition: 0.3s; }
-.btn-confirm:hover:not(:disabled) { background: linear-gradient(135deg, #218838, #1e7e34); transform: translateY(-2px); }
-.btn-confirm:disabled { background: #ccc; cursor: not-allowed; }
+.row.total { font-weight: 800; color: #ee4d2d; font-size: 1.4rem; margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; }
+.btn-confirm { width: 100%; padding: 16px; background: linear-gradient(135deg, #ee4d2d, #ff7337); color: white; border: none; border-radius: 30px; font-weight: 800; font-size: 1.2rem; cursor: pointer; margin-top: 30px; transition: all 0.3s ease; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(238, 77, 45, 0.3); }
+.btn-confirm:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(238, 77, 45, 0.4); }
+.btn-confirm:disabled { background: #e0e0e0; color: #999; box-shadow: none; cursor: not-allowed; transform: none; }
 
 .shipping-section, .payment-section { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; }
-.shipping-options, .payment-options { display: flex; flex-direction: column; gap: 15px; }
-.shipping-option, .payment-option { display: flex; align-items: center; padding: 15px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-.shipping-option:hover, .payment-option:hover { background: #f9f9f9; }
-.shipping-option.selected, .payment-option.selected { border-color: #28a745; background: #f0fff4; box-shadow: 0 0 0 1px #28a745; }
-.option-icon { font-size: 1.5rem; color: #555; margin-right: 15px; width: 30px; text-align: center; }
-.shipping-option.selected .option-icon, .payment-option.selected .option-icon { color: #28a745; }
-.option-info { display: flex; flex-direction: column; flex: 1; }
+
+/* Vận chuyển (Dạng List) */
+.shipping-options { display: flex; flex-direction: column; gap: 12px; }
+.shipping-option { display: flex; align-items: center; padding: 15px 20px; border: 2px solid #eee; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); background: white; margin-bottom: 0; }
+.shipping-option:hover { border-color: #d1d5db; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
+.shipping-option.selected { border-color: #ee4d2d; background: #fff5f1; box-shadow: 0 4px 15px rgba(238, 77, 45, 0.1); }
+.shipping-option .option-icon { font-size: 1.8rem; color: #9ca3af; margin-right: 20px; width: 40px; text-align: center; transition: color 0.3s; }
+.shipping-option.selected .option-icon { color: #ee4d2d; }
+.shipping-option .option-info { display: flex; flex-direction: column; flex: 1; }
+
+/* Thanh toán (Dạng Grid Card) */
+.payment-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
+.payment-option { display: flex; flex-direction: column; align-items: flex-start; padding: 20px; border: 2px solid #eee; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); background: white; position: relative; height: 100%; box-sizing: border-box; }
+.payment-option:hover { border-color: #d1d5db; transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
+.payment-option.selected { border-color: #ee4d2d; background: #fff5f1; box-shadow: 0 4px 15px rgba(238, 77, 45, 0.1); }
+/* Dấu check góc trên bên phải */
+.payment-option::after { content: '\f058'; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; top: 15px; right: 15px; font-size: 1.5rem; color: #ee4d2d; opacity: 0; transform: scale(0.5); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.payment-option.selected::after { opacity: 1; transform: scale(1); }
+.payment-option .option-icon { font-size: 2.2rem; margin-bottom: 15px; text-align: left; transition: transform 0.3s; }
+.payment-option.selected .option-icon { transform: scale(1.1); }
+/* Màu sắc thương hiệu cho từng loại ví/ngân hàng */
+.cod-icon { color: #27ae60; }
+.vnpay-icon { color: #005baa; }
+.momo-icon { color: #a50064; }
+.bank-icon { color: #2980b9; }
+.payment-option .option-info { display: flex; flex-direction: column; }
+.payment-option .opt-title { font-weight: 700; color: #2c3e50; margin-bottom: 5px; font-size: 1.05rem; }
+.payment-option .opt-desc { font-size: 0.85rem; color: #7f8c8d; line-height: 1.4; }
+
+/* Dùng chung */
 .opt-title { font-weight: bold; color: #333; }
 .opt-desc { font-size: 0.85rem; color: #777; margin-top: 3px; }
 .option-price { font-weight: bold; color: #e74c3c; }
@@ -824,4 +978,60 @@ h2 { margin-top: 0; margin-bottom: 20px; color: #2c3e50; font-size: 1.2rem; bord
 .btn-back:hover { background: #5a6268; }
 .btn-complete { background: #28a745; color: white; }
 .btn-complete:hover { background: #218838; }
+
+/* Voucher Section Redesign */
+.voucher-section {
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #eee;
+}
+.voucher-title {
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+.btn-apply-voucher {
+  padding: 0 20px;
+  border: none;
+  background: #3498db;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+  height: 42px; /* Match input height */
+}
+.btn-apply-voucher:hover:not(:disabled) { background: #1a1639; }
+.btn-apply-voucher:disabled { background: #bdc3c7; cursor: not-allowed; }
+.voucher-error { margin-top: 8px; color: #e74c3c; font-weight: 500; font-size: 0.9rem; }
+.voucher-input-group.has-error .input-wrapper input {
+  border-color: #e74c3c;
+  animation: shake 0.4s;
+}
+.voucher-applied-label { display: flex; align-items: center; gap: 8px; }
+.btn-reset-voucher-inline { background: none; border: none; color: #e74c3c; cursor: pointer; padding: 0; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; transition: background 0.2s; }
+.btn-reset-voucher-inline:hover { background: #fbe9e7; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Override for checkout page */
+.form-group input, .address-selection select {
+    height: 48px;
+}
+.form-group textarea {
+    height: 100px;
+}
+.btn-apply-voucher {
+    height: 48px;
+}
+.address-input-group input {
+    height: 48px;
+}
 </style>

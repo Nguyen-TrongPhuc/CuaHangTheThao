@@ -34,7 +34,7 @@ class PaymentService {
         return (await this.api.post("/vnpay/create", { orderId })).data;
     }
 
-    // Create MoMo payment (mock)
+    // Create MoMo payment
     async createMomoPayment(orderId) {
         return (await this.api.post("/momo/create", { orderId })).data;
     }

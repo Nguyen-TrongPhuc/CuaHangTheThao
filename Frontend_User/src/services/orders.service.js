@@ -5,6 +5,11 @@ class OrderService {
         this.api = createApiClient(baseUrl);
     }
 
+    async validateVoucher(code, subtotal) {
+        const VoucherService = (await import("./vouchers.service")).default;
+        return VoucherService.validateVoucher(code, subtotal);
+    }
+
     async create(data) {
         return (await this.api.post("/", data)).data;
     }

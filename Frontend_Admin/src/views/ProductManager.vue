@@ -15,7 +15,7 @@
         <option value="">-- Tất cả môn thể thao --</option>
         <option v-for="s in sports" :key="s._id" :value="s._id">{{ s.name }}</option>
       </select>
-      <div class="product-count">Tổng: <b>{{ filteredProducts.length }}</b> sản phẩm</div>
+      <div class="product-count">Tìm thấy: <b>{{ filteredProducts.length }}</b> mã sản phẩm</div>
     </div>
 
     <table class="admin-table">
@@ -25,6 +25,7 @@
           <th>Tên sản phẩm</th>
           <th>Giá hiển thị</th>
           <th>Danh mục</th>
+          <th>Nhà cung cấp</th>
           <th>Biến thể (Size - Màu - Kho)</th>
            <th>Hình ảnh</th>
           <th>Thao tác</th>
@@ -37,6 +38,7 @@
           <td>{{ p.name }}</td>
           <td>{{ p.price.toLocaleString() }} đ</td>
           <td>{{ getCategoryName(p.category_id) }}</td>
+          <td>{{ getSupplierName(p.supplier_id) }}</td>
           <td>
             <template v-if="p.variants && p.variants.length > 0">
                 <div v-for="(v, index) in p.variants" :key="index" style="font-size: 0.9em; margin-bottom: 4px;">
@@ -52,7 +54,7 @@
             <img :src="(p.images && p.images[0] && p.images[0].url) || p.image || 'https://via.placeholder.com/50'" alt="Ảnh" class="product-thumbnail" />
           </td>
           <td>
-            <button @click="edit(p)">Sửa</button>
+            <button class="btn-edit" @click="edit(p)">  Sửa</button>
             <button class="btn-del" @click="remove(p._id)">Xóa</button>
           </td>
         </tr>
@@ -108,6 +110,14 @@
             </select>
             </div>
 
+            <div class="form-group">
+            <label>Nhà cung cấp:</label>
+            <select v-model="form.supplier_id" class="input-field">
+                <option :value="null">-- Chọn nhà cung cấp --</option>
+                <option v-for="sup in suppliers" :key="sup._id" :value="sup._id">{{ sup.name }}</option>
+            </select>
+            </div>
+
             <!-- PHẦN QUẢN LÝ BIẾN THỂ -->
             <div class="form-group" style="background: #f9f9f9; padding: 10px; border-radius: 4px;">
                 <label style="margin-bottom: 10px; display: block;">Danh sách biến thể (Size & Màu):</label>
@@ -131,7 +141,7 @@
                         <option v-for="c in colors" :key="c._id" :value="c._id">{{ c.name }}</option>
                     </select>
 
-                    <input type="number" v-model="variant.stock" placeholder="Kho" style="width: 70px;" disabled>
+                    <input type="number" v-model="variant.stock" placeholder="Kho" style="width: 70px;">
                     <input type="number" v-model="variant.price" placeholder="Giá riêng" style="width: 100px;">
                     
                     <button type="button" @click="removeVariant(index)" class="btn-del-variant" style="width: 32px; padding: 5px 0;">X</button>
@@ -161,6 +171,7 @@ import CategoryService from "@/services/categories.service";
 import SportService from "@/services/sports.service";
 import SizesService from "@/services/sizes.service";
 import ColorsService from "@/services/colors.service";
+import SuppliersService from "@/services/suppliers.service";
 import { showToast } from "@/utils/toast";
 
 export default {
@@ -168,13 +179,14 @@ export default {
     return {
       products: [],
       categories: [],
+      suppliers: [],
       sports: [],
       sizes: [],
       colors: [],
       isFormVisible: false,
       editingId: null,
       // image field kept for compatibility; new images array supports multiple image URLs with optional color association
-      form: { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", image: "", images: [], variants: [] },
+      form: { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] },
       selectedCategory: "",
       selectedSport: "",
       searchText: ""
@@ -197,10 +209,15 @@ export default {
       this.sports = await SportService.getAll();
       this.sizes = await SizesService.getAll();
       this.colors = await ColorsService.getAll();
+      this.suppliers = await SuppliersService.getAll();
     },
     getCategoryName(id) {
         const cat = this.categories.find(c => c._id === id);
         return cat ? cat.name : '---';
+    },
+    getSupplierName(id) {
+        const sup = this.suppliers.find(s => s._id === id);
+        return sup ? sup.name : '---';
     },
     getSportName(id) {
         const sport = this.sports.find(s => s._id === id);
@@ -216,7 +233,7 @@ export default {
     },
     showAddForm() {
       this.editingId = null;
-      this.form = { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", image: "", images: [], variants: [] };
+      this.form = { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] };
       // Không tự động thêm variant để hỗ trợ sản phẩm đơn giản
       this.isFormVisible = true;
     },
@@ -248,7 +265,9 @@ export default {
     async save() {
       try {
         if (this.editingId) {
-            const { _id, ...data } = this.form; // Loại bỏ _id
+            // Loại bỏ _id, stock, sold để tránh ghi đè dữ liệu kho/bán hàng khi đang có giao dịch
+            // eslint-disable-next-line no-unused-vars
+            const { _id, stock, sold, ...data } = this.form; 
             await ProductService.update(this.editingId, data);
         }
         else await ProductService.create(this.form);
@@ -267,7 +286,17 @@ export default {
       }
     }
   },
-  mounted() { this.loadData(); }
+  mounted() { this.loadData(); },
+  watch: {
+    'form.variants': {
+      handler(newVariants) {
+        if (newVariants && newVariants.length > 0) {
+          this.form.stock = newVariants.reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
+        }
+      },
+      deep: true
+    }
+  }
 };
 </script>
 
@@ -280,6 +309,7 @@ export default {
 .btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; }
 .btn-add:hover { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 .btn-del { color: #e74c3c; margin-left: 10px; cursor: pointer; border: none; background: none; }
+.btn-edit { color: #3498db; cursor: pointer; border: none; background: none; margin-right: 5px; }
 .form-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
 .form-container { background: white; padding: 30px; border-radius: 8px; width: 400px; max-height: 90vh; overflow-y: auto; }
 .form-group { margin-bottom: 15px; }

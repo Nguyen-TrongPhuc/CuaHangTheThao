@@ -49,7 +49,15 @@
           </div>
 
           <div class="price-box">
-            <p class="product-price">{{ formatPrice(selectedVariant ? selectedVariant.price : product.price) }}</p>
+            <p class="product-price">
+              <span v-if="discountPercent > 0" style="font-size: 0.7em; color: #999; text-decoration: line-through; margin-right: 10px;">
+                {{ formatPrice(currentOriginalPrice) }}
+              </span>
+              {{ formatPrice(currentDisplayPrice) }}
+              <span v-if="discountPercent > 0" style="font-size: 0.6em; background: #ee4d2d; color: white; padding: 2px 6px; border-radius: 4px; vertical-align: middle;">
+                -{{ discountPercent }}% VIP
+              </span>
+            </p>
           </div>
 
           <div class="variant-selection" v-if="hasVariants">
@@ -119,7 +127,7 @@
                 </div>
                 <div class="detail-row">
                     <label>Kho hàng</label>
-                    <div>{{ product.stock }}</div>
+                    <div>{{ totalStock }}</div>
                 </div>
                 <div class="detail-row">
                     <label>Đã bán</label>
@@ -147,7 +155,7 @@
             <div v-else class="reviews-list">
                 <div v-for="review in visibleReviews" :key="review._id" class="review-item">
                     <div class="review-header">
-                        <img :src="review.user.avatar || 'https://via.placeholder.com/40'" class="user-avatar" />
+                        <img :src="review.user.avatar || 'https://placehold.co/40'" class="user-avatar" />
                         <div class="user-info">
                             <span class="user-name">{{ review.user.last_name }} {{ review.user.first_name }}</span>
                             <div class="user-rating"><i v-for="n in 5" :key="n" :class="['fa-solid fa-star', n <= review.rating ? 'active' : '']"></i></div>
@@ -187,9 +195,10 @@ import ColorsService from "@/services/colors.service";
 import CategoryService from "@/services/categories.service";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
-import { showToast } from "@/utils/toast";
 import { cartStore } from "@/utils/cart";
+import { showToast } from "@/utils/toast";
 import ReviewsService from "@/services/reviews.service";
+import CustomerService from "@/services/customer.service";
 
 export default {
   components: { AppHeader, AppFooter },
@@ -206,6 +215,7 @@ export default {
       quantity: 1,
       reviews: []
       ,
+      loyalty: null,
       visibleReviewsCount: 3,
       displayedImage: ''
     };
@@ -244,6 +254,16 @@ export default {
       const uniqueColorIds = [...new Set(this.product.variants.map(v => v.color_id).filter(id => id))];
       return this.colors.filter(c => uniqueColorIds.some(id => String(id) === String(c._id)));
     },
+    discountPercent() {
+        return this.loyalty ? this.loyalty.discountPercent : 0;
+    },
+    currentOriginalPrice() {
+        return this.selectedVariant ? this.selectedVariant.price : (this.product ? this.product.price : 0);
+    },
+    currentDisplayPrice() {
+        const original = this.currentOriginalPrice;
+        return this.discountPercent > 0 ? Math.round(original * (1 - this.discountPercent / 100)) : original;
+    },
     // danh sách đường dẫn ảnh sẵn có để hiển thị trong gallery
     imageList() {
       if (this.product && Array.isArray(this.product.images) && this.product.images.length) {
@@ -263,6 +283,12 @@ export default {
     },
     visibleReviews() {
         return this.reviews.slice(0, this.visibleReviewsCount);
+    },
+    totalStock() {
+        if (this.hasVariants) {
+            return this.product.variants.reduce((sum, v) => sum + v.stock, 0);
+        }
+        return this.product ? this.product.stock : 0;
     }
   },
   methods: {
@@ -273,13 +299,23 @@ export default {
         this.product = await ProductService.findById(productId);
         // thiết lập ảnh hiển thị mặc định
         const imgs = this.imageList;
-        this.displayedImage = imgs.length ? imgs[0] : 'https://via.placeholder.com/600x400';
+        this.displayedImage = imgs.length ? imgs[0] : 'https://placehold.co/600x400';
       } catch (error) {
         console.error("Lỗi khi tải sản phẩm:", error);
         this.product = null;
       } finally {
         this.isLoading = false;
       }
+    },
+    async fetchLoyalty() {
+        const token = localStorage.getItem("user_token");
+        if (!token) return;
+
+        try {
+            this.loyalty = await CustomerService.getLoyalty();
+        } catch (e) {
+            // Không đăng nhập hoặc lỗi, bỏ qua
+        }
     },
     async fetchReviews() {
         try {
@@ -393,6 +429,12 @@ export default {
     },
     // Hàm xử lý logic thêm vào giỏ hàng (dùng chung cho cả 2 nút)
     processAddToCart(isBuyNow = false) {
+      // Tính toán giá sau giảm
+      const originalPrice = this.hasVariants ? this.selectedVariant.price : this.product.price;
+      const finalPrice = this.discountPercent > 0 
+          ? Math.round(originalPrice * (1 - this.discountPercent / 100)) 
+          : originalPrice;
+
       if (this.hasVariants) {
           if (!this.selectedVariant || this.selectedVariant.stock === 0 || this.quantity <= 0) {
             showToast("Vui lòng chọn biến thể và số lượng hợp lệ.", "warning");
@@ -424,13 +466,28 @@ export default {
         this.hasVariants ? {
           size_id: this.selectedVariant.size_id,
           color_id: this.selectedVariant.color_id,
-          price: this.selectedVariant.price,
+          price: finalPrice, // Sử dụng giá đã giảm
+          originalPrice: originalPrice, // Lưu giá gốc để hiển thị
+          vipDiscountPercent: this.discountPercent,
+          vipPrice: finalPrice,
           stock: this.selectedVariant.stock // Thêm stock để validate bên Cart
         } : null,
         this.quantity,
         isBuyNow, // isSelected
         isBuyNow // replaceQuantity: Nếu là Mua ngay thì thay thế số lượng cũ
       );
+
+      // Xử lý cho sản phẩm đơn giản (không có biến thể)
+      if (!this.hasVariants) {
+          // Cần cập nhật lại item vừa thêm vào cartStore vì hàm addToCart mặc định dùng product.price
+          const cartItem = cartStore.state.items.find(i => i._id === this.product._id);
+          if (cartItem) {
+              cartItem.price = finalPrice;
+              cartItem.originalPrice = originalPrice;
+              cartItem.vipDiscountPercent = this.discountPercent;
+              cartItem.vipPrice = finalPrice;
+          }
+      }
 
       return true;
     },
@@ -479,6 +536,7 @@ export default {
     window.scrollTo(0, 0);
     await this.loadFilterData(); // Tải Size và Color trước
     await this.fetchProduct(); // Sau đó tải sản phẩm
+    await this.fetchLoyalty(); // Tải thông tin VIP
     await this.fetchReviews(); // Tải đánh giá
   },
   watch: {

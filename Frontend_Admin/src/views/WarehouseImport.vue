@@ -5,44 +5,75 @@
       <button class="btn-back" @click="$router.push('/warehouse')">Quay lại</button>
     </div>
 
+    <!-- BƯỚC 1: Chọn Nhà Cung Cấp (Bắt buộc) -->
+    <div class="supplier-section">
+        <div class="form-group">
+            <label>Chọn Nhà Cung Cấp <span class="required">*</span>:</label>
+            <select v-model="receipt.supplier_name" class="input-field supplier-select" :disabled="receipt.items.length > 0">
+                <option value="">-- Vui lòng chọn nhà cung cấp --</option>
+                <option v-for="s in suppliers" :key="s._id" :value="s.name">{{ s.name }}</option>
+            </select>
+            <small v-if="receipt.items.length > 0" class="warning-text">
+                <i class="fa-solid fa-lock"></i> Đã khóa nhà cung cấp. Vui lòng xóa hết sản phẩm trong danh sách nếu muốn thay đổi.
+            </small>
+        </div>
+    </div>
+
     <div class="import-layout">
       <!-- Phần thêm sản phẩm -->
-      <div class="add-product-section">
+      <div class="add-product-section" :class="{ 'disabled-section': !receipt.supplier_name }">
         <h3>Thêm sản phẩm vào phiếu</h3>
         <div class="form-group">
           <label>Chọn sản phẩm:</label>
-          <select v-model="selectedProductId" @change="onProductSelect" class="input-field">
+          <select v-model="selectedProductId" @change="onProductSelect" class="input-field" :disabled="!receipt.supplier_name">
             <option value="">-- Chọn sản phẩm --</option>
-            <option v-for="p in products" :key="p._id" :value="p._id">{{ p.name }}</option>
+            <option v-for="p in filteredProducts" :key="p._id" :value="p._id">{{ p.name }}</option>
           </select>
+          <small v-if="receipt.supplier_name && filteredProducts.length === 0" class="warning-text">
+            <i class="fa-solid fa-info-circle"></i> Nhà cung cấp này chưa có sản phẩm nào. Vui lòng thêm sản phẩm cho nhà cung cấp trước.
+          </small>
         </div>
 
         <div v-if="selectedProduct" class="variant-selection">
-          <div v-if="selectedProduct.variants && selectedProduct.variants.length > 0">
-             <div class="form-group">
-                <label>Chọn biến thể (Size - Màu):</label>
-                <select v-model="selectedVariantIndex" class="input-field">
-                    <option :value="-1">-- Chọn biến thể --</option>
-                    <option v-for="(v, idx) in selectedProduct.variants" :key="idx" :value="idx">
-                        {{ getSizeName(v.size_id) }} - {{ getColorName(v.color_id) }} (Kho hiện tại: {{ v.stock }})
-                    </option>
-                </select>
+          <!-- Trường hợp 1: Sản phẩm có biến thể (Hiển thị danh sách nhập nhiều) -->
+          <div v-if="selectedProduct.variants && selectedProduct.variants.length > 0" class="variant-import-list">
+             <label style="display:block; margin-bottom:5px; font-weight:bold;">Nhập số lượng cho các biến thể:</label>
+             <div class="table-wrapper">
+                <table class="variant-table">
+                    <thead>
+                        <tr>
+                            <th>Phân loại</th>
+                            <th>Tồn kho</th>
+                            <th>SL Nhập</th>
+                            <th>Giá Nhập</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(v, idx) in selectedProduct.variants" :key="idx">
+                            <td>{{ getSizeName(v.size_id) }} - {{ getColorName(v.color_id) }}</td>
+                            <td>{{ v.stock }}</td>
+                            <td><input type="number" v-model.number="variantInputs[idx].quantity" min="0" class="input-small" placeholder="0" /></td>
+                            <td><input type="number" v-model.number="variantInputs[idx].price" min="0" class="input-small" /></td>
+                        </tr>
+                    </tbody>
+                </table>
              </div>
           </div>
+          
+          <!-- Trường hợp 2: Sản phẩm đơn giản -->
           <div v-else class="simple-product-info">
              <p>Sản phẩm đơn giản (Kho hiện tại: {{ selectedProduct.stock }})</p>
+             <div class="form-row">
+                <div class="form-group half">
+                    <label>Số lượng nhập:</label>
+                    <input type="number" v-model.number="inputQuantity" min="1" class="input-field" />
+                </div>
+                <div class="form-group half">
+                    <label>Giá nhập (đơn giá):</label>
+                    <input type="number" v-model.number="inputPrice" min="0" class="input-field" />
+                </div>
+            </div>
           </div>
-        </div>
-
-        <div class="form-row">
-            <div class="form-group half">
-                <label>Số lượng nhập:</label>
-                <input type="number" v-model.number="inputQuantity" min="1" class="input-field" />
-            </div>
-            <div class="form-group half">
-                <label>Giá nhập (đơn giá):</label>
-                <input type="number" v-model.number="inputPrice" min="0" class="input-field" />
-            </div>
         </div>
 
         <button class="btn-add-item" @click="addItemToReceipt" :disabled="!canAddItem">Thêm vào danh sách</button>
@@ -51,10 +82,6 @@
       <!-- Phần thông tin phiếu -->
       <div class="receipt-info-section">
         <h3>Thông tin phiếu nhập</h3>
-        <div class="form-group">
-            <label>Nhà cung cấp:</label>
-            <input v-model="receipt.supplier_name" placeholder="Nhập tên nhà cung cấp" class="input-field" />
-        </div>
         <div class="form-group">
             <label>Ghi chú:</label>
             <textarea v-model="receipt.note" placeholder="Ghi chú..." class="input-field"></textarea>
@@ -99,6 +126,7 @@
 import ProductService from "@/services/products.service";
 import SizesService from "@/services/sizes.service";
 import ColorsService from "@/services/colors.service";
+import SuppliersService from "@/services/suppliers.service";
 import WarehouseService from "@/services/warehouse.service";
 import { showToast } from "@/utils/toast";
 
@@ -106,13 +134,14 @@ export default {
   data() {
     return {
       products: [],
+      suppliers: [],
       sizes: [],
       colors: [],
       selectedProductId: "",
       selectedProduct: null,
-      selectedVariantIndex: -1,
       inputQuantity: 1,
       inputPrice: 0,
+      variantInputs: [], // Mảng lưu trữ input cho từng biến thể
       receipt: {
         supplier_name: "",
         note: "",
@@ -121,11 +150,27 @@ export default {
     };
   },
   computed: {
+    // Lọc sản phẩm theo nhà cung cấp được chọn
+    filteredProducts() {
+      if (!this.receipt.supplier_name) return this.products;
+      // Tìm supplier được chọn
+      const selectedSupplier = this.suppliers.find(s => s.name === this.receipt.supplier_name);
+      if (!selectedSupplier) return this.products;
+      // Lọc sản phẩm có supplier_id khớp với nhà cung cấp được chọn
+      return this.products.filter(p => {
+        if (!p.supplier_id) return false;
+        return String(p.supplier_id) === String(selectedSupplier._id);
+      });
+    },
     canAddItem() {
+        if (!this.receipt.supplier_name) return false;
         if (!this.selectedProduct) return false;
+        
+        if (this.selectedProduct.variants && this.selectedProduct.variants.length > 0) {
+             return this.variantInputs.some(v => v.quantity > 0);
+        }
+        
         if (this.inputQuantity <= 0) return false;
-        // Nếu có variant thì phải chọn variant
-        if (this.selectedProduct.variants && this.selectedProduct.variants.length > 0 && this.selectedVariantIndex === -1) return false;
         return true;
     },
     totalAmount() {
@@ -134,48 +179,80 @@ export default {
   },
   methods: {
     async loadData() {
-        const [p, s, c] = await Promise.all([
+        const [p, s, c, sup] = await Promise.all([
             ProductService.getAll(),
             SizesService.getAll(),
-            ColorsService.getAll()
+            ColorsService.getAll(),
+            SuppliersService.getAll()
         ]);
         this.products = p;
         this.sizes = s;
         this.colors = c;
+        this.suppliers = sup;
     },
     getSizeName(id) { return this.sizes.find(s => s._id === id)?.name || '---'; },
     getColorName(id) { return this.colors.find(c => c._id === id)?.name || '---'; },
     
     onProductSelect() {
         this.selectedProduct = this.products.find(p => p._id === this.selectedProductId);
-        this.selectedVariantIndex = -1;
-        this.inputPrice = this.selectedProduct ? this.selectedProduct.price * 0.7 : 0; // Gợi ý giá nhập = 70% giá bán
+        
+        if (this.selectedProduct) {
+            // Setup cho sản phẩm đơn giản
+            this.inputPrice = this.selectedProduct.price * 0.7; 
+            this.inputQuantity = 1;
+
+            // Setup cho sản phẩm biến thể (tạo mảng input tương ứng)
+            if (this.selectedProduct.variants && this.selectedProduct.variants.length > 0) {
+                this.variantInputs = this.selectedProduct.variants.map(v => ({
+                    quantity: 0,
+                    price: (v.price || this.selectedProduct.price) * 0.7
+                }));
+            } else {
+                this.variantInputs = [];
+            }
+        } else {
+            this.inputPrice = 0;
+            this.variantInputs = [];
+        }
     },
     
     addItemToReceipt() {
-        const item = {
-            product_id: this.selectedProduct._id,
-            product_name: this.selectedProduct.name,
-            quantity: this.inputQuantity,
-            import_price: this.inputPrice,
-            variant_size_id: null,
-            variant_color_id: null,
-            variant_desc: ""
-        };
+        if (!this.selectedProduct) return;
 
-        if (this.selectedVariantIndex > -1) {
-            const v = this.selectedProduct.variants[this.selectedVariantIndex];
-            item.variant_size_id = v.size_id;
-            item.variant_color_id = v.color_id;
-            item.variant_desc = `${this.getSizeName(v.size_id)} - ${this.getColorName(v.color_id)}`;
+        // Trường hợp 1: Nhập nhiều biến thể
+        if (this.selectedProduct.variants && this.selectedProduct.variants.length > 0) {
+            this.variantInputs.forEach((input, idx) => {
+                if (input.quantity > 0) {
+                    const v = this.selectedProduct.variants[idx];
+                    this.receipt.items.push({
+                        product_id: this.selectedProduct._id,
+                        product_name: this.selectedProduct.name,
+                        quantity: input.quantity,
+                        import_price: input.price,
+                        variant_size_id: v.size_id,
+                        variant_color_id: v.color_id,
+                        variant_desc: `${this.getSizeName(v.size_id)} - ${this.getColorName(v.color_id)}`
+                    });
+                }
+            });
+        } 
+        // Trường hợp 2: Sản phẩm đơn giản
+        else {
+            this.receipt.items.push({
+                product_id: this.selectedProduct._id,
+                product_name: this.selectedProduct.name,
+                quantity: this.inputQuantity,
+                import_price: this.inputPrice,
+                variant_size_id: null,
+                variant_color_id: null,
+                variant_desc: ""
+            });
         }
-
-        this.receipt.items.push(item);
         
         // Reset form nhập
         this.selectedProductId = "";
         this.selectedProduct = null;
-        this.selectedVariantIndex = -1;
+        this.variantInputs = [];
         this.inputQuantity = 1;
         this.inputPrice = 0;
     },
@@ -212,6 +289,13 @@ export default {
 .btn-back { background: #95a5a6; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
 .import-layout { display: flex; gap: 30px; }
 .add-product-section { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: fit-content; }
+.add-product-section.disabled-section { opacity: 0.6; pointer-events: none; }
+
+.supplier-section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 5px solid #3498db; }
+.supplier-select { font-size: 1.1em; color: #2c3e50; font-weight: 500; }
+.required { color: red; }
+.warning-text { color: #e67e22; font-style: italic; margin-top: 5px; display: block; }
+
 .receipt-info-section { flex: 2; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
 .form-group { margin-bottom: 15px; }
@@ -230,4 +314,11 @@ export default {
 .total-section { text-align: right; margin-top: 20px; font-size: 1.2em; color: #2c3e50; }
 .btn-save-receipt { width: 100%; background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 15px; border: none; border-radius: 4px; font-size: 1.1em; font-weight: bold; cursor: pointer; margin-top: 20px; }
 .btn-save-receipt:disabled { background: #ccc; cursor: not-allowed; }
+
+.variant-import-list { margin-bottom: 15px; }
+.table-wrapper { max-height: 300px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; }
+.variant-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.variant-table th, .variant-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+.variant-table th { background: #f8f9fa; position: sticky; top: 0; }
+.input-small { width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 3px; }
 </style>

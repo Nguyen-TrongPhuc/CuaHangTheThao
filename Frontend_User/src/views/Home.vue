@@ -46,7 +46,12 @@
               <h3 class="product-name">{{ product.name }}</h3>
               <div class="product-meta">
                 <span class="category">{{ product.category_name || 'Thể thao' }}</span>
-                <span class="price">{{ formatPrice(product.price) }}đ</span>
+                <div class="price-box" style="text-align: right;">
+                    <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.8rem; color: #999; text-decoration: line-through; display: block;">
+                        {{ formatPrice(product.price) }}đ
+                    </span>
+                    <span class="price">{{ formatPrice(getDisplayPrice(product.price)) }}đ</span>
+                </div>
               </div>
               <button class="btn-buy-now" @click.stop="goToProductDetail(product._id)">
                 Xem chi tiết
@@ -71,7 +76,12 @@
               <h3 class="product-name">{{ product.name }}</h3>
               <div class="product-meta">
                 <span class="category">{{ product.category_name || 'Gợi ý' }}</span>
-                <span class="price">{{ formatPrice(product.price) }}đ</span>
+                <div class="price-box" style="text-align: right;">
+                    <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.8rem; color: #999; text-decoration: line-through; display: block;">
+                        {{ formatPrice(product.price) }}đ
+                    </span>
+                    <span class="price">{{ formatPrice(getDisplayPrice(product.price)) }}đ</span>
+                </div>
               </div>
               <button class="btn-buy-now" @click.stop="goToProductDetail(product._id)">
                 Xem chi tiết
@@ -94,7 +104,12 @@
               <h3 class="product-name">{{ product.name }}</h3>
               <div class="product-meta">
                 <span class="sold-count"><i class="fa-solid fa-fire"></i> Đã bán {{ product.sold || 0 }}</span>
-                <span class="price">{{ formatPrice(product.price) }}đ</span>
+                <div class="price-box" style="text-align: right;">
+                    <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.8rem; color: #999; text-decoration: line-through; display: block;">
+                        {{ formatPrice(product.price) }}đ
+                    </span>
+                    <span class="price">{{ formatPrice(getDisplayPrice(product.price)) }}đ</span>
+                </div>
               </div>
               <button class="btn-buy-now" @click.stop="goToProductDetail(product._id)">
                 Xem chi tiết
@@ -115,6 +130,7 @@ import AppFooter from "@/components/AppFooter.vue";
 import ProductService from "@/services/products.service";
 import CategoryService from "@/services/categories.service";
 import SportService from "@/services/sports.service";
+import CustomerService from "@/services/customer.service";
 import { showToast } from "@/utils/toast";
 
 export default {
@@ -130,6 +146,7 @@ export default {
       bestSellers: [],
       categories: [],
       sports: [],
+      loyalty: null,
     };
   },
   methods: {
@@ -171,6 +188,22 @@ export default {
         console.error("Lỗi tải bộ lọc", error);
       }
     },
+    async fetchLoyalty() {
+        const token = localStorage.getItem("user_token");
+        if (!token) return;
+
+        try {
+            this.loyalty = await CustomerService.getLoyalty();
+        } catch (e) {
+            // Ignore if not logged in
+        }
+    },
+    getDisplayPrice(price) {
+        if (this.loyalty && this.loyalty.discountPercent > 0) {
+            return Math.round(price * (1 - this.loyalty.discountPercent / 100));
+        }
+        return price;
+    },
     formatPrice(v) { return new Intl.NumberFormat('vi-VN').format(v); },
     goToProductDetail(id) {
       this.$router.push({ name: 'product.detail', params: { id } });
@@ -199,6 +232,7 @@ export default {
   mounted() { 
     this.fetchProducts(); 
     this.fetchFilters();
+    this.fetchLoyalty();
   }
 }
 </script>
@@ -442,7 +476,7 @@ export default {
 .price {
   font-size: 1.2rem;
   font-weight: bold;
-  color: #302b63;
+  color: #e74c3c;
 }
 
 .btn-buy-now {

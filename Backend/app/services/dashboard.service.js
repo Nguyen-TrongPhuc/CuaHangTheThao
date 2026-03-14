@@ -147,7 +147,7 @@ class DashboardService {
         ]).toArray();
     }
 
-    // Top sản phẩm bán chạy
+    // Top sản phẩm bán chạy - bao gồm cả lượt bán và số lượng
     async getTopSellingProducts(limit = 5) {
         return await this.OrderDetails.aggregate([
             {
@@ -156,9 +156,13 @@ class DashboardService {
             { $unwind: "$order" },
             { $match: { "order.status": { $in: ["completed", "delivered"] } } },
             {
-                $group: { _id: "$product_id", totalSold: { $sum: "$quantity" } }
+                $group: { 
+                    _id: "$product_id", 
+                    totalSold: { $sum: 1 }, // Số lượt bán (số đơn hàng)
+                    totalQuantity: { $sum: "$quantity" } // Tổng số lượng sản phẩm bán ra
+                }
             },
-            { $sort: { totalSold: -1 } },
+            { $sort: { totalQuantity: -1 } }, // Sắp xếp theo số lượng bán
             { $limit: limit },
             {
                 $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "productInfo" }
@@ -174,7 +178,8 @@ class DashboardService {
                             "$productInfo.image" 
                         ] 
                     },
-                    totalSold: "$totalSold"
+                    totalSold: "$totalSold", // Số lượt bán
+                    totalQuantity: "$totalQuantity" // Tổng số lượng bán
                 }
             }
         ]).toArray();
@@ -186,7 +191,8 @@ class DashboardService {
         const startOfYear = new Date(y, 0, 1);
         const endOfYear = new Date(y, 11, 31, 23, 59, 59);
 
-        const result = await this.Orders.aggregate([
+        // 1. Doanh số và số lượng bán ra
+        const salesResult = await this.Orders.aggregate([
             {
                 $match: {
                     status: { $in: ["completed", "delivered", "paid"] },
@@ -194,23 +200,57 @@ class DashboardService {
                 }
             },
             {
+                $addFields: {
+                    totalItemsInOrder: {
+                        $reduce: {
+                            input: { $ifNull: ["$items", []] },
+                            initialValue: 0,
+                            in: { $add: ["$$value", { $ifNull: ["$$this.quantity", 0] }] }
+                        }
+                    }
+                }
+            },
+            {
                 $group: {
                     _id: { $month: "$createdAt" },
                     totalRevenue: { $sum: "$total_amount" },
-                    orderCount: { $sum: 1 }
+                    orderCount: { $sum: 1 },
+                    totalSoldQuantity: { $sum: "$totalItemsInOrder" }
                 }
             },
             { $sort: { _id: 1 } }
         ]).toArray();
         
-        // Điền dữ liệu cho các tháng không có doanh thu
+        // 2. Số lượng và chi phí nhập vào
+        const importsResult = await this.Warehouse.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startOfYear, $lte: endOfYear }
+                }
+            },
+            {
+                $group: {
+                    _id: { $month: "$createdAt" },
+                    totalImportCost: { $sum: { $multiply: ["$import_price", "$quantity"] } },
+                    totalImportQuantity: { $sum: "$quantity" }
+                }
+            }
+        ]).toArray();
+        
+        // Điền dữ liệu cho các tháng
         const fullData = [];
         for (let m = 1; m <= 12; m++) {
-            const found = result.find(r => r._id === m);
+            const sale = salesResult.find(r => r._id === m);
+            const imp = importsResult.find(r => r._id === m);
+            
             fullData.push({
                 month: m,
-                totalRevenue: found ? found.totalRevenue : 0,
-                orderCount: found ? found.orderCount : 0
+                totalRevenue: sale ? sale.totalRevenue : 0,
+                orderCount: sale ? sale.orderCount : 0,
+                totalSoldQuantity: sale ? sale.totalSoldQuantity : 0,
+                totalImportCost: imp ? imp.totalImportCost : 0,
+                totalImportQuantity: imp ? imp.totalImportQuantity : 0,
+                profit: (sale ? sale.totalRevenue : 0) - (imp ? imp.totalImportCost : 0)
             });
         }
         return fullData;
@@ -263,14 +303,95 @@ class DashboardService {
         ]).toArray();
     }
 
-    // 3. Sản phẩm sắp hết hàng (Low Stock)
+    // 3. Sản phẩm sắp hết hàng (Low Stock) - bao gồm cả sản phẩm đơn giản và biến thể
     async getLowStockProducts(threshold = 10) {
-        return await this.Products.find({ 
-            stock: { $lte: parseInt(threshold) } 
-        })
-        .sort({ stock: 1 })
-        .project({ name: 1, stock: 1, image: 1, price: 1 })
-        .toArray();
+        const thresholdNum = parseInt(threshold);
+        
+        return await this.Products.aggregate([
+            {
+                $addFields: {
+                    // Tính toán lại tồn kho thực tế (để tránh trường hợp stock tổng bị sai lệch với variants)
+                    actualStock: {
+                        $cond: {
+                            if: { $gt: [{ $size: { $ifNull: ["$variants", []] } }, 0] },
+                            then: { $sum: "$variants.stock" },
+                            else: "$stock"
+                        }
+                    },
+                    lowStockVariants: {
+                        $filter: {
+                            input: { $ifNull: ["$variants", []] },
+                            as: "variant",
+                            cond: { $lte: ["$$variant.stock", thresholdNum] }
+                        }
+                    }
+                }
+            },
+            {
+                $match: {
+                    $or: [
+                        { actualStock: { $lte: thresholdNum } }, // So sánh với tồn kho thực tế
+                        { lowStockVariants: { $ne: [] } }
+                    ]
+                }
+            },
+            // Tách mảng biến thể ra để tra cứu tên Size/Màu
+            { $unwind: { path: "$lowStockVariants", preserveNullAndEmptyArrays: true } },
+            {
+                $lookup: {
+                    from: "sizes",
+                    localField: "lowStockVariants.size_id",
+                    foreignField: "_id",
+                    as: "sizeInfo"
+                }
+            },
+            {
+                $lookup: {
+                    from: "colors",
+                    localField: "lowStockVariants.color_id",
+                    foreignField: "_id",
+                    as: "colorInfo"
+                }
+            },
+            {
+                $addFields: {
+                    "lowStockVariants.size_name": { $arrayElemAt: ["$sizeInfo.name", 0] },
+                    "lowStockVariants.color_name": { $arrayElemAt: ["$colorInfo.name", 0] }
+                }
+            },
+            // Gom nhóm lại thành sản phẩm như cũ
+            {
+                $project: {
+                    name: 1,
+                    stock: "$actualStock", // Trả về số lượng thực tế đã tính toán
+                    image: 1,
+                    price: 1,
+                    lowStockVariants: 1,
+                    // Đảm bảo giữ lại variants gốc để debug nếu cần
+                    // variants: 1 
+                }
+            },
+            {
+                $group: {
+                    _id: "$_id",
+                    name: { $first: "$name" },
+                    stock: { $first: "$stock" },
+                    image: { $first: "$image" },
+                    price: { $first: "$price" },
+                    // Chỉ push vào mảng nếu đó là biến thể thực sự (có stock)
+                    lowStockVariants: { 
+                        $push: {
+                            $cond: [
+                                { $gt: ["$lowStockVariants.stock", null] }, 
+                                "$lowStockVariants", 
+                                "$$REMOVE"
+                            ]
+                        } 
+                    }
+                }
+            },
+            { $sort: { stock: 1 } }
+        ]).toArray();
     }
 
     // 4. Báo cáo nhập hàng (Đơn giá gốc, ngày nhập, người nhập, số lượng)
@@ -301,6 +422,39 @@ class DashboardService {
             },
             { $sort: { createdAt: -1 } }
         ]).toArray();
+    }
+
+    // 5. Đồng bộ lại tồn kho (Fix lỗi sai lệch số liệu trong DB)
+    async syncStock() {
+        const products = await this.Products.find({}).toArray();
+        let updatedCount = 0;
+
+        for (const p of products) {
+            let correctStock = p.stock;
+            let shouldUpdate = false;
+
+            // Trường hợp 1: Có biến thể -> Stock phải bằng tổng biến thể
+            if (p.variants && p.variants.length > 0) {
+                const totalVariantStock = p.variants.reduce((sum, v) => sum + (parseInt(v.stock) || 0), 0);
+                if (p.stock !== totalVariantStock) {
+                    correctStock = totalVariantStock;
+                    shouldUpdate = true;
+                }
+            } 
+            // Trường hợp 2: Không biến thể -> Stock không được âm
+            else {
+                if (p.stock < 0) {
+                    correctStock = 0;
+                    shouldUpdate = true;
+                }
+            }
+
+            if (shouldUpdate) {
+                await this.Products.updateOne({ _id: p._id }, { $set: { stock: correctStock } });
+                updatedCount++;
+            }
+        }
+        return { updatedCount };
     }
 }
 

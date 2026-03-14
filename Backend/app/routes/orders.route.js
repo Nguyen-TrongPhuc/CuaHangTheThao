@@ -1,8 +1,22 @@
 const express = require("express");
 const orders = require("../controllers/orders.controller");
 const auth = require("../middleware/auth.middleware");
+const MongoDB = require("../utils/mongodb.util");
+const OrderService = require("../services/orders.service");
 
 const router = express.Router();
+
+// Khởi chạy Cronjob (Tác vụ nền) tự động hủy đơn hàng chưa thanh toán sau 15 phút
+setInterval(async () => {
+    if (MongoDB.client) {
+        try {
+            const orderService = new OrderService(MongoDB.client);
+            await orderService.cancelExpiredOrders();
+        } catch (error) {
+            console.error("Lỗi khi chạy Cronjob hủy đơn:", error);
+        }
+    }
+}, 60 * 1000); // Quét mỗi 1 phút (60,000 milliseconds)
 
 // =======================
 // ROUTES CHO ORDERS

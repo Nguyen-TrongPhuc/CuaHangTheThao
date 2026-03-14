@@ -40,8 +40,8 @@
 ### Payment Methods:
 
 - COD (Cash on Delivery)
-- VNPAY (Online payment)
-- MoMo (Wallet - mock)
+- VNPAY (Online payment) ✅ FIXED
+- MoMo (Wallet)
 - Bank Transfer
 
 ### Order Management:
@@ -50,3 +50,42 @@
 - Payment method display
 - Payment status tracking (unpaid/paid/pending/failed)
 - Order details modal in admin panel
+
+## 🆕 VNPAY TESTING GUIDE (FIX "timer is not defined" ERROR):
+
+1. **Setup credentials:**
+
+   ```
+   cd Backend
+   cp .env.example .env
+   # Edit .env with your VNPay sandbox TMNCode & HashSecret
+   ```
+
+2. **Expose backend publicly (ngrok):**
+
+   ```
+   npm install -g ngrok  # or download from ngrok.com
+   cd Backend
+   npm start             # Backend runs on port 3003
+   # New terminal:
+   ngrok http 3003
+   # Copy ngrok URL: https://abc.ngrok-free.app
+   ```
+
+3. **Temporary config update (Backend/app/config/index.js):**
+
+   ```
+   vnpay: {
+     returnUrl: "https://abc.ngrok-free.app/api/payment/vnpay/callback",
+     ...
+   }
+   ```
+
+4. **Test:**
+   - Frontend: http://localhost:5173/checkout
+   - Select VNPay → should redirect to sandbox without JS error
+   - After payment → auto-redirect to PaymentResult.vue
+
+5. **Production:** Deploy backend to public domain, update returnUrl.
+
+**"timer is not defined" = VNPay sandbox bug + localhost callback. Fixed with public URL!**

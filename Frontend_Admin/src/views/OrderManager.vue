@@ -161,11 +161,18 @@ export default {
     async updateStatus(id, event) {
         try {
             const newStatus = event.target.value;
-            const updatedOrder = await OrderService.update(id, { status: newStatus });
-            showToast("Cập nhật trạng thái thành công!", "success");
-            // Cập nhật UI ngay lập tức
+            // Lấy payment_status hiện tại để update cả 2
             const order = this.orders.find(o => o._id === id);
-            if (order) order.status = updatedOrder.status;
+            const updatedOrder = await OrderService.update(id, { 
+                status: newStatus, 
+                payment_status: order.payment_status || 'paid' 
+            });
+            showToast("Cập nhật trạng thái + VIP tự động!", "success");
+            const currentOrder = this.orders.find(o => o._id === id);
+            if (currentOrder) {
+                currentOrder.status = newStatus;
+                currentOrder.payment_status = updatedOrder.payment_status || 'paid';
+            }
         } catch (error) {
             showToast("Lỗi cập nhật trạng thái", "error");
         }
@@ -212,11 +219,18 @@ export default {
     async updatePaymentStatus(id, event) {
         try {
             const newStatus = event.target.value;
-            const updatedOrder = await OrderService.update(id, { payment_status: newStatus });
-            showToast("Cập nhật trạng thái thanh toán thành công!", "success");
-            // Cập nhật UI ngay lập tức
+            // Lấy status hiện tại để update cả 2
             const order = this.orders.find(o => o._id === id);
-            if (order) order.payment_status = updatedOrder.payment_status;
+            const updatedOrder = await OrderService.update(id, { 
+                payment_status: newStatus,
+                status: order.status || 'delivered' 
+            });
+            showToast("Cập nhật thanh toán + VIP tự động!", "success");
+            const currentOrder = this.orders.find(o => o._id === id);
+            if (currentOrder) {
+                currentOrder.payment_status = newStatus;
+                currentOrder.status = updatedOrder.status || 'delivered';
+            }
         } catch (error) {
             showToast("Lỗi cập nhật trạng thái thanh toán", "error");
         }

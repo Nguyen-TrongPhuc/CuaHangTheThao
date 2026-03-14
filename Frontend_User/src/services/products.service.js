@@ -16,6 +16,10 @@ class ProductService {
     async findByName(name) {
         return (await this.api.get(`/?name=${name}`)).data;
     }
+
+    async getVipProducts(customerId) {
+        return (await this.api.get(`/?customerId=${customerId}`)).data;
+    }
     
     // Các phương thức khác nếu cần (create, update, delete thường dùng bên Admin)
 }

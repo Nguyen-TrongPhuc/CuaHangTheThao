@@ -13,7 +13,7 @@
             <input type="checkbox" v-model="item.selected" @change="cart.save()" />
           </div>
 
-          <img :src="item.image || 'https://via.placeholder.com/100'" alt="Product" class="item-image" />
+          <img :src="item.image || 'https://placehold.co/100'" alt="Product" class="item-image" />
           
           <div class="item-details">
             <h3>{{ item.name }}</h3>
@@ -22,7 +22,15 @@
                <span v-if="item.variant.size_id && item.variant.color_id"> | </span>
                <span v-if="item.variant.color_id">Màu: {{ getColorName(item.variant.color_id) }}</span>
             </div>
-            <p class="item-price">{{ formatPrice(item.price) }}đ</p>
+            <p class="item-price">
+              <span v-if="item.vipDiscountPercent > 0" style="text-decoration: line-through; color: #999; margin-right: 8px; font-size: 0.9em;">
+                {{ formatPrice(item.originalPrice || (item.price / (1 - item.vipDiscountPercent/100))) }}đ
+              </span>
+              <span style="color: #ee4d2d; font-weight: bold;">{{ formatPrice(item.price) }}đ</span>
+              <span v-if="item.vipDiscountPercent > 0" class="vip-badge" style="margin-left: 5px; font-size: 0.7em; background: #ee4d2d; color: white; padding: 2px 5px; border-radius: 3px;">
+                VIP -{{ item.vipDiscountPercent }}%
+              </span>
+            </p>
           </div>
 
           <div class="item-quantity">
@@ -74,6 +82,7 @@ import { cartStore } from "@/utils/cart";
 import { showToast } from "@/utils/toast";
 import SizesService from "@/services/sizes.service";
 import ColorsService from "@/services/colors.service";
+import CustomerService from "@/services/customer.service";
 
 export default {
   components: { AppHeader, AppFooter },
@@ -97,7 +106,32 @@ export default {
 
     onMounted(() => {
         loadMetadata();
+        updateVipPrices();
     });
+
+    const updateVipPrices = async () => {
+        const token = localStorage.getItem("user_token");
+        if (!token) return; // Không gọi API nếu chưa đăng nhập
+
+        try {
+            const loyalty = await CustomerService.getLoyalty();
+            if (loyalty && loyalty.discountPercent > 0) {
+                const discount = loyalty.discountPercent / 100;
+                cartStore.state.items.forEach(item => {
+                     if (!item.originalPrice) item.originalPrice = item.price;
+                     item.vipDiscountPercent = loyalty.discountPercent;
+                     item.vipPrice = Math.round(item.originalPrice * (1 - discount));
+                     item.price = item.vipPrice;
+                });
+                if (cartStore.save) cartStore.save();
+            }
+        } catch (e) {
+            if (e.response && e.response.status === 401) {
+                showToast("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "warning");
+                window.location.href = "/login";
+            }
+        }
+    };
 
     const getSizeName = (id) => {
         const s = sizes.value.find(x => String(x._id) === String(id));

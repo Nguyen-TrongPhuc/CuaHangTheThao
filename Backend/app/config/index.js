@@ -1,7 +1,9 @@
+require('dotenv').config();
+
 const config = {
     app: {
         port: process.env.PORT || 3003,
-        baseUrl: process.env.BASE_URL || "http://localhost:5173"
+        baseUrl: process.env.BASE_URL || "http://localhost:3005"
     }, 
      db: {
         uri: process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/SportStore",
@@ -90,19 +92,23 @@ const config = {
         }
     },
 
-    // Payment configuration
+// Payment configuration
+// IMPORTANT: Copy Backend/.env.example to Backend/.env and fill VNPay credentials
+// For local testing: Use ngrok http 3003, update VNPAY_RETURN_URL with public callback URL
+// Example: https://abc.ngrok-free.app/api/payment/vnpay/callback
+
     payment: {
         vnpay: {
             tmnCode: process.env.VNPAY_TMNCODE || "YOUR_TMNCODE",
             hashSecret: process.env.VNPAY_HASHSECRET || "YOUR_HASHSECRET",
             url: process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-            returnUrl: process.env.VNPAY_RETURN_URL || "http://localhost:5173/payment-result"
+returnUrl: process.env.VNPAY_RETURN_URL || `http://localhost:3003/api/payment/vnpay/callback`
         },
         momo: {
             endpoint: process.env.MOMO_ENDPOINT || "https://test-payment.momo.vn/v2/gateway/api/create",
-            partnerCode: process.env.MOMO_PARTNERCODE || "MOMO_PARTNERCODE",
-            accessKey: process.env.MOMO_ACCESSKEY || "MOMO_ACCESSKEY",
-            secretKey: process.env.MOMO_SECRETKEY || "MOMO_SECRETKEY"
+            partnerCode: process.env.MOMO_PARTNERCODE || "MOMO",
+            accessKey: process.env.MOMO_ACCESSKEY || "F8BBA842ECF85",
+            secretKey: process.env.MOMO_SECRETKEY || "K951B6PE1waDMi640xX08PD3vg6EkVlz"
         }
     }
 };

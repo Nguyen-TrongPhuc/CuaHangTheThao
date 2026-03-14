@@ -14,7 +14,7 @@ class ProductsService {
             description: payload.description || "",
             price: Number(payload.price),
             // stock: Tổng tồn kho sẽ được tính toán hoặc hiển thị từ variants, ở đây lưu tạm 0 hoặc tổng
-            stock: Number(payload.stock) || 0, 
+            stock: 0, 
             sold: 0, // Thêm trường số lượng đã bán, mặc định là 0
 
             category_id: (payload.category_id && ObjectId.isValid(payload.category_id))
@@ -23,6 +23,10 @@ class ProductsService {
 
             sport_id: (payload.sport_id && ObjectId.isValid(payload.sport_id))
                 ? new ObjectId(payload.sport_id)
+                : null,
+            
+            supplier_id: (payload.supplier_id && ObjectId.isValid(payload.supplier_id))
+                ? new ObjectId(payload.supplier_id)
                 : null,
             
             // Mảng biến thể: [{ size_id, color_id, stock, price }]
@@ -46,6 +50,13 @@ class ProductsService {
             createdAt: new Date(),
         };
 
+        // Tính tổng tồn kho từ variants nếu có
+        if (product.variants.length > 0) {
+            product.stock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+        } else {
+            product.stock = Number(payload.stock) || 0;
+        }
+
         const result = await this.Products.insertOne(product);
         return { _id: result.insertedId, ...product };
     }
@@ -53,27 +64,76 @@ class ProductsService {
     // =======================
     // TÌM THEO ĐIỀU KIỆN
     // =======================
-    async find(filter) {
+    async find(filter, customerId = null) {
         const cursor = await this.Products.find(filter).sort({ createdAt: -1 });
-        return cursor.toArray();
+        const products = await cursor.toArray();
+
+        // Apply VIP discount if customerId provided
+        if (customerId) {
+            const CustomerService = require('./customer.service');
+            const MongoDB = require('../utils/mongodb.util');
+            const customerService = new CustomerService(MongoDB.client);
+            const loyaltyInfo = await customerService.getLoyaltyInfo(String(customerId));
+            const discountPercent = loyaltyInfo ? loyaltyInfo.discountPercent / 100 : 0;
+
+            return products.map(p => ({
+                ...p,
+                vipDiscountPercent: discountPercent * 100,
+                vipPrice: p.price * (1 - discountPercent),
+                showVipPrice: discountPercent > 0
+            }));
+        }
+
+        return products;
     }
 
     // =======================
     // TÌM THEO ID
     // =======================
-    async findById(id) {
-        return await this.Products.findOne({
+    async findById(id, customerId = null) {
+        const product = await this.Products.findOne({
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         });
+
+        if (product && customerId) {
+            const CustomerService = require('./customer.service');
+            const MongoDB = require('../utils/mongodb.util');
+            const customerService = new CustomerService(MongoDB.client);
+            const loyaltyInfo = await customerService.getLoyaltyInfo(String(customerId));
+            const discountPercent = loyaltyInfo ? loyaltyInfo.discountPercent / 100 : 0;
+
+            product.vipDiscountPercent = discountPercent * 100;
+            product.vipPrice = product.price * (1 - discountPercent);
+            product.showVipPrice = discountPercent > 0;
+        }
+        
+        return product;
     }
 
     // =======================
     // TÌM THEO TÊN
     // =======================
-    async findByName(name) {
-        return await this.Products.find({
+    async findByName(name, customerId = null) {
+        const products = await this.Products.find({
             name: { $regex: new RegExp(name), $options: "i" },
         }).toArray();
+
+        if (customerId) {
+            const CustomerService = require('./customer.service');
+            const MongoDB = require('../utils/mongodb.util');
+            const customerService = new CustomerService(MongoDB.client);
+            const loyaltyInfo = await customerService.getLoyaltyInfo(String(customerId));
+            const discountPercent = loyaltyInfo ? loyaltyInfo.discountPercent / 100 : 0;
+
+            return products.map(p => ({
+                ...p,
+                vipDiscountPercent: discountPercent * 100,
+                vipPrice: p.price * (1 - discountPercent),
+                showVipPrice: discountPercent > 0
+            }));
+        }
+
+        return products;
     }
 
     // =======================
@@ -109,7 +169,7 @@ class ProductsService {
         // FIX: Chuyển đổi dữ liệu sang đúng định dạng (ObjectId, Number) trước khi update
         const updateData = { ...payload };
 
-        const objectIdFields = ["category_id", "sport_id"];
+        const objectIdFields = ["category_id", "sport_id", "supplier_id"];
         objectIdFields.forEach((field) => {
             if (updateData[field] && ObjectId.isValid(updateData[field])) {
                 updateData[field] = new ObjectId(updateData[field]);
@@ -124,6 +184,9 @@ class ProductsService {
                 stock: Number(v.stock) || 0,
                 price: Number(v.price) || Number(updateData.price || 0)
             }));
+
+            // Cập nhật tổng tồn kho dựa trên variants
+            updateData.stock = updateData.variants.reduce((sum, v) => sum + v.stock, 0);
         }
 
         // Xử lý images khi update (mảng ảnh có thể đi kèm color_id)

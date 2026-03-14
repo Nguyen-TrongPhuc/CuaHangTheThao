@@ -20,9 +20,13 @@ router.route("/vnpay/create")
 router.route("/vnpay/callback")
     .get(payment.vnpayCallback);
 
-// Create MoMo payment (mock)
+// Create MoMo payment
 router.route("/momo/create")
     .post([auth.verifyToken], payment.createMomoPayment);
+
+// MoMo IPN Callback - Public for MoMo server
+router.route("/momo-callback")
+    .post(payment.momoCallback);
 
 // Check payment status
 router.route("/status/:orderId")

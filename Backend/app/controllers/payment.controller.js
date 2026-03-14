@@ -4,6 +4,7 @@ const ApiError = require("../api-error");
 const vnpayUtil = require("../utils/vnpay.util");
 const config = require("../config");
 const crypto = require('crypto');
+const MoMoUtil = require("../utils/momo.util");
 
 /**
  * Create VNPAY payment URL for an order
@@ -28,12 +29,31 @@ exports.createVnpayPayment = async (req, res, next) => {
             return next(new ApiError(403, "Unauthorized"));
         }
 
+        // Lấy IP Address của khách hàng theo chuẩn VNPAY
+        let ipAddr = req.headers['x-forwarded-for'] ||
+            req.connection.remoteAddress ||
+            req.socket.remoteAddress ||
+            (req.connection.socket ? req.connection.socket.remoteAddress : null) || '127.0.0.1';
+            
+        // VNPAY chỉ chấp nhận 1 IP duy nhất dạng IPv4
+        if (ipAddr && ipAddr.indexOf(',') !== -1) {
+            ipAddr = ipAddr.split(',')[0].trim();
+        }
+        if (ipAddr === '::1' || ipAddr.indexOf(':') !== -1) {
+            ipAddr = '127.0.0.1';
+        }
+
+        // VNPAY yêu cầu mô tả không dấu và không ký tự đặc biệt.
+        // Chuẩn hóa chuỗi (thay dấu cách bằng gạch ngang) để đảm bảo tương thích.
+        let orderInfo = `Thanh toan don hang ${order._id.toString()}`.replace(/\s/g, '-');
+
         // Create VNPAY payment URL
         const paymentUrl = vnpayUtil.createPaymentUrl({
-            orderId: order._id.toString(),
+            orderId: order._id.toString() + "_" + new Date().getTime(), // Thêm timestamp để tránh lỗi trùng mã giao dịch (vnp_TxnRef)
             amount: order.total_amount,
-            orderInfo: `Thanh toan don hang ${order._id}`,
-            returnUrl: `${config.app.baseUrl}/payment-result`
+            orderInfo: orderInfo,
+            returnUrl: config.payment.vnpay.returnUrl || `http://localhost:${config.app.port}/api/payment/vnpay/callback`,
+            ipAddr: ipAddr
         });
 
         console.log("VNPAY Payment URL created:", paymentUrl);
@@ -58,7 +78,8 @@ exports.vnpayCallback = async (req, res, next) => {
             return res.status(400).send("Invalid signature");
         }
 
-        const orderId = vnpParams.vnp_TxnRef;
+        // Lấy lại ID đơn hàng thực tế bằng cách bỏ đi phần timestamp
+        const orderId = vnpParams.vnp_TxnRef.split('_')[0];
         const orderService = new OrderService(MongoDB.client);
         const order = await orderService.findById(orderId);
 
@@ -555,60 +576,19 @@ exports.createMomoPayment = async (req, res, next) => {
             return next(new ApiError(404, "Order not found"));
         }
 
-        // MoMo Configuration
-        const { partnerCode, accessKey, secretKey, endpoint } = config.payment.momo;
-        
-        const requestId = orderId;
-        const orderInfo = `Thanh toan don hang ${orderId}`;
-        const redirectUrl = `${config.app.baseUrl}/payment-result`;
-        const ipnUrl = `${config.app.baseUrl}/api/payment/momo-callback`; // URL để MoMo gọi lại báo kết quả
-        const amount = order.total_amount.toString();
-        const requestType = "captureWallet";
-        const extraData = ""; // Pass empty string if not used
+        // Use MoMoUtil
+        const paymentUrl = await MoMoUtil.createPayment(
+            order._id.toString(),
+            order.total_amount,
+            `Thanh toan don hang ${order._id}`,
+            order.customer_id ? order.customer_id.toString() : "guest"
+        );
 
-        // Create Signature
-        // Format: accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType
-        const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
-
-        const signature = crypto.createHmac('sha256', secretKey)
-            .update(rawSignature)
-            .digest('hex');
-
-        // Request Body
-        const requestBody = JSON.stringify({
-            partnerCode,
-            partnerName: "SportStore",
-            storeId: "SportStore",
-            requestId,
-            amount,
-            orderId,
-            orderInfo,
-            redirectUrl,
-            ipnUrl,
-            lang: "vi",
-            requestType,
-            autoCapture: true,
-            extraData,
-            signature
-        });
-
-        // Call MoMo API
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(requestBody)
-            },
-            body: requestBody
-        });
-
-        const data = await response.json();
-
-        if (data && data.payUrl) {
-            return res.send({ paymentUrl: data.payUrl });
+        if (paymentUrl.payUrl) {
+            return res.send({ paymentUrl: paymentUrl.payUrl });
         } else {
-            console.error("MoMo API Error:", data);
-            return next(new ApiError(500, "Lỗi tạo thanh toán MoMo: " + (data.message || data.localMessage || "Unknown error")));
+            console.error("MoMo API Error:", paymentUrl);
+            return next(new ApiError(500, "MoMo payment creation failed"));
         }
     } catch (error) {
         console.error("MoMo Payment Error:", error);

@@ -62,3 +62,14 @@ exports.getImportReport = async (req, res, next) => {
         return next(new ApiError(500, "Error retrieving import report"));
     }
 };
+
+exports.syncStock = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const result = await dashboardService.syncStock();
+        res.send(result);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error syncing stock"));
+    }
+};

@@ -28,7 +28,9 @@
                     </div>
                     <div class="item-qty">x{{ item.quantity }}</div>
                 </div>
-                <div class="item-price">{{ formatPrice(item.unit_price) }}đ</div>
+                <div class="item-price-col">
+                    <div class="item-total-price">{{ formatPrice(item.unit_price * item.quantity) }}đ</div>
+                </div>
                 <div v-if="order.status === 'completed'" class="item-action">
                     <button v-if="!item.is_reviewed" class="btn-review" @click="openReviewModal(item, order)">Đánh giá</button>
                     <span v-else class="text-reviewed"><i class="fa-solid fa-check"></i> Đã đánh giá</span>
@@ -38,8 +40,10 @@
 
           <div class="order-body">
             <p class="order-date">Ngày đặt: {{ formatDate(order.createdAt) }}</p>
-            <p class="order-total">Tổng tiền: <strong>{{ formatPrice(order.total_amount) }}đ</strong></p>
-            <p class="order-shipping" v-if="order.shipping_fee">Phí vận chuyển: {{ formatPrice(order.shipping_fee) }}đ</p>
+            <p class="order-subtotal">Tổng tiền hàng: {{ formatPrice(order.subtotal) }}đ</p>
+            <p class="order-shipping">Phí vận chuyển: {{ formatPrice(order.shipping_fee) }}đ</p>
+            <p class="order-discount" v-if="order.discount_amount > 0">Giảm giá: <span class="discount-value">-{{ formatPrice(order.discount_amount) }}đ</span></p>
+            <p class="order-total">Thanh toán: <strong>{{ formatPrice(order.total_amount) }}đ</strong></p>
             <p class="order-payment">
               <span>Thanh toán: <strong>{{ getPaymentMethodName(order.payment_method) }}</strong></span>
               <span :class="['payment-status', order.payment_status]">{{ getPaymentStatusName(order.payment_status) }}</span>
@@ -332,7 +336,9 @@ export default {
 .item-name:hover { color: #007bff; }
 .item-meta { font-size: 0.85rem; color: #777; margin-top: 2px; }
 .item-qty { font-size: 0.85rem; color: #555; margin-top: 2px; }
-.item-price { font-weight: bold; color: #333; }
+.item-price-col { text-align: right; margin-left: 10px; }
+.item-unit-price { font-weight: 500; color: #333; }
+.item-total-price { font-size: 0.85rem; color: #e74c3c; font-weight: bold; margin-top: 2px; }
 .item-action { margin-left: 15px; }
 .btn-review {
     background: #fff; border: 1px solid #2980b9; color: #2980b9;
@@ -342,8 +348,10 @@ export default {
 .text-reviewed { font-size: 0.85rem; color: #27ae60; font-weight: bold; }
 
 .order-body p { margin: 5px 0; color: #444; font-size: 0.95rem; }
+.order-total { font-size: 1.1rem !important; margin-top: 10px !important; padding-top: 10px; border-top: 1px dashed #ddd; color: #e74c3c !important; }
 .order-footer { margin-top: 15px; font-size: 0.9rem; color: #777; font-style: italic; display: flex; justify-content: space-between; align-items: center; }
 
+.discount-value { color: #28a745; font-weight: bold; }
 .action-right { margin-left: auto; }
 .btn-confirm-received, .btn-cancel, .btn-return {
   background: linear-gradient(135deg, #28a745, #218838);
