@@ -173,6 +173,51 @@
             </div>
           </div>
           
+          <!-- Voucher input section (Modern E-commerce style) -->
+          <div class="modern-voucher-section">
+            <div class="voucher-header-flex">
+              <h3><i class="fa-solid fa-ticket-simple" style="color: #ee4d2d; margin-right: 8px;"></i> Khuyến mãi & Voucher</h3>
+              <button type="button" class="btn-text-select" @click="openVoucherModal">
+                Xem tất cả <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
+            
+            <!-- Tags cho voucher đã áp dụng -->
+            <div class="applied-tags" v-if="discountVoucher || shippingVoucher">
+               <div class="v-tag shipping-tag" v-if="shippingVoucher">
+                  <span class="tag-icon"><i class="fa-solid fa-truck-fast"></i></span>
+                  <span class="tag-text">Đã áp dụng mã: <strong>{{ shippingVoucher.code }}</strong></span>
+                  <button type="button" class="tag-remove" @click="removeShippingVoucher"><i class="fa-solid fa-xmark"></i></button>
+               </div>
+               <div class="v-tag discount-tag" v-if="discountVoucher">
+                  <span class="tag-icon"><i class="fa-solid fa-gift"></i></span>
+                  <span class="tag-text">Đã áp dụng mã: <strong>{{ discountVoucher.code }}</strong></span>
+                  <button type="button" class="tag-remove" @click="removeDiscountVoucher"><i class="fa-solid fa-xmark"></i></button>
+               </div>
+            </div>
+
+            <div class="voucher-input-row" :class="{ 'has-error': voucherError }">
+               <input 
+                  v-model="voucherInputCode" 
+                  type="text" 
+                  placeholder="Nhập mã giảm giá / freeship" 
+                  @keyup.enter="applyVoucher"
+                  :disabled="isApplyingVoucher"
+                />
+                <button 
+                  type="button"
+                  @click="applyVoucher" 
+                  :disabled="!voucherInputCode.trim() || isApplyingVoucher"
+                  class="btn-apply-modern"
+                >
+                  {{ isApplyingVoucher ? 'Đang xử lý...' : 'Áp dụng' }}
+                </button>
+            </div>
+            <div v-if="voucherError" class="voucher-error-msg">
+              <i class="fa-solid fa-circle-exclamation"></i> {{ voucherError }}
+            </div>
+          </div>
+
           <div class="summary-totals">
             <div class="row">
               <span>Tạm tính:</span>
@@ -183,48 +228,16 @@
               <span>{{ formatPrice(finalShippingFee) }}đ</span>
             </div>
             <div v-if="discountVoucher" class="row discount">
-              <span class="voucher-applied-label">
-                Giảm giá ({{ discountVoucher.code }}):
-                <button @click="removeDiscountVoucher" class="btn-reset-voucher-inline" title="Bỏ mã"><i class="fa-solid fa-times"></i></button>
-              </span>
+              <span>Giảm giá ({{ discountVoucher.code }}):</span>
               <span>-{{ formatPrice(discountVoucher.amount) }}đ</span>
             </div>
             <div v-if="shippingVoucher" class="row discount">
-              <span class="voucher-applied-label">
-                Phí ship ({{ shippingVoucher.code }}):
-                <button @click="removeShippingVoucher" class="btn-reset-voucher-inline" title="Bỏ mã"><i class="fa-solid fa-times"></i></button>
-              </span>
+              <span>Hỗ trợ phí ship ({{ shippingVoucher.code }}):</span>
               <span>-{{ formatPrice(shippingVoucher.amount) }}đ</span>
             </div>
             <div class="row total">
               <span>Tổng cộng:</span>
               <span>{{ formatPrice(grandTotal) }}đ</span>
-            </div>
-          </div>
-
-          <!-- Voucher input section -->
-          <div class="voucher-section">
-            <h3 class="voucher-title">Mã giảm giá</h3>
-            <div class="voucher-input-group" :class="{ 'has-error': voucherError }">
-              <div class="input-wrapper">
-                <input 
-                  v-model="voucherInputCode" 
-                  type="text" 
-                  placeholder="Nhập mã giảm giá / freeship" 
-                  @keyup.enter="applyVoucher"
-                  :disabled="isApplyingVoucher"
-                />
-              </div>
-              <button 
-                @click="applyVoucher" 
-                :disabled="!voucherInputCode.trim() || isApplyingVoucher"
-                class="btn-apply-voucher"
-              >
-                {{ isApplyingVoucher ? 'Đang kiểm tra...' : 'Áp dụng' }}
-              </button>
-            </div>
-            <div v-if="voucherError" class="voucher-error">
-              <i class="fa-solid fa-exclamation-triangle"></i> {{ voucherError }}
             </div>
           </div>
 
@@ -276,6 +289,66 @@
           <button class="btn-complete" @click="finishPayment">
             <i class="fa-solid fa-check"></i> Hoàn thành
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Danh sách Voucher khả dụng -->
+    <div v-if="showVoucherModal" class="modal-overlay" @click.self="showVoucherModal = false">
+      <div class="modal-content voucher-modal-content">
+        <div class="modal-header">
+          <h3><i class="fa-solid fa-tags"></i> Mã khuyến mãi dành cho bạn</h3>
+          <button class="close-btn" @click="showVoucherModal = false" title="Đóng">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body voucher-modal-body">
+          <div v-if="isLoadingVouchers" class="loading-state">
+            <i class="fa-solid fa-spinner fa-spin"></i> Đang tìm mã...
+          </div>
+          <div v-else-if="availableVouchers.length === 0" class="empty-state">
+            <i class="fa-solid fa-box-open"></i>
+            <p>Hiện chưa có mã khuyến mãi nào khả dụng.</p>
+          </div>
+          <div v-else class="voucher-list-container">
+            <div v-if="discountVouchersList.length > 0" class="voucher-category">
+              <h4 class="voucher-cat-title"><i class="fa-solid fa-gift"></i> Giảm giá đơn hàng</h4>
+              <div class="voucher-list">
+                <div v-for="v in discountVouchersList" :key="v.code" class="voucher-ticket" :class="{ disabled: totalAmount < v.min_order_value }">
+                  <div class="ticket-left" :class="v.discount_type">
+                    <i class="fa-solid fa-gift"></i>
+                  </div>
+                  <div class="ticket-right">
+                    <h4>{{ v.code }}</h4>
+                    <p>{{ v.description || 'Mã giảm giá đơn hàng' }}</p>
+                    <div class="ticket-footer">
+                      <small :class="{ 'text-danger': totalAmount < v.min_order_value }">Đơn tối thiểu: {{ formatPrice(v.min_order_value) }}đ</small>
+                      <button class="btn-use-ticket" :disabled="totalAmount < v.min_order_value" @click="selectVoucherFromList(v.code)">Dùng ngay</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="shippingVouchersList.length > 0" class="voucher-category">
+              <h4 class="voucher-cat-title"><i class="fa-solid fa-truck-fast" style="color: #3498db;"></i> Miễn phí vận chuyển</h4>
+              <div class="voucher-list">
+                <div v-for="v in shippingVouchersList" :key="v.code" class="voucher-ticket" :class="{ disabled: totalAmount < v.min_order_value }">
+                  <div class="ticket-left" :class="v.discount_type">
+                    <i class="fa-solid fa-truck-fast"></i>
+                  </div>
+                  <div class="ticket-right">
+                    <h4>{{ v.code }}</h4>
+                    <p>{{ v.description || 'Mã miễn phí vận chuyển' }}</p>
+                    <div class="ticket-footer">
+                      <small :class="{ 'text-danger': totalAmount < v.min_order_value }">Đơn tối thiểu: {{ formatPrice(v.min_order_value) }}đ</small>
+                      <button class="btn-use-ticket" :disabled="totalAmount < v.min_order_value" @click="selectVoucherFromList(v.code)">Dùng ngay</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -398,6 +471,34 @@ export default {
     const shippingVoucher = ref(null); // Stores applied shipping voucher { id, code, amount }
     const isApplyingVoucher = ref(false);
     const voucherError = ref('');
+
+    // Quản lý Modal Voucher
+    const showVoucherModal = ref(false);
+    const availableVouchers = ref([]);
+    const isLoadingVouchers = ref(false);
+
+    const openVoucherModal = async () => {
+        showVoucherModal.value = true;
+        isLoadingVouchers.value = true;
+        try {
+            const res = await VoucherService.getAvailable();
+            availableVouchers.value = Array.isArray(res) ? res : (res.data || []);
+        } catch (error) {
+            console.error("Lỗi tải danh sách voucher", error);
+            availableVouchers.value = [];
+        } finally {
+            isLoadingVouchers.value = false;
+        }
+    };
+
+    const shippingVouchersList = computed(() => availableVouchers.value.filter(v => v.discount_type === 'shipping'));
+    const discountVouchersList = computed(() => availableVouchers.value.filter(v => v.discount_type !== 'shipping'));
+
+    const selectVoucherFromList = (code) => {
+        voucherInputCode.value = code;
+        showVoucherModal.value = false;
+        applyVoucher();
+    };
 
     // Total discount from all vouchers
     const totalDiscount = computed(() => {
@@ -853,6 +954,13 @@ export default {
         mapEmbedUrl,
         removeDiscountVoucher,
         removeShippingVoucher,
+        showVoucherModal,
+        availableVouchers,
+        shippingVouchersList,
+        discountVouchersList,
+        isLoadingVouchers,
+        openVoucherModal,
+        selectVoucherFromList
     };
   }
 };
@@ -979,47 +1087,256 @@ h2 i { color: #ee4d2d; font-size: 1.4rem; }
 .btn-complete { background: #28a745; color: white; }
 .btn-complete:hover { background: #218838; }
 
-/* Voucher Section Redesign */
-.voucher-section {
+/* Modern Voucher Section */
+.modern-voucher-section {
   margin-top: 20px;
   padding: 20px;
-  background: #f8f9fa;
+  background: #fffaf9;
   border-radius: 12px;
-  border: 1px solid #eee;
+  border: 1px dashed #ffb4a2;
+  box-shadow: 0 4px 10px rgba(238, 77, 45, 0.05);
 }
-.voucher-title {
-  margin: 0 0 15px 0;
+
+.voucher-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.voucher-header-flex h3 {
+  margin: 0;
   font-size: 1.1rem;
-  font-weight: 600;
   color: #2c3e50;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
 }
-.btn-apply-voucher {
-  padding: 0 20px;
+
+.btn-text-select {
+  background: none;
   border: none;
-  background: #3498db;
-  color: white;
-  border-radius: 8px;
+  color: #3498db;
+  font-weight: 600;
   cursor: pointer;
-  font-weight: bold;
-  transition: background 0.2s;
-  height: 42px; /* Match input height */
+  padding: 0;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.2s;
 }
-.btn-apply-voucher:hover:not(:disabled) { background: #1a1639; }
-.btn-apply-voucher:disabled { background: #bdc3c7; cursor: not-allowed; }
-.voucher-error { margin-top: 8px; color: #e74c3c; font-weight: 500; font-size: 0.9rem; }
-.voucher-input-group.has-error .input-wrapper input {
+
+.btn-text-select:hover {
+  color: #1d6fa5;
+}
+
+.voucher-input-row {
+  display: flex;
+  gap: 10px;
+  position: relative;
+  flex-wrap: wrap;
+}
+
+.voucher-input-row input {
+  flex: 1;
+  min-width: 200px;
+  padding: 12px 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #333;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.voucher-input-row input:focus {
+  border-color: #ee4d2d;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(238, 77, 45, 0.1);
+  outline: none;
+}
+
+.btn-apply-modern {
+  padding: 0 25px;
+  background: #ee4d2d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-apply-modern:hover:not(:disabled) {
+  background: #d73211;
+}
+
+.btn-apply-modern:disabled {
+  background: #f0f0f0;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.voucher-error-msg {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.voucher-input-row.has-error input {
   border-color: #e74c3c;
+  background: #fffafa;
   animation: shake 0.4s;
 }
-.voucher-applied-label { display: flex; align-items: center; gap: 8px; }
-.btn-reset-voucher-inline { background: none; border: none; color: #e74c3c; cursor: pointer; padding: 0; font-size: 0.8rem; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; transition: background 0.2s; }
-.btn-reset-voucher-inline:hover { background: #fbe9e7; }
+
+/* Applied Tags */
+.applied-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.v-tag {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.v-tag::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+}
+
+.shipping-tag {
+  background: #f0f8ff;
+  border: 1px solid #cce5ff;
+}
+.shipping-tag::before { background: #3498db; }
+.shipping-tag .tag-icon { color: #3498db; }
+
+.discount-tag {
+  background: #fff5f1;
+  border: 1px solid #ffd8c4;
+}
+.discount-tag::before { background: #ee4d2d; }
+.discount-tag .tag-icon { color: #ee4d2d; }
+
+.tag-icon {
+  font-size: 1.2rem;
+  margin-right: 12px;
+}
+
+.tag-text {
+  flex: 1;
+  font-size: 0.95rem;
+  color: #333;
+  word-break: break-word;
+}
+
+.tag-text strong {
+  color: #ee4d2d;
+  font-size: 1.05rem;
+}
+
+.shipping-tag .tag-text strong {
+  color: #3498db;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 5px;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.tag-remove:hover {
+  background: rgba(0,0,0,0.05);
+  color: #e74c3c;
+}
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
   20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
+
+/* Modal Voucher Styles */
+.voucher-modal-content { 
+  max-width: 550px; 
+  padding: 0; 
+  background: #f8f9fa; 
+  border-radius: 16px;
+  overflow: hidden;
+}
+.voucher-modal-content .modal-header { 
+  padding: 20px 25px; 
+  background: white; 
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #eee;
+}
+.voucher-modal-content .modal-header h3 { margin: 0; font-size: 1.25rem; color: #2c3e50; font-weight: 700; display: flex; align-items: center; }
+.voucher-modal-content .modal-header h3 i { color: #ee4d2d; margin-right: 10px; font-size: 1.4rem; }
+.voucher-modal-content .close-btn {
+  background: #f1f3f5; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 1.2rem;
+  color: #555; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s ease; position: static;
+}
+.voucher-modal-content .close-btn:hover {
+  background: #fee2e2; color: #e74c3c; transform: rotate(90deg);
+}
+.voucher-modal-body { padding: 25px; max-height: 65vh; overflow-y: auto; }
+.voucher-list-container { display: flex; flex-direction: column; }
+.voucher-category { margin-bottom: 25px; }
+.voucher-category:last-child { margin-bottom: 0; }
+.voucher-cat-title { font-size: 1rem; color: #2c3e50; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; font-weight: 700; border-bottom: 1px dashed #ddd; padding-bottom: 8px; }
+.voucher-cat-title i { color: #ee4d2d; }
+.voucher-list { display: flex; flex-direction: column; gap: 15px; }
+.voucher-ticket { display: flex; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border: 1px solid #f0f0f0; position: relative; transition: all 0.3s ease; }
+.voucher-ticket:hover:not(.disabled) { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(238, 77, 45, 0.15); border-color: #ffe8e0; }
+.voucher-ticket.disabled { opacity: 0.6; filter: grayscale(100%); }
+.ticket-left { width: 80px; display: flex; align-items: center; justify-content: center; border-right: 2px dashed #eee; color: white; font-size: 2rem; position: relative; }
+.ticket-left.fixed, .ticket-left.percent { background: linear-gradient(135deg, #ff7337, #ee4d2d); }
+.ticket-left.shipping { background: linear-gradient(135deg, #00c6ff, #0072ff); }
+/* Tạo hiệu ứng rãnh xé vé */
+.ticket-left::before, .ticket-left::after { content: ''; position: absolute; width: 20px; height: 20px; background: #f5f7fa; border-radius: 50%; right: -11px; z-index: 1; }
+.ticket-left::before { top: -10px; }
+.ticket-left::after { bottom: -10px; }
+.ticket-right { flex: 1; padding: 15px; display: flex; flex-direction: column; overflow: hidden; }
+.ticket-right h4 { margin: 0 0 5px 0; color: #2c3e50; font-size: 1.1rem; }
+.ticket-right p { margin: 0 0 15px 0; color: #666; font-size: 0.9rem; line-height: 1.4; }
+.ticket-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; }
+.ticket-footer small { color: #888; font-weight: 500; font-size: 0.8rem; }
+.ticket-footer small.text-danger { color: #dc3545; }
+.btn-use-ticket { padding: 8px 18px; background: linear-gradient(135deg, #ee4d2d, #ff7337); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.3s ease; font-size: 0.9rem; box-shadow: 0 2px 8px rgba(238, 77, 45, 0.3); }
+.btn-use-ticket:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(238, 77, 45, 0.4); }
+.btn-use-ticket:disabled { background: #ccc; cursor: not-allowed; }
 
 /* Override for checkout page */
 .form-group input, .address-selection select {
@@ -1028,10 +1345,18 @@ h2 i { color: #ee4d2d; font-size: 1.4rem; }
 .form-group textarea {
     height: 100px;
 }
-.btn-apply-voucher {
+.btn-apply-modern, .voucher-input-row input {
     height: 48px;
 }
 .address-input-group input {
     height: 48px;
+}
+
+/* Reponsive cho Voucher trên thiết bị di động */
+@media (max-width: 480px) {
+  .voucher-input-row { flex-direction: column; }
+  .btn-apply-modern { width: 100%; }
+  .v-tag { align-items: flex-start; }
+  .tag-remove { align-self: flex-end; margin-left: auto; margin-top: -30px; }
 }
 </style>

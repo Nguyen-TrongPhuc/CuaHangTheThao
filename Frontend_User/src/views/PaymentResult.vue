@@ -38,6 +38,7 @@ import { useRouter, useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
 import { showToast } from "@/utils/toast";
+import OrderService from "@/services/orders.service";
 
 export default {
   components: { AppHeader, AppFooter },
@@ -63,9 +64,48 @@ export default {
     const viewOrders = () => router.push("/orders");
 
     onMounted(async () => {
+        const handleSuccess = () => {
+            showToast("Thanh toán thành công! Đang chuyển về trang chủ...", "success");
+            setTimeout(() => {
+                router.push("/");
+            }, 3000); // Tự động chuyển về trang chủ sau 3 giây
+        };
+
         const success = route.query.success === 'true';
-        const orderId = route.query.orderId;
+        let orderId = route.query.orderId;
         const message = route.query.message;
+
+        // Nếu orderId có chứa timestamp (do MoMo/VNPAY tạo ra để tránh trùng mã), ta cắt bỏ
+        if (orderId && orderId.includes('_')) {
+            orderId = orderId.split('_')[0];
+        }
+
+        // --- XỬ LÝ DÀNH CHO MOMO (Giải pháp cho Localhost) ---
+        // Khi MoMo trả về frontend, nó kèm theo resultCode (0 là thành công)
+        const momoResultCode = route.query.resultCode;
+        if (momoResultCode !== undefined && orderId) {
+            orderInfo.value = {
+                orderId: orderId,
+                method: 'momo',
+                amount: route.query.amount || 0,
+                message: message
+            };
+            
+            if (momoResultCode === '0') {
+                isSuccess.value = true;
+                // Ép cập nhật DB thành đã thanh toán vì MoMo IPN không gọi được vào localhost
+                try {
+                    await OrderService.update(orderId, { payment_status: 'paid' });
+                } catch(e) { console.error("Không thể cập nhật trạng thái MoMo", e); }
+                handleSuccess();
+                return;
+            } else {
+                isSuccess.value = false;
+                orderInfo.value.message = message || 'Giao dịch bị hủy hoặc thất bại';
+                showToast(`Thanh toán thất bại: ${orderInfo.value.message}`, "error");
+                return;
+            }
+        }
 
         // Fallback to URL params
         isSuccess.value = success;
@@ -74,13 +114,6 @@ export default {
             method: route.query.method || 'vnpay',
             amount: route.query.amount || 0,
             message: message
-        };
-
-        const handleSuccess = () => {
-            showToast("Thanh toán thành công! Đang chuyển về trang chủ...", "success");
-            setTimeout(() => {
-                router.push("/");
-            }, 3000); // Tự động chuyển về trang chủ sau 3 giây
         };
 
         // ✅ CHECK REAL DB STATUS (PRIORITY)

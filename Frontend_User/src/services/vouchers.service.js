@@ -11,5 +11,9 @@ class VoucherService {
     async validateVoucher(code, subtotal, shipping_fee = 0) {
         return (await this.api.post("/validate", { code, subtotal, shipping_fee })).data;
     }
+
+    async getAvailable() {
+        return (await this.api.get("/available")).data;
+    }
 }
 export default new VoucherService();

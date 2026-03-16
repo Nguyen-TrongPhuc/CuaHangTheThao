@@ -126,6 +126,17 @@ class VoucherService {
         return await this.Vouchers.findOne({ code: code.toUpperCase().trim() });
     }
 
+    // Lấy các voucher đang khả dụng cho khách hàng (Public)
+    async getAvailablePublic() {
+        const now = new Date();
+        return await this.Vouchers.find({
+            is_active: true,
+            start_date: { $lte: now },
+            end_date: { $gte: now },
+            $expr: { $lt: ["$used_count", { $ifNull: ["$max_usage", 1] }] }
+        }).sort({ min_order_value: 1 }).toArray();
+    }
+
     // Cập nhật
     async update(id, payload) {
         const updateData = {

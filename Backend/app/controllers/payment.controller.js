@@ -578,7 +578,7 @@ exports.createMomoPayment = async (req, res, next) => {
 
         // Use MoMoUtil
         const paymentUrl = await MoMoUtil.createPayment(
-            order._id.toString(),
+            order._id.toString() + "_" + new Date().getTime(), // Thêm timestamp tránh lỗi trùng mã giao dịch
             order.total_amount,
             `Thanh toan don hang ${order._id}`,
             order.customer_id ? order.customer_id.toString() : "guest"
@@ -618,23 +618,26 @@ exports.momoCallback = async (req, res, next) => {
             return res.status(400).json({ message: "Invalid signature" });
         }
 
+        // Cắt bỏ phần timestamp để lấy lại ID gốc
+        const realOrderId = orderId.split('_')[0];
+
         const orderService = new OrderService(MongoDB.client);
         
         if (resultCode == 0) {
             // Payment Success
-            await orderService.update(orderId, {
+            await orderService.update(realOrderId, {
                 payment_status: 'paid',
                 transaction_id: transId,
                 momo_info: req.body
             });
-            console.log(`Order ${orderId} paid successfully via MoMo`);
+            console.log(`Order ${realOrderId} paid successfully via MoMo`);
         } else {
             // Payment Failed
-            await orderService.update(orderId, {
+            await orderService.update(realOrderId, {
                 payment_status: 'failed',
                 momo_info: req.body
             });
-            console.log(`Order ${orderId} payment failed via MoMo: ${message}`);
+            console.log(`Order ${realOrderId} payment failed via MoMo: ${message}`);
         }
 
         return res.status(204).json({});
