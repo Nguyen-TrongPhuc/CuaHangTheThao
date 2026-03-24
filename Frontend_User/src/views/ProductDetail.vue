@@ -748,7 +748,7 @@ export default {
 .qty-input-group { display: flex; border: 1px solid #ddd; border-radius: 2px; }
 .qty-input-group button { background: white; border: none; width: 32px; height: 32px; cursor: pointer; font-size: 1.2rem; color: #555; border-right: 1px solid #ddd; }
 .qty-input-group button:last-child { border-right: none; border-left: 1px solid #ddd; }
-.qty-input-group input { width: 50px; text-align: center; border: none; outline: none; font-size: 1rem; -moz-appearance: textfield; }
+.qty-input-group input { width: 50px; text-align: center; border: none; outline: none; font-size: 1rem; -moz-appearance: textfield;appearance: none; }
 .qty-input-group input::-webkit-outer-spin-button, .qty-input-group input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .stock-info { margin-left: 15px; color: #757575; font-size: 0.9rem; }
 
@@ -862,7 +862,7 @@ button:disabled {
 .product-card-rec:hover .image-wrapper-rec img { transform: scale(1.08); }
 
 .info-rec { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; background: #fafafa; border-top: 1px solid #f5f5f5; text-align: left; }
-.product-name-rec { font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin: 0 0 10px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; height: 3.08rem; transition: color 0.2s; }
+.product-name-rec { font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin: 0 0 10px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2;line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; height: 3.08rem; transition: color 0.2s; }
 .product-card-rec:hover .product-name-rec { color: #ee4d2d; }
 .price-rec { color: #ee4d2d; font-weight: 800; margin: 0; font-size: 1.25rem; text-align: right; margin-top: auto; }
 

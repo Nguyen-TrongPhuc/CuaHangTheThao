@@ -381,7 +381,7 @@ export default {
 .sold-badge { position: absolute; top: 15px; left: 15px; background: linear-gradient(135deg, #ff6b6b, #e74c3c); color: white; padding: 4px 12px; font-size: 0.8rem; font-weight: 700; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 2px 5px rgba(231, 76, 60, 0.4); z-index: 2;}
 
 .info { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; background: #fafafa; border-top: 1px solid #f5f5f5; }
-.product-name { font-size: 1.1rem; color: #2c3e50; margin: 0 0 10px; font-weight: 600; line-height: 1.4; height: 3.08rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; transition: color 0.2s; }
+.product-name { font-size: 1.1rem; color: #2c3e50; margin: 0 0 10px; font-weight: 600; line-height: 1.4; height: 3.08rem; display: -webkit-box; -webkit-line-clamp: 2;line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; transition: color 0.2s; }
 .product-card:hover .product-name { color: #ee4d2d; }
 
 .price-box { margin-bottom: 15px; margin-top: auto; text-align: right; }
