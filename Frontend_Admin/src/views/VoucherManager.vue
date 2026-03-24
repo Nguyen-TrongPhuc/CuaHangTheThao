@@ -4,7 +4,7 @@
       <h1>Quản lý Voucher</h1>
       <div class="actions">
         <button class="btn-refresh" @click="refreshData" title="Làm mới"><i class="fa-solid fa-rotate-right"></i></button>
-        <button class="btn-add" @click="showCreateModal = true">
+        <button v-if="userRole === 'admin'" class="btn-add" @click="showCreateModal = true">
           + Tạo Voucher
         </button>
       </div>
@@ -57,7 +57,7 @@
             <th>Số lần dùng</th>
             <th>Ngày hết hạn</th>
             <th>Trạng thái</th>
-            <th>Thao tác</th>
+            <th v-if="userRole === 'admin'">Thao tác</th>
           </tr>
         </thead>
         <tbody>
@@ -84,7 +84,7 @@
                 {{ getStatusText(voucher) }}
               </span>
             </td>
-            <td>
+            <td v-if="userRole === 'admin'">
               <button class="btn-edit" @click="editVoucher(voucher)">Sửa</button>
               <button class="btn-del" @click="deleteVoucher(voucher._id)" :disabled="isDeleting === voucher._id">
                 <span v-if="isDeleting !== voucher._id">Xóa</span>
@@ -97,7 +97,7 @@
       <div v-else class="empty-state">
         <i class="fa-solid fa-ticket"></i>
         <p>Chưa có voucher nào</p>
-        <button class="btn btn-primary" @click="showCreateModal = true">Tạo voucher đầu tiên</button>
+        <button v-if="userRole === 'admin'" class="btn btn-primary" @click="showCreateModal = true">Tạo voucher đầu tiên</button>
       </div>
     </div>
 
@@ -166,6 +166,19 @@
         </form>
       </div>
     </div>
+
+    <!-- Confirm Modal -->
+    <div v-if="deleteConfirmId" class="modal-overlay" @click.self="deleteConfirmId = null">
+      <div class="confirm-dialog">
+        <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Xác nhận xóa</h3>
+        <p>Bạn có chắc chắn muốn xóa Voucher này? Hành động này không thể hoàn tác.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="deleteConfirmId = null">Hủy</button>
+          <button class="btn-confirm-delete" @click="executeDelete">Xóa</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -176,6 +189,7 @@ import { showToast } from '@/utils/toast';
 export default {
   data() {
     return {
+      userRole: localStorage.getItem("user_role") || "staff",
       vouchers: [],
       stats: null,
       isLoading: false,
@@ -196,7 +210,8 @@ export default {
       searchCode: '',
       isSaving: false,
       isDeleting: null,
-      debounceTimer: null
+      debounceTimer: null,
+      deleteConfirmId: null
     };
   },
   methods: {
@@ -295,18 +310,21 @@ export default {
         this.isSaving = false;
       }
     },
-    async deleteVoucher(id) {
-      if (!confirm('Xóa voucher này?')) return;
-      
-      this.isDeleting = id;
+    deleteVoucher(id) {
+      this.deleteConfirmId = id;
+    },
+    async executeDelete() {
+      if (!this.deleteConfirmId) return;
+      this.isDeleting = this.deleteConfirmId;
       try {
-        await VoucherService.delete(id);
+        await VoucherService.delete(this.deleteConfirmId);
         showToast('Xóa voucher thành công!', 'success');
         this.refreshData();
       } catch (error) {
         showToast('Lỗi xóa voucher', 'error');
       } finally {
         this.isDeleting = null;
+        this.deleteConfirmId = null;
       }
     }
   },
@@ -387,4 +405,14 @@ export default {
   .form-row { grid-template-columns: 1fr; }
   .data-table { font-size: 13px; }
 }
+
+/* Confirm Delete Modal */
+.confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+.confirm-icon { font-size: 3rem; color: #e74c3c; margin-bottom: 15px; }
+.confirm-dialog h3 { margin-top: 0; color: #2c3e50; font-size: 1.5rem; }
+.confirm-dialog p { color: #666; margin-bottom: 25px; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: center; gap: 15px; }
+.confirm-actions button { padding: 10px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.btn-confirm-delete { background: #e74c3c; color: white; }
+.btn-confirm-delete:hover { background: #c0392b; }
 </style>

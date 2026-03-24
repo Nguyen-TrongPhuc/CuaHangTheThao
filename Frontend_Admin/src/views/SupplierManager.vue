@@ -35,47 +35,63 @@
     </table>
 
     <!-- Modal -->
-    <div v-if="showModal" class="form-overlay">
-      <div class="form-container">
+    <div v-if="showModal" class="modal-overlay" @click.self="closeModal">
+      <div class="form-container" style="max-width: 800px;">
         <h2>{{ isEditing ? 'Cập nhật' : 'Thêm mới' }} Nhà cung cấp</h2>
         <form @submit.prevent="handleSubmit">
-          <div class="form-group">
-            <label>Tên nhà cung cấp:</label>
-            <input v-model="form.name" required class="input-field" placeholder="Nhập tên nhà cung cấp" />
-          </div>
-          <div class="form-group">
-            <label>Email:</label>
-            <input v-model="form.email" type="email" class="input-field" placeholder="Nhập email" />
-          </div>
-          <div class="form-group">
-            <label>Số điện thoại:</label>
-            <input v-model="form.phone" class="input-field" placeholder="Nhập số điện thoại" />
-          </div>
-          <div class="form-group">
-            <label>Địa chỉ:</label>
-            <div class="address-selection">
-              <select v-model="addressState.selectedProvince" @change="fetchDistricts" class="input-field">
-                <option :value="null">-- Tỉnh/Thành phố --</option>
-                <option v-for="p in addressState.provinces" :key="p.code" :value="p">{{ p.name }}</option>
-              </select>
-              
-              <select v-model="addressState.selectedDistrict" @change="fetchWards" class="input-field" :disabled="!addressState.selectedProvince">
-                <option :value="null">-- Quận/Huyện --</option>
-                <option v-for="d in addressState.districts" :key="d.code" :value="d">{{ d.name }}</option>
-              </select>
-              
-              <select v-model="addressState.selectedWard" class="input-field" :disabled="!addressState.selectedDistrict">
-                <option :value="null">-- Phường/Xã --</option>
-                <option v-for="w in addressState.wards" :key="w.code" :value="w">{{ w.name }}</option>
-              </select>
-            </div>
-            <input v-model="addressState.street" class="input-field" placeholder="Số nhà, tên đường..." style="margin-top: 10px;" />
+          <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Tên nhà cung cấp <span class="required">*</span></label>
+                <input v-model="form.name" required class="input-field" placeholder="Nhập tên công ty/nhà cung cấp" />
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input v-model="form.email" type="email" class="input-field" placeholder="contact@company.com" />
+              </div>
+              <div class="form-group">
+                <label>Số điện thoại</label>
+                <input v-model="form.phone" class="input-field" placeholder="VD: 0912345678" />
+              </div>
+              <div class="form-group full-width">
+                <label>Địa chỉ khu vực</label>
+                <div class="address-selection" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                  <select v-model="addressState.selectedProvince" @change="fetchDistricts" class="input-field">
+                    <option :value="null">-- Tỉnh/Thành phố --</option>
+                    <option v-for="p in addressState.provinces" :key="p.code" :value="p">{{ p.name }}</option>
+                  </select>
+                  <select v-model="addressState.selectedDistrict" @change="fetchWards" class="input-field" :disabled="!addressState.selectedProvince">
+                    <option :value="null">-- Quận/Huyện --</option>
+                    <option v-for="d in addressState.districts" :key="d.code" :value="d">{{ d.name }}</option>
+                  </select>
+                  <select v-model="addressState.selectedWard" class="input-field" :disabled="!addressState.selectedDistrict">
+                    <option :value="null">-- Phường/Xã --</option>
+                    <option v-for="w in addressState.wards" :key="w.code" :value="w">{{ w.name }}</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group full-width">
+                <label>Số nhà, Tên đường</label>
+                <input v-model="addressState.street" class="input-field" placeholder="Số nhà, đường, tòa nhà..." />
+              </div>
           </div>
           <div class="form-actions">
             <button type="button" class="btn-cancel" @click="closeModal">Hủy</button>
             <button type="submit" class="btn-save">Lưu</button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div v-if="deleteConfirmId" class="modal-overlay" @click.self="deleteConfirmId = null">
+      <div class="confirm-dialog">
+        <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Xác nhận xóa</h3>
+        <p>Bạn có chắc chắn muốn xóa nhà cung cấp này? Hành động này không thể hoàn tác.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="deleteConfirmId = null">Hủy</button>
+          <button class="btn-confirm-delete" @click="executeDelete">Xóa</button>
+        </div>
       </div>
     </div>
   </div>
@@ -93,6 +109,7 @@ export default {
       isLoading: false,
       showModal: false,
       isEditing: false,
+      deleteConfirmId: null,
       form: {
         _id: null,
         name: "",
@@ -311,15 +328,19 @@ export default {
         showToast(error.response?.data?.message || "Có lỗi xảy ra!", "error");
       }
     },
-    async deleteSupplier(id) {
-      if (confirm("Bạn có chắc chắn muốn xóa nhà cung cấp này?")) {
-        try {
-          await SuppliersService.delete(id);
-          showToast("Xóa thành công!", "success");
-          this.fetchSuppliers();
-        } catch (error) {
-          showToast(error.response?.data?.message || "Xóa thất bại!", "error");
-        }
+    deleteSupplier(id) {
+      this.deleteConfirmId = id;
+    },
+    async executeDelete() {
+      if (!this.deleteConfirmId) return;
+      try {
+        await SuppliersService.delete(this.deleteConfirmId);
+        showToast("Xóa thành công!", "success");
+        this.fetchSuppliers();
+      } catch (error) {
+        showToast(error.response?.data?.message || "Xóa thất bại!", "error");
+      } finally {
+        this.deleteConfirmId = null;
       }
     }
   },
@@ -369,59 +390,31 @@ export default {
 }
 .btn-del:hover { color: #c0392b; }
 
-.form-overlay { 
-  position: fixed; 
-  top: 0; 
-  left: 0; 
-  width: 100%; 
-  height: 100%; 
-  background: rgba(0,0,0,0.5); 
-  display: flex; 
-  justify-content: center; 
-  align-items: center; 
-  z-index: 1000;
-}
-.form-container { 
-  background: white; 
-  padding: 30px; 
-  border-radius: 8px; 
-  width: 500px; 
-  max-height: 90vh;
-  overflow-y: auto;
-}
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #555; }
-.input-field { 
-  width: 100%; 
-  padding: 10px; 
-  border: 1px solid #ccc; 
-  border-radius: 4px; 
-  display: block; 
-  box-sizing: border-box;
-}
-.input-field:focus { outline: none; border-color: #4776E6; }
+/* Custom Modal Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+.form-container { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+@keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+.form-container h2 { margin-top: 0; margin-bottom: 25px; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { display: flex; flex-direction: column; }
+.form-group.full-width { grid-column: 1 / -1; }
+.form-group label { margin-bottom: 8px; font-weight: 600; color: #444; }
+.required { color: #e74c3c; margin-left: 3px; }
+.input-field { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; transition: all 0.3s ease; }
+.input-field:focus { border-color: #4776E6; outline: none; box-shadow: 0 0 0 3px rgba(71, 118, 230, 0.1); }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee; }
+.btn-save { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+.btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(71, 118, 230, 0.3); }
 
-.address-selection { display: flex; flex-direction: column; gap: 10px; }
-.address-selection select { width: 100%; }
-
-.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-.btn-save { 
-  background: #2980b9; 
-  color: white; 
-  padding: 10px 20px; 
-  border: none; 
-  cursor: pointer; 
-  border-radius: 4px;
-}
-.btn-save:hover { background: #1f6391; }
-
-.btn-cancel { 
-  background: #6c757d; 
-  color: white; 
-  padding: 10px 20px; 
-  border: none; 
-  cursor: pointer; 
-  border-radius: 4px;
-}
-.btn-cancel:hover { background: #5a6268; }
+/* Confirm Delete Modal */
+.confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+.confirm-icon { font-size: 3rem; color: #e74c3c; margin-bottom: 15px; }
+.confirm-dialog h3 { margin-top: 0; color: #2c3e50; font-size: 1.5rem; }
+.confirm-dialog p { color: #666; margin-bottom: 25px; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: center; gap: 15px; }
+.confirm-actions button { padding: 10px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.btn-cancel { background: #f1f3f5; color: #495057; border: 1px solid #ddd; }
+.btn-cancel:hover { background: #e2e6ea; }
+.btn-confirm-delete { background: #e74c3c; color: white; }
+.btn-confirm-delete:hover { background: #c0392b; }
 </style>

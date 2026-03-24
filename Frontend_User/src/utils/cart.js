@@ -17,7 +17,8 @@ const saveState = () => {
 export const cartStore = {
     state,
     
-    addToCart(product, variant = null, quantity = 1, isSelected = true, replaceQuantity = false) {
+    addToCart(product, variant = null, quantity = 1, isSelected = true, replaceQuantity = false, isDirectCheckout = false) {
+      if (isDirectCheckout) return; // Skip localStorage for direct checkout
         // Hàm so sánh 2 biến thể
         const compareVariant = (v1, v2) => {
             if (!v1 && !v2) return true;

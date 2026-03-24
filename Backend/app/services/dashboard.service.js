@@ -9,25 +9,32 @@ class DashboardService {
         this.Warehouse = client.db().collection("warehouse");
     }
 
-    async getSummary() {
-        // Sử dụng Promise.all để chạy các truy vấn song song, tăng hiệu năng
+    async getSummary(role = 'staff') {
+        // 1. Dữ liệu cơ bản (Staff & Admin đều xem được)
         const [
-            totalRevenueMonth,
             newOrdersToday,
             newUsersMonth,
             cancelledOrdersMonth,
-            dailyRevenue,
             orderStatusDistribution,
             topSellingProducts
         ] = await Promise.all([
-            this.getTotalRevenueMonth(),
             this.getNewOrdersToday(),
             this.getNewUsersMonth(),
             this.getCancelledOrdersMonth(),
-            this.getDailyRevenueLast7Days(),
             this.getOrderStatusDistribution(),
             this.getTopSellingProducts(5)
         ]);
+
+        // 2. Dữ liệu nhạy cảm (Doanh thu - Chỉ Admin mới được database tính toán)
+        let totalRevenueMonth = 0;
+        let dailyRevenue = [];
+
+        if (role === 'admin') {
+            [totalRevenueMonth, dailyRevenue] = await Promise.all([
+                this.getTotalRevenueMonth(),
+                this.getDailyRevenueLast7Days()
+            ]);
+        }
 
         return {
             totalRevenueMonth,
@@ -149,25 +156,23 @@ class DashboardService {
 
     // Top sản phẩm bán chạy - bao gồm cả lượt bán và số lượng
     async getTopSellingProducts(limit = 5) {
-        return await this.OrderDetails.aggregate([
-            {
-                $lookup: { from: "orders", localField: "order_id", foreignField: "_id", as: "order" }
-            },
-            { $unwind: "$order" },
-            { $match: { "order.status": { $in: ["completed", "delivered"] } } },
+        const parsedLimit = parseInt(limit) || 5;
+        return await this.Orders.aggregate([
+            { $match: { status: { $in: ["completed", "delivered", "paid"] } } },
+            { $unwind: "$items" },
             {
                 $group: { 
-                    _id: "$product_id", 
-                    totalSold: { $sum: 1 }, // Số lượt bán (số đơn hàng)
-                    totalQuantity: { $sum: "$quantity" } // Tổng số lượng sản phẩm bán ra
+                    _id: "$items.product_id", 
+                    totalSold: { $sum: 1 },
+                    totalQuantity: { $sum: "$items.quantity" }
                 }
             },
-            { $sort: { totalQuantity: -1 } }, // Sắp xếp theo số lượng bán
-            { $limit: limit },
+            { $sort: { totalQuantity: -1 } },
             {
                 $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "productInfo" }
             },
             { $unwind: "$productInfo" },
+            { $limit: parsedLimit },
             {
                 $project: {
                     _id: "$productInfo._id",
@@ -180,6 +185,52 @@ class DashboardService {
                     },
                     totalSold: "$totalSold", // Số lượt bán
                     totalQuantity: "$totalQuantity" // Tổng số lượng bán
+                }
+            }
+        ]).toArray();
+    }
+
+    // Top sản phẩm bán chạy theo tháng cụ thể
+    async getTopSellingProductsByMonth(year, month, limit = 5) {
+        const y = parseInt(year) || new Date().getFullYear();
+        const m = parseInt(month) || new Date().getMonth() + 1;
+        const parsedLimit = parseInt(limit) || 5;
+        const startOfMonth = new Date(y, m - 1, 1);
+        const endOfMonth = new Date(y, m, 0, 23, 59, 59, 999);
+
+        return await this.Orders.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ["completed", "delivered", "paid"] },
+                    createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+                } 
+            },
+            { $unwind: "$items" },
+            {
+                $group: { 
+                    _id: "$items.product_id", 
+                    totalSold: { $sum: 1 },
+                    totalQuantity: { $sum: "$items.quantity" }
+                }
+            },
+            { $sort: { totalQuantity: -1 } },
+            {
+                $lookup: { from: "products", localField: "_id", foreignField: "_id", as: "productInfo" }
+            },
+            { $unwind: "$productInfo" },
+            { $limit: parsedLimit },
+            {
+                $project: {
+                    _id: "$productInfo._id",
+                    name: "$productInfo.name",
+                    image: { 
+                        $ifNull: [ 
+                            { $arrayElemAt: ["$productInfo.images.url", 0] }, 
+                            "$productInfo.image" 
+                        ] 
+                    },
+                    totalSold: "$totalSold",
+                    totalQuantity: "$totalQuantity"
                 }
             }
         ]).toArray();
@@ -402,21 +453,18 @@ class DashboardService {
              end.setHours(23, 59, 59, 999);
         }
 
-        // Kết nối bảng warehouse -> products -> employees
         return await this.Warehouse.aggregate([
             { $match: { createdAt: { $gte: start, $lte: end } } },
-            { $lookup: { from: "products", localField: "product_id", foreignField: "_id", as: "product" } },
-            { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
-            { $lookup: { from: "employees", localField: "employee_id", foreignField: "_id", as: "employee" } },
-            { $unwind: { path: "$employee", preserveNullAndEmptyArrays: true } },
+            { $unwind: "$items" }, // Bung mảng các sản phẩm trong phiếu nhập
             {
                 $project: {
                     _id: 1,
-                    product_name: "$product.name",
-                    import_price: "$import_price", // Đơn giá gốc
-                    quantity: "$quantity",         // Số lượng
-                    total_cost: { $multiply: ["$import_price", "$quantity"] },
-                    importer: "$employee.full_name", // Người nhập
+                    product_name: "$items.product_name",
+                    variant_desc: "$items.variant_desc", // Lấy thêm phân loại (size/màu)
+                    import_price: "$items.import_price", // Đơn giá gốc
+                    quantity: "$items.quantity",         // Số lượng
+                    total_cost: { $multiply: ["$items.import_price", "$items.quantity"] },
+                    importer: "$staff_name", // Người lập phiếu
                     createdAt: 1                   // Ngày nhập
                 }
             },

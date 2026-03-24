@@ -7,7 +7,7 @@
       <div class="checkout-content">
         <!-- Form thông tin giao hàng -->
         <div class="shipping-info">
-          <h2><i class="fa-solid fa-map-location-dot"></i> Thông tin giao hàng</h2>
+          <h2 style="display:flex;align-items:center;gap:10px;"><MapPin color="#ee4d2d" :size="24" /> Thông tin giao hàng</h2>
           <form @submit.prevent="submitOrder">
             <div class="form-group">
               <label>Họ tên người nhận <span class="required">*</span></label>
@@ -49,7 +49,7 @@
                     <div class="address-input-group">
                         <input v-model="addressState.street" type="text" required placeholder="Số nhà, tên đường..." />
                         <button type="button" class="btn-location" @click="getGeoLocation" title="Lấy vị trí hiện tại để tính ship">
-                            <i class="fa-solid fa-location-crosshairs"></i>
+                            <LocateFixed :size="18" />
                         </button>
                     </div>
                     <div class="address-edit-actions">
@@ -59,7 +59,7 @@
                 </div>
 
                 <div v-else class="location-selected-box">
-                    <p class="location-text"><i class="fa-solid fa-location-dot"></i> Đã chọn vị trí hiện tại</p>
+                    <p class="location-text" style="display:flex;align-items:center;justify-content:center;gap:5px;"><MapPin :size="18" /> Đã chọn vị trí hiện tại</p>
                     <div class="map-container">
                         <iframe
                             :src="mapEmbedUrl"
@@ -84,11 +84,11 @@
 
           <!-- Phương thức vận chuyển -->
           <div class="shipping-section">
-            <h2><i class="fa-solid fa-truck-fast"></i> Phương thức vận chuyển</h2>
+            <h2 style="display:flex;align-items:center;gap:10px;"><Truck color="#ee4d2d" :size="24" /> Phương thức vận chuyển</h2>
             <div class="shipping-options">
               <label class="shipping-option" :class="{ selected: shippingType === 'standard' }">
                 <input type="radio" v-model="shippingType" value="standard" hidden>
-                <div class="option-icon"><i class="fa-solid fa-truck"></i></div>
+                <div class="option-icon"><Truck :size="32" /></div>
                 <div class="option-info">
                   <span class="opt-title">Giao hàng tiêu chuẩn</span>
                   <span class="opt-desc">{{ shippingFee.standardEstimatedTime || 'Giao trong 3-5 ngày' }}</span>
@@ -97,7 +97,7 @@
               </label>
               <label class="shipping-option" :class="{ selected: shippingType === 'express' }">
                 <input type="radio" v-model="shippingType" value="express" hidden>
-                <div class="option-icon"><i class="fa-solid fa-bolt"></i></div>
+                <div class="option-icon"><Zap :size="32" /></div>
                 <div class="option-info">
                   <span class="opt-title">Giao hàng nhanh</span>
                   <span class="opt-desc">{{ shippingFee.expressEstimatedTime || 'Ưu tiên xử lý & giao nhanh' }}</span>
@@ -106,46 +106,41 @@
               </label>
             </div>
             <div v-if="shippingFee.message" class="shipping-message">
-              <i class="fa-solid fa-info-circle"></i> {{ shippingFee.message }}
+              <Info :size="16" style="margin-right:5px;vertical-align:text-bottom;"/> {{ shippingFee.message }}
               <span v-if="shippingFee.distance > 0"> (Khoảng cách: {{ shippingFee.distance }}km)</span>
             </div>
           </div>
 
           <!-- Phương thức thanh toán -->
           <div class="payment-section">
-            <h2><i class="fa-solid fa-wallet"></i> Phương thức thanh toán</h2>
+            <h2 style="display:flex;align-items:center;gap:10px;"><Wallet color="#ee4d2d" :size="24" /> Phương thức thanh toán</h2>
             <div class="payment-options">
               <label class="payment-option" :class="{ selected: paymentMethod === 'cod' }">
                 <input type="radio" v-model="paymentMethod" value="cod" hidden>
-                <div class="option-icon cod-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div class="option-icon cod-icon"><Banknote :size="32" /></div>
                 <div class="option-info">
                   <span class="opt-title">Thanh toán khi nhận hàng (COD)</span>
                   <span class="opt-desc">Thanh toán tiền mặt cho shipper khi nhận hàng.</span>
                 </div>
+                <CheckCircle2 class="payment-check" />
               </label>
               <label class="payment-option" :class="{ selected: paymentMethod === 'vnpay' }">
                 <input type="radio" v-model="paymentMethod" value="vnpay" hidden>
-                <div class="option-icon vnpay-icon"><i class="fa-solid fa-credit-card"></i></div>
+                <div class="option-icon vnpay-icon"><CreditCard :size="32" /></div>
                 <div class="option-info">
                   <span class="opt-title">Thanh toán VNPAY</span>
                   <span class="opt-desc">Thanh toán qua ATM/Visa/MasterCard/QR Code.</span>
                 </div>
+                <CheckCircle2 class="payment-check" />
               </label>
               <label class="payment-option" :class="{ selected: paymentMethod === 'momo' }">
                 <input type="radio" v-model="paymentMethod" value="momo" hidden>
-                <div class="option-icon momo-icon"><i class="fa-solid fa-wallet"></i></div>
+                <div class="option-icon momo-icon"><Wallet :size="32" /></div>
                 <div class="option-info">
                   <span class="opt-title">Thanh toán MoMo</span>
                   <span class="opt-desc">Thanh toán qua ví điện tử MoMo.</span>
                 </div>
-              </label>
-              <label class="payment-option" :class="{ selected: paymentMethod === 'bank_transfer' }">
-                <input type="radio" v-model="paymentMethod" value="bank_transfer" hidden>
-                <div class="option-icon bank-icon"><i class="fa-solid fa-building-columns"></i></div>
-                <div class="option-info">
-                  <span class="opt-title">Chuyển khoản ngân hàng</span>
-                  <span class="opt-desc">Chuyển khoản qua STK: 123456789 - Ngân hàng Vietcombank</span>
-                </div>
+                <CheckCircle2 class="payment-check" />
               </label>
             </div>
           </div>
@@ -153,7 +148,7 @@
 
         <!-- Tóm tắt đơn hàng -->
         <div class="order-summary">
-          <h2><i class="fa-solid fa-bag-shopping"></i> Đơn hàng của bạn</h2>
+          <h2 style="display:flex;align-items:center;gap:10px;"><ShoppingBag color="#ee4d2d" :size="24" /> Đơn hàng của bạn</h2>
           <div class="summary-items">
             <div v-for="item in selectedItems" :key="item._id" class="summary-item">
               <div class="item-info">
@@ -163,7 +158,7 @@
                 </div>
                 <span class="item-quantity">x {{ item.quantity }}</span>
                 <div v-if="item.vipDiscountPercent > 0" style="color: #ee4d2d; font-size: 0.8rem; margin-top: 2px;">
-                  <i class="fa-solid fa-crown"></i> VIP -{{ item.vipDiscountPercent }}%
+                  <Crown :size="14" style="vertical-align:text-bottom;" /> VIP -{{ item.vipDiscountPercent }}%
                 </div>
               </div>
               <div style="text-align: right;">
@@ -176,23 +171,23 @@
           <!-- Voucher input section (Modern E-commerce style) -->
           <div class="modern-voucher-section">
             <div class="voucher-header-flex">
-              <h3><i class="fa-solid fa-ticket-simple" style="color: #ee4d2d; margin-right: 8px;"></i> Khuyến mãi & Voucher</h3>
+              <h3><Ticket color="#ee4d2d" :size="20" style="margin-right: 8px;" /> Khuyến mãi & Voucher</h3>
               <button type="button" class="btn-text-select" @click="openVoucherModal">
-                Xem tất cả <i class="fa-solid fa-chevron-right"></i>
+                Xem tất cả <ChevronRight :size="16" />
               </button>
             </div>
             
             <!-- Tags cho voucher đã áp dụng -->
             <div class="applied-tags" v-if="discountVoucher || shippingVoucher">
                <div class="v-tag shipping-tag" v-if="shippingVoucher">
-                  <span class="tag-icon"><i class="fa-solid fa-truck-fast"></i></span>
+                  <span class="tag-icon"><Truck :size="18" /></span>
                   <span class="tag-text">Đã áp dụng mã: <strong>{{ shippingVoucher.code }}</strong></span>
-                  <button type="button" class="tag-remove" @click="removeShippingVoucher"><i class="fa-solid fa-xmark"></i></button>
+                  <button type="button" class="tag-remove" @click="removeShippingVoucher"><X :size="16" /></button>
                </div>
                <div class="v-tag discount-tag" v-if="discountVoucher">
-                  <span class="tag-icon"><i class="fa-solid fa-gift"></i></span>
+                  <span class="tag-icon"><Gift :size="18" /></span>
                   <span class="tag-text">Đã áp dụng mã: <strong>{{ discountVoucher.code }}</strong></span>
-                  <button type="button" class="tag-remove" @click="removeDiscountVoucher"><i class="fa-solid fa-xmark"></i></button>
+                  <button type="button" class="tag-remove" @click="removeDiscountVoucher"><X :size="16" /></button>
                </div>
             </div>
 
@@ -214,7 +209,7 @@
                 </button>
             </div>
             <div v-if="voucherError" class="voucher-error-msg">
-              <i class="fa-solid fa-circle-exclamation"></i> {{ voucherError }}
+              <AlertCircle :size="16" style="margin-right:5px;"/> {{ voucherError }}
             </div>
           </div>
 
@@ -244,13 +239,10 @@
           <!-- Thông tin thanh toán online -->
           <div v-if="paymentMethod !== 'cod'" class="online-payment-info">
             <p v-if="paymentMethod === 'vnpay'">
-              <i class="fa-solid fa-info-circle"></i> Bạn sẽ được chuyển đến cổng thanh toán VNPAY để hoàn tất thanh toán.
+              <Info :size="16" style="margin-right:5px;vertical-align:text-bottom;"/> Bạn sẽ được chuyển đến cổng thanh toán VNPAY để hoàn tất thanh toán.
             </p>
             <p v-else-if="paymentMethod === 'momo'">
-              <i class="fa-solid fa-info-circle"></i> Bạn sẽ được chuyển đến ứng dụng MoMo để thanh toán.
-            </p>
-            <p v-else-if="paymentMethod === 'bank_transfer'">
-              <i class="fa-solid fa-info-circle"></i> Vui lòng chuyển khoản theo thông tin bên dưới và chụp màn hình gửi cho shop.
+              <Info :size="16" style="margin-right:5px;vertical-align:text-bottom;"/> Bạn sẽ được chuyển đến ứng dụng MoMo để thanh toán.
             </p>
           </div>
 
@@ -265,58 +257,30 @@
     </div>
     <AppFooter />
 
-    <!-- Modal QR Code Thanh toán -->
-    <div v-if="showPaymentModal" class="modal-overlay">
-      <div class="modal-content">
-        <h3>Thanh toán đơn hàng</h3>
-        <p>Vui lòng quét mã QR bên dưới để thanh toán</p>
-        
-        <div class="qr-container">
-          <img :src="paymentQrUrl" alt="Mã QR Thanh toán" />
-        </div>
-        
-        <div class="payment-details">
-            <p><strong>Số tiền:</strong> <span class="price">{{ formatPrice(paymentAmount) }}đ</span></p>
-            <p><strong>Nội dung:</strong> {{ paymentContent }}</p>
-        </div>
-
-        <p class="note-warning"><i class="fa-solid fa-circle-info"></i> Sau khi chuyển khoản thành công, vui lòng bấm nút "Hoàn thành" bên dưới.</p>
-
-        <div class="modal-actions">
-          <button class="btn-back" @click="cancelPayment">
-            <i class="fa-solid fa-arrow-left"></i> Trở lại
-          </button>
-          <button class="btn-complete" @click="finishPayment">
-            <i class="fa-solid fa-check"></i> Hoàn thành
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Modal Danh sách Voucher khả dụng -->
     <div v-if="showVoucherModal" class="modal-overlay" @click.self="showVoucherModal = false">
       <div class="modal-content voucher-modal-content">
         <div class="modal-header">
-          <h3><i class="fa-solid fa-tags"></i> Mã khuyến mãi dành cho bạn</h3>
+          <h3 style="display:flex;align-items:center;"><Tags color="#ee4d2d" :size="24" style="margin-right:10px;"/> Mã khuyến mãi dành cho bạn</h3>
           <button class="close-btn" @click="showVoucherModal = false" title="Đóng">
-            <i class="fa-solid fa-xmark"></i>
+            <X :size="24" />
           </button>
         </div>
         <div class="modal-body voucher-modal-body">
           <div v-if="isLoadingVouchers" class="loading-state">
-            <i class="fa-solid fa-spinner fa-spin"></i> Đang tìm mã...
+            <Loader2 class="lucide-spin" :size="24" style="margin-right:10px;" /> Đang tìm mã...
           </div>
           <div v-else-if="availableVouchers.length === 0" class="empty-state">
-            <i class="fa-solid fa-box-open"></i>
+            <PackageOpen :size="48" color="#bdc3c7" style="margin-bottom:15px;"/>
             <p>Hiện chưa có mã khuyến mãi nào khả dụng.</p>
           </div>
           <div v-else class="voucher-list-container">
             <div v-if="discountVouchersList.length > 0" class="voucher-category">
-              <h4 class="voucher-cat-title"><i class="fa-solid fa-gift"></i> Giảm giá đơn hàng</h4>
+              <h4 class="voucher-cat-title" style="display:flex;align-items:center;gap:8px;"><Gift color="#ee4d2d" :size="20" /> Giảm giá đơn hàng</h4>
               <div class="voucher-list">
                 <div v-for="v in discountVouchersList" :key="v.code" class="voucher-ticket" :class="{ disabled: totalAmount < v.min_order_value }">
                   <div class="ticket-left" :class="v.discount_type">
-                    <i class="fa-solid fa-gift"></i>
+                    <Gift :size="32" color="white" />
                   </div>
                   <div class="ticket-right">
                     <h4>{{ v.code }}</h4>
@@ -331,11 +295,11 @@
             </div>
 
             <div v-if="shippingVouchersList.length > 0" class="voucher-category">
-              <h4 class="voucher-cat-title"><i class="fa-solid fa-truck-fast" style="color: #3498db;"></i> Miễn phí vận chuyển</h4>
+              <h4 class="voucher-cat-title" style="display:flex;align-items:center;gap:8px;"><Truck color="#3498db" :size="20" /> Miễn phí vận chuyển</h4>
               <div class="voucher-list">
                 <div v-for="v in shippingVouchersList" :key="v.code" class="voucher-ticket" :class="{ disabled: totalAmount < v.min_order_value }">
                   <div class="ticket-left" :class="v.discount_type">
-                    <i class="fa-solid fa-truck-fast"></i>
+                    <Truck :size="32" color="white" />
                   </div>
                   <div class="ticket-right">
                     <h4>{{ v.code }}</h4>
@@ -369,9 +333,13 @@ import { showToast } from "@/utils/toast";
 import { jwtDecode } from "jwt-decode";
 import CustomerService from "@/services/customer.service";
 import VoucherService from "@/services/vouchers.service";
+import { 
+  MapPin, LocateFixed, Truck, Zap, Info, Wallet, Banknote, CreditCard,
+  ShoppingBag, Crown, Ticket, ChevronRight, X, Gift, AlertCircle, Check, Tags, Loader2, PackageOpen, CheckCircle2
+} from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter },
+  components: { AppHeader, AppFooter, MapPin, LocateFixed, Truck, Zap, Info, Wallet, Banknote, CreditCard, ShoppingBag, Crown, Ticket, ChevronRight, X, Gift, AlertCircle, Check, Tags, Loader2, PackageOpen, CheckCircle2 },
   setup() {
     const router = useRouter();
     const form = reactive({ name: "", phone: "", address: "", note: "" });
@@ -389,11 +357,7 @@ export default {
         expressEstimatedTime: "1-2 ngày"
     });
     
-    const showPaymentModal = ref(false);
-    const paymentQrUrl = ref("");
-    const paymentContent = ref("");
     const createdOrderId = ref(null);
-    const paymentAmount = ref(0);
     const userLocation = ref({ lat: null, lng: null });
     const isCalculatingShip = ref(false);
     const isChangingAddress = ref(true);
@@ -793,7 +757,6 @@ export default {
 
             // Lưu lại tổng tiền trước khi xóa giỏ hàng (vì xóa giỏ hàng sẽ làm grandTotal thay đổi về 0 hoặc phí ship)
             const finalAmount = grandTotal.value;
-            paymentAmount.value = finalAmount;
 
             const orderData = {
                 customer_id: customerId,
@@ -859,12 +822,6 @@ export default {
                     console.error("Payment error:", payError);
                     showToast("Không thể kết nối đến cổng thanh toán MoMo.", "error");
                 }
-            } else if (paymentMethod.value === 'bank_transfer') {
-                paymentContent.value = `TT DON ${orderId.slice(-6).toUpperCase()}`;
-                // Tạo mã VietQR (Vietcombank - 123456789)
-                paymentQrUrl.value = `https://img.vietqr.io/image/VCB-123456789-compact.png?amount=${finalAmount}&addInfo=${encodeURIComponent(paymentContent.value)}`;
-                showPaymentModal.value = true;
-                return;
             } else {
                 // COD hoặc phương thức khác không cần modal
                 // Xóa giỏ hàng và chuyển hướng
@@ -883,36 +840,6 @@ export default {
         } finally {
             isProcessing.value = false;
         }
-    };
-
-    const finishPayment = async () => {
-        // Cập nhật trạng thái thanh toán thành 'paid' (Giả lập đã nhận tiền sau khi quét QR)
-        if (createdOrderId.value) {
-            try {
-                await OrderService.update(createdOrderId.value, { payment_status: 'paid' });
-            } catch (error) {
-                console.error("Lỗi cập nhật trạng thái thanh toán:", error);
-            }
-        }
-        // Xác nhận thanh toán xong -> Xóa giỏ hàng
-        selectedItems.value.forEach(item => cartStore.removeFromCart(item._id));
-        showPaymentModal.value = false;
-        showToast("Thanh toán thành công! Đơn hàng đã được xác nhận.", "success");
-        router.push("/orders");
-    };
-
-    const cancelPayment = async () => {
-        if (createdOrderId.value) {
-            try {
-                // Nếu khách hàng bấm trở lại nghĩa là không muốn mua nữa -> Hủy đơn để hoàn kho
-                await OrderService.update(createdOrderId.value, { status: 'cancelled' });
-                showToast("Đã hủy đơn hàng.", "info");
-            } catch (error) {
-                console.error("Lỗi hủy đơn:", error);
-            }
-        }
-        showPaymentModal.value = false;
-        // Không redirect về trang chủ nữa, ở lại trang checkout để khách chọn lại
     };
 
     return {
@@ -936,12 +863,6 @@ export default {
         submitOrder, 
         getSizeName, 
         getColorName,
-        showPaymentModal,
-        paymentQrUrl,
-        paymentContent,
-        finishPayment,
-        paymentAmount,
-        cancelPayment,
         getGeoLocation,
         addressState,
         fetchDistricts,
@@ -1040,21 +961,19 @@ h2 i { color: #ee4d2d; font-size: 1.4rem; }
 .shipping-option.selected .option-icon { color: #ee4d2d; }
 .shipping-option .option-info { display: flex; flex-direction: column; flex: 1; }
 
-/* Thanh toán (Dạng Grid Card) */
-.payment-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; }
-.payment-option { display: flex; flex-direction: column; align-items: flex-start; padding: 20px; border: 2px solid #eee; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); background: white; position: relative; height: 100%; box-sizing: border-box; }
-.payment-option:hover { border-color: #d1d5db; transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.05); }
+/* Thanh toán (Dạng List) */
+.payment-options { display: flex; flex-direction: column; gap: 12px; }
+.payment-option { display: flex; flex-direction: row; align-items: center; padding: 15px 20px; border: 2px solid #eee; border-radius: 12px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); background: white; }
+.payment-option:hover { border-color: #d1d5db; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.03); }
 .payment-option.selected { border-color: #ee4d2d; background: #fff5f1; box-shadow: 0 4px 15px rgba(238, 77, 45, 0.1); }
-/* Dấu check góc trên bên phải */
-.payment-option::after { content: '\f058'; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; top: 15px; right: 15px; font-size: 1.5rem; color: #ee4d2d; opacity: 0; transform: scale(0.5); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.payment-option.selected::after { opacity: 1; transform: scale(1); }
-.payment-option .option-icon { font-size: 2.2rem; margin-bottom: 15px; text-align: left; transition: transform 0.3s; }
+.payment-check { margin-left: auto; color: #ee4d2d; opacity: 0; transform: scale(0.5); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.payment-option.selected .payment-check { opacity: 1; transform: scale(1); }
+.payment-option .option-icon { font-size: 1.8rem; margin-right: 20px; text-align: center; width: 40px; transition: transform 0.3s; display: flex; align-items: center; justify-content: center; }
 .payment-option.selected .option-icon { transform: scale(1.1); }
 /* Màu sắc thương hiệu cho từng loại ví/ngân hàng */
 .cod-icon { color: #27ae60; }
 .vnpay-icon { color: #005baa; }
 .momo-icon { color: #a50064; }
-.bank-icon { color: #2980b9; }
 .payment-option .option-info { display: flex; flex-direction: column; }
 .payment-option .opt-title { font-weight: 700; color: #2c3e50; margin-bottom: 5px; font-size: 1.05rem; }
 .payment-option .opt-desc { font-size: 0.85rem; color: #7f8c8d; line-height: 1.4; }
@@ -1284,6 +1203,9 @@ h2 i { color: #ee4d2d; font-size: 1.4rem; }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
   20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
+
+.lucide-spin { animation: spin 2s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
 
 /* Modal Voucher Styles */
 .voucher-modal-content { 

@@ -21,14 +21,14 @@
 
       <div class="footer-section contact">
         <h3>Liên hệ</h3>
-        <p><i class="fa-solid fa-map-location-dot"></i> 123 Đường 3/2, Cần Thơ</p>
-        <p><i class="fa-solid fa-phone"></i> 0999 999 999</p>
-        <p><i class="fa-solid fa-envelope"></i> support@sportstore.com</p>
+        <p class="contact-item"><MapPin :size="18" class="icon" /> 123 Đường 3/2, Cần Thơ</p>
+        <p class="contact-item"><Phone :size="18" class="icon" /> 0999 999 999</p>
+        <p class="contact-item"><Mail :size="18" class="icon" /> support@sportstore.com</p>
       </div>
     </div>
 
     <div class="footer-bottom">
-      &copy; 2026 SportStore. All rights reserved.
+      © 2026 SportStore. All rights reserved.
     </div>
 
     <!-- Nút quay lại đầu trang -->
@@ -38,13 +38,16 @@
       @click="scrollToTop"
       title="Lên đầu trang"
     >
-      <i class="fa-solid fa-arrow-up"></i>
+      <ArrowUp :size="20" />
     </button>
   </footer>
 </template>
 
 <script>
+import { MapPin, Phone, Mail, ArrowUp } from 'lucide-vue-next';
+
 export default {
+  components: { MapPin, Phone, Mail, ArrowUp },
   data() {
     return { showBackToTop: false };
   },
@@ -66,7 +69,7 @@ export default {
   background: #2c3e50;
   color: #ecf0f1;
   padding-top: 40px;
-  margin-top: auto; /* Đẩy footer xuống đáy nếu nội dung ngắn */
+  margin-top: auto;
 }
 
 .footer-content {
@@ -113,14 +116,24 @@ export default {
   padding-left: 5px;
 }
 
-.contact p {
-  margin-bottom: 10px;
-  color: #bdc3c7;
+.contact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.contact i {
-  margin-right: 10px;
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+  color: #bdc3c7;
+  white-space: nowrap;
+}
+
+.icon {
   color: #00c6ff;
+  stroke-width: 2;
 }
 
 .footer-bottom {

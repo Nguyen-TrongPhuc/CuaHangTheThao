@@ -33,7 +33,9 @@
                 </div>
                 <div v-if="order.status === 'completed'" class="item-action">
                     <button v-if="!item.is_reviewed" class="btn-review" @click="openReviewModal(item, order)">Đánh giá</button>
-                    <span v-else class="text-reviewed"><i class="fa-solid fa-check"></i> Đã đánh giá</span>
+                    <span v-else class="text-reviewed" style="display:inline-flex;align-items:center;gap:4px;">
+                      <Check :size="14" /> Đã đánh giá
+                    </span>
                 </div>
             </div>
           </div>
@@ -103,9 +105,10 @@ import ReturnRequestModal from "@/components/ReturnRequestModal.vue";
 import ReviewModal from "@/components/ReviewModal.vue";
 import ReviewsService from "@/services/reviews.service";
 import { showToast } from "@/utils/toast";
+import { Check } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter, ReturnRequestModal, ReviewModal },
+  components: { AppHeader, AppFooter, ReturnRequestModal, ReviewModal, Check },
   data() {
     return {
       orders: [],

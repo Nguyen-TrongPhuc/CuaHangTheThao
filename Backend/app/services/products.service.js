@@ -1,4 +1,5 @@
 const { ObjectId } = require("mongodb");
+const ApiError = require("../api-error");
 
 class ProductsService {
     constructor(client) {
@@ -33,7 +34,7 @@ class ProductsService {
             variants: Array.isArray(payload.variants) ? payload.variants.map(v => ({
                 size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
                 color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
-                stock: Number(v.stock) || 0,
+                stock: 0, // Chỉ cập nhật tồn kho thông qua phiếu nhập kho
                 price: Number(v.price) || Number(payload.price) // Nếu không có giá riêng thì lấy giá chung
             })) : [],
 
@@ -50,12 +51,8 @@ class ProductsService {
             createdAt: new Date(),
         };
 
-        // Tính tổng tồn kho từ variants nếu có
-        if (product.variants.length > 0) {
-            product.stock = product.variants.reduce((sum, v) => sum + v.stock, 0);
-        } else {
-            product.stock = Number(payload.stock) || 0;
-        }
+        // Luôn khởi tạo tồn kho = 0, chỉ thay đổi khi có phiếu nhập hàng
+        product.stock = 0;
 
         const result = await this.Products.insertOne(product);
         return { _id: result.insertedId, ...product };
@@ -65,8 +62,40 @@ class ProductsService {
     // TÌM THEO ĐIỀU KIỆN
     // =======================
     async find(filter, customerId = null) {
-        const cursor = await this.Products.find(filter).sort({ createdAt: -1 });
-        const products = await cursor.toArray();
+        const pipeline = [
+            { $match: filter || {} },
+            { $sort: { createdAt: -1 } },
+            {
+                $lookup: {
+                    from: "reviews",
+                    let: { pid: "$_id", pidStr: { $toString: "$_id" } },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$product_id", "$$pid"] },
+                                        { $eq: ["$product_id", "$$pidStr"] },
+                                        { $eq: ["$productId", "$$pid"] },
+                                        { $eq: ["$productId", "$$pidStr"] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: "product_reviews"
+                }
+            },
+            {
+                $addFields: {
+                    reviewCount: { $size: "$product_reviews" },
+                    averageRating: { $ifNull: [{ $avg: "$product_reviews.rating" }, 0] }
+                }
+            },
+            { $project: { product_reviews: 0 } }
+        ];
+
+        const products = await this.Products.aggregate(pipeline).toArray();
 
         // Apply VIP discount if customerId provided
         if (customerId) {
@@ -91,9 +120,48 @@ class ProductsService {
     // TÌM THEO ID
     // =======================
     async findById(id, customerId = null) {
-        const product = await this.Products.findOne({
-            _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
-        });
+        let objectId = null;
+        try {
+            const cleanId = id ? String(id).trim() : "";
+            if (ObjectId.isValid(cleanId)) objectId = new ObjectId(cleanId);
+        } catch (e) {
+            objectId = null;
+        }
+
+        const pipeline = [
+            { $match: { _id: objectId } },
+            {
+                $lookup: {
+                    from: "reviews",
+                    let: { pid: "$_id", pidStr: { $toString: "$_id" } },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$product_id", "$$pid"] },
+                                        { $eq: ["$product_id", "$$pidStr"] },
+                                        { $eq: ["$productId", "$$pid"] },
+                                        { $eq: ["$productId", "$$pidStr"] }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    as: "product_reviews"
+                }
+            },
+            {
+                $addFields: {
+                    reviewCount: { $size: "$product_reviews" },
+                    averageRating: { $ifNull: [{ $avg: "$product_reviews.rating" }, 0] }
+                }
+            },
+            { $project: { product_reviews: 0 } }
+        ];
+
+        const products = await this.Products.aggregate(pipeline).toArray();
+        const product = products.length > 0 ? products[0] : null;
 
         if (product && customerId) {
             const CustomerService = require('./customer.service');
@@ -176,17 +244,39 @@ class ProductsService {
             }
         });
 
+        // Lấy sản phẩm cũ để giữ nguyên tồn kho
+        const oldProduct = await this.Products.findOne(filter);
+
         // Xử lý variants khi update
         if (updateData.variants && Array.isArray(updateData.variants)) {
-            updateData.variants = updateData.variants.map(v => ({
-                size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
-                color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
-                stock: Number(v.stock) || 0,
-                price: Number(v.price) || Number(updateData.price || 0)
-            }));
+            updateData.variants = updateData.variants.map(v => {
+                // Giữ nguyên tồn kho cũ của biến thể từ Database
+                let currentStock = 0;
+                if (oldProduct && oldProduct.variants) {
+                    const oldVariant = oldProduct.variants.find(ov => 
+                        String(ov.size_id) === String(v.size_id) && 
+                        String(ov.color_id) === String(v.color_id)
+                    );
+                    if (oldVariant) {
+                        currentStock = oldVariant.stock;
+                    }
+                }
+
+                return {
+                    size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
+                    color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
+                    stock: currentStock, // Bỏ qua giá trị gửi lên, lấy từ DB
+                    price: Number(v.price) || Number(updateData.price || 0)
+                };
+            });
 
             // Cập nhật tổng tồn kho dựa trên variants
             updateData.stock = updateData.variants.reduce((sum, v) => sum + v.stock, 0);
+        }
+        
+        // Đảm bảo không ghi đè tổng stock của sản phẩm đơn giản nếu có gửi lên
+        if (oldProduct && (!oldProduct.variants || oldProduct.variants.length === 0)) {
+            updateData.stock = oldProduct.stock;
         }
 
         // Xử lý images khi update (mảng ảnh có thể đi kèm color_id)
@@ -233,7 +323,7 @@ class ProductsService {
 
         // 2. Nếu sản phẩm đã có lượt bán (sold > 0), chặn xóa và báo lỗi
         if (product.sold && product.sold > 0) {
-            throw new Error(`Không thể xóa sản phẩm "${product.name}" vì đã có ${product.sold} lượt mua. Vui lòng ẩn sản phẩm thay vì xóa.`);
+            throw new ApiError(400, `Không thể xóa sản phẩm "${product.name}" vì đã có ${product.sold} lượt mua. Vui lòng điều chỉnh tồn kho về 0 thay vì xóa.`);
         }
 
         // 3. Nếu chưa bán, tiến hành xóa

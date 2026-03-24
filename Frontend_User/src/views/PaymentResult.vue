@@ -4,7 +4,8 @@
     <div class="container">
       <div class="result-card" :class="{ success: isSuccess, failed: !isSuccess }">
         <div class="icon">
-          <i :class="isSuccess ? 'fa-solid fa-check-circle' : 'fa-solid fa-times-circle'"></i>
+          <CheckCircle v-if="isSuccess" :size="80" />
+          <XCircle v-else :size="80" />
         </div>
         <h1>{{ isSuccess ? 'Thanh toán thành công!' : 'Thanh toán thất bại!' }}</h1>
         
@@ -39,9 +40,10 @@ import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
 import { showToast } from "@/utils/toast";
 import OrderService from "@/services/orders.service";
+import { CheckCircle, XCircle } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter },
+  components: { AppHeader, AppFooter, CheckCircle, XCircle },
   setup() {
     const router = useRouter();
     const route = useRoute();

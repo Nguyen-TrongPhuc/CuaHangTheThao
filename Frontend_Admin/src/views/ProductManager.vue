@@ -21,14 +21,13 @@
     <table class="admin-table">
       <thead>
         <tr>
-         
-          <th>Tên sản phẩm</th>
-          <th>Giá hiển thị</th>
-          <th>Danh mục</th>
-          <th>Nhà cung cấp</th>
-          <th>Biến thể (Size - Màu - Kho)</th>
-           <th>Hình ảnh</th>
-          <th>Thao tác</th>
+          <th class="col-name">Tên sản phẩm</th>
+          <th class="col-price">Giá hiển thị</th>
+          <th class="col-category">Danh mục</th>
+          <th class="col-supplier">Nhà cung cấp</th>
+          <th class="col-variants">Biến thể (Size - Màu - Kho)</th>
+          <th class="col-image">Hình ảnh</th>
+          <th class="col-actions">Thao tác</th>
         </tr>
       </thead>
       <tbody>
@@ -61,105 +60,126 @@
       </tbody>
     </table>
 
-    <div v-if="isFormVisible" class="form-overlay">
-      <div class="form-container">
+    <div v-if="isFormVisible" class="modal-overlay" @click.self="isFormVisible = false">
+      <div class="form-container product-form">
         <h2>{{ editingId ? 'Cập nhật' : 'Thêm mới' }} Sản phẩm</h2>
         <form @submit.prevent="save">
-            <div class="form-group">
-            <label>Tên sản phẩm:</label>
-            <input v-model="form.name" placeholder="Tên sản phẩm" required class="input-field" />
-            </div>
-            <div class="form-group">
-            <label>Giá hiển thị (VNĐ):</label>
-            <input v-model="form.price" type="number" placeholder="Giá chung" required class="input-field" />
-            </div>
-            <div class="form-group">
-            <label>Tồn kho (Quản lý qua Nhập kho):</label>
-            <input v-model="form.stock" type="number" placeholder="0" class="input-field" disabled />
-            <small style="color: #7f8c8d; font-style: italic;">* Số lượng tồn kho sẽ được cập nhật tự động khi tạo phiếu nhập hàng.</small>
-            </div>
-            <div class="form-group">
-            <label>Hình ảnh sản phẩm:</label>
-            <div class="images-list">
-              <div v-for="(img, idx) in form.images" :key="idx" class="image-row" style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
-                <input v-model="img.url" placeholder="Link ảnh (URL)" class="input-field" style="flex:1;" />
-                <select v-model="img.color_id" class="input-field" style="width:120px;">
-                  <option value="">--- Màu ---</option>
-                  <option v-for="c in colors" :key="c._id" :value="c._id">{{ c.name }}</option>
-                </select>
-                <button type="button" @click="removeImage(idx)" class="btn-del-variant">X</button>
-              </div>
-            </div>
-            <button type="button" @click="addImage" class="btn-add-variant" style="margin-top:5px;">+ Thêm ảnh</button>
-            <small class="help-text">(Có thể gắn màu để ảnh thay đổi khi chọn màu tương ứng)</small>
-            </div>
-            
-            <div class="form-group">
-            <label>Danh mục:</label>
-            <select v-model="form.category_id" class="input-field">
-                <option value="">-- Chọn danh mục --</option>
-                <option v-for="c in categories" :key="c._id" :value="c._id">{{ c.name }}</option>
-            </select>
-            </div>
-
-            <div class="form-group">
-            <label>Môn thể thao:</label>
-            <select v-model="form.sport_id" class="input-field">
-                <option value="">-- Chọn môn thể thao --</option>
-                <option v-for="s in sports" :key="s._id" :value="s._id">{{ s.name }}</option>
-            </select>
-            </div>
-
-            <div class="form-group">
-            <label>Nhà cung cấp:</label>
-            <select v-model="form.supplier_id" class="input-field">
-                <option :value="null">-- Chọn nhà cung cấp --</option>
-                <option v-for="sup in suppliers" :key="sup._id" :value="sup._id">{{ sup.name }}</option>
-            </select>
-            </div>
-
-            <!-- PHẦN QUẢN LÝ BIẾN THỂ -->
-            <div class="form-group" style="background: #f9f9f9; padding: 10px; border-radius: 4px;">
-                <label style="margin-bottom: 10px; display: block;">Danh sách biến thể (Size & Màu):</label>
+            <div class="form-grid">
+                <!-- Cột trái -->
+                <div class="form-group full-width">
+                    <label>Tên sản phẩm <span class="required">*</span></label>
+                    <input v-model="form.name" placeholder="Tên sản phẩm" required class="input-field" />
+                </div>
                 
-                <div style="display: flex; gap: 10px; margin-bottom: 5px; font-size: 0.85em; font-weight: bold; color: #666;">
-                    <div style="flex: 1;">Size</div>
-                    <div style="flex: 1;">Màu sắc</div>
-                    <div style="width: 70px;">Tồn kho</div>
-                    <div style="width: 100px;">Giá riêng</div>
-                    <div style="width: 32px;"></div>
+                <div class="form-group">
+                    <label>Giá hiển thị (VNĐ) <span class="required">*</span></label>
+                    <input v-model="form.price" type="number" placeholder="Giá chung" required class="input-field" />
+                </div>
+                
+                <div class="form-group">
+                    <label>Tồn kho (Quản lý qua Nhập kho)</label>
+                    <input v-model="form.stock" type="number" placeholder="0" class="input-field" disabled style="background: #f5f5f5;" />
                 </div>
 
-                <div v-for="(variant, index) in form.variants" :key="index" class="variant-row" style="gap: 10px;">
-                    <select v-model="variant.size_id" style="flex: 1;">
-                        <option value="">-- Không Size --</option>
-                        <option v-for="s in sizes" :key="s._id" :value="s._id">{{ s.name }}</option>
+                <div class="form-group">
+                    <label>Danh mục</label>
+                    <select v-model="form.category_id" class="input-field">
+                        <option value="">-- Chọn danh mục --</option>
+                        <option v-for="c in categories" :key="c._id" :value="c._id">{{ c.name }}</option>
                     </select>
-                    
-                    <select v-model="variant.color_id" style="flex: 1;">
-                        <option value="">-- Không Màu --</option>
+                </div>
+
+                <div class="form-group">
+                    <label>Môn thể thao</label>
+                    <select v-model="form.sport_id" class="input-field">
+                        <option value="">-- Chọn môn thể thao --</option>
+                        <option v-for="s in sports" :key="s._id" :value="s._id">{{ s.name }}</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Nhà cung cấp</label>
+                    <select v-model="form.supplier_id" class="input-field">
+                        <option :value="null">-- Chọn nhà cung cấp --</option>
+                        <option v-for="sup in suppliers" :key="sup._id" :value="sup._id">{{ sup.name }}</option>
+                    </select>
+                </div>
+                
+                <div class="form-group full-width">
+                    <label>Mô tả chi tiết</label>
+                    <textarea v-model="form.description" placeholder="Mô tả sản phẩm" class="input-field" rows="4"></textarea>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>Hình ảnh sản phẩm</label>
+                    <div class="images-list">
+                    <div v-for="(img, idx) in form.images" :key="idx" class="image-row">
+                        <div class="img-preview-mini">
+                            <img v-if="img.url" :src="img.url" @error="$event.target.src='https://placehold.co/50'" />
+                            <i v-else class="fa-regular fa-image" style="color: #ccc;"></i>
+                        </div>
+                        <input v-model="img.url" placeholder="Link ảnh (URL)" class="input-field" style="flex:1;" />
+                        <select v-model="img.color_id" class="input-field" style="width:150px;">
+                        <option value="">--- Màu ---</option>
                         <option v-for="c in colors" :key="c._id" :value="c._id">{{ c.name }}</option>
-                    </select>
-
-                    <input type="number" v-model="variant.stock" placeholder="Kho" style="width: 70px;">
-                    <input type="number" v-model="variant.price" placeholder="Giá riêng" style="width: 100px;">
-                    
-                    <button type="button" @click="removeVariant(index)" class="btn-del-variant" style="width: 32px; padding: 5px 0;">X</button>
+                        </select>
+                        <button type="button" @click="removeImage(idx)" class="btn-del-variant"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    </div>
+                    <button type="button" @click="addImage" class="btn-add-variant" style="margin-top:10px;">+ Thêm ảnh</button>
                 </div>
 
-                <button type="button" @click="addVariant" class="btn-add-variant">+ Thêm biến thể</button>
-            </div>
+                <!-- PHẦN QUẢN LÝ BIẾN THỂ -->
+                <div class="form-group full-width variants-container">
+                    <label style="margin-bottom: 15px; display: block; font-size: 16px;">Danh sách phân loại (Size & Màu)</label>
+                    
+                    <div class="variant-header" v-if="form.variants.length > 0">
+                        <div style="flex: 1;">Kích thước</div>
+                        <div style="flex: 1;">Màu sắc</div>
+                        <div style="width: 80px;">Tồn kho</div>
+                        <div style="width: 120px;">Giá bán riêng</div>
+                        <div style="width: 40px;"></div>
+                    </div>
 
-            <div class="form-group">
-            <label>Mô tả:</label>
-            <textarea v-model="form.description" placeholder="Mô tả" class="input-field"></textarea>
+                    <div v-for="(variant, index) in form.variants" :key="index" class="variant-row">
+                        <select v-model="variant.size_id" class="input-field" style="flex: 1;">
+                            <option value="">-- Không Size --</option>
+                            <option v-for="s in sizes" :key="s._id" :value="s._id">{{ s.name }}</option>
+                        </select>
+                        
+                        <select v-model="variant.color_id" class="input-field" style="flex: 1;">
+                            <option value="">-- Không Màu --</option>
+                            <option v-for="c in colors" :key="c._id" :value="c._id">{{ c.name }}</option>
+                        </select>
+
+                        <input type="number" v-model="variant.stock" placeholder="Kho" class="input-field" style="width: 80px; background: #f5f5f5;" disabled title="Số lượng được quản lý tự động qua Nhập kho">
+                        <input type="number" v-model="variant.price" placeholder="Giá riêng" class="input-field" style="width: 120px;">
+                        
+                        <button type="button" @click="removeVariant(index)" class="btn-del-variant"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+
+                    <button type="button" @click="addVariant" class="btn-add-variant">+ Thêm phân loại</button>
+                </div>
             </div>
 
             <div class="form-actions">
+                <button type="button" @click="isFormVisible = false" class="btn-cancel">Hủy</button>
                 <button type="submit" class="btn-save">Lưu</button>
-                <button type="button" @click="isFormVisible = false">Hủy</button>
             </div>
         </form>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div v-if="deleteConfirmId" class="modal-overlay" @click.self="deleteConfirmId = null">
+      <div class="confirm-dialog">
+        <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Xác nhận xóa</h3>
+        <p>Bạn có chắc chắn muốn xóa sản phẩm này? Nếu sản phẩm đã từng được bán, tính năng này sẽ bị chặn.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="deleteConfirmId = null">Hủy</button>
+          <button class="btn-confirm-delete" @click="executeDelete">Xóa</button>
+        </div>
       </div>
     </div>
   </div>
@@ -189,7 +209,8 @@ export default {
       form: { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] },
       selectedCategory: "",
       selectedSport: "",
-      searchText: ""
+      searchText: "",
+      deleteConfirmId: null
     };
   },
   computed: {
@@ -276,13 +297,26 @@ export default {
         showToast("Lưu thành công!", "success");
       } catch (e) { showToast("Có lỗi xảy ra!", "error"); }
     },
-    async remove(id) {
-      if (confirm("Bạn có chắc muốn xóa?")) {
-        try {
-          await ProductService.delete(id);
-          await this.loadData(); // Đợi tải xong dữ liệu mới
-          showToast("Xóa thành công!", "success");
-        } catch (e) { showToast("Xóa thất bại!", "error"); }
+    remove(id) {
+      const product = this.products.find(p => p._id === id);
+      // Chặn ngay tại Frontend nếu sản phẩm đã có lượt mua
+      if (product && product.sold > 0) {
+        showToast(`Không thể xóa "${product.name}" vì đã có ${product.sold} lượt mua.`, "error");
+        return; 
+      }
+      this.deleteConfirmId = id;
+    },
+    async executeDelete() {
+      if (!this.deleteConfirmId) return;
+      try {
+        await ProductService.delete(this.deleteConfirmId);
+        await this.loadData();
+        showToast("Xóa thành công!", "success");
+      } catch (e) { 
+        const errMsg = e.response?.data?.message || (typeof e.response?.data === 'string' ? e.response.data : "Xóa thất bại!");
+        showToast(errMsg, "error"); 
+      } finally {
+        this.deleteConfirmId = null;
       }
     }
   },
@@ -310,21 +344,60 @@ export default {
 .btn-add:hover { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 .btn-del { color: #e74c3c; margin-left: 10px; cursor: pointer; border: none; background: none; }
 .btn-edit { color: #3498db; cursor: pointer; border: none; background: none; margin-right: 5px; }
-.form-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; }
-.form-container { background: white; padding: 30px; border-radius: 8px; width: 400px; max-height: 90vh; overflow-y: auto; }
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
-.input-field { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; display: block; box-sizing: border-box; }
-.btn-save { background: #2980b9; color: white; padding: 10px 20px; border: none; margin-right: 10px; cursor: pointer; border-radius: 4px; }
 
-/* Style cho phần biến thể */
-.variant-row { display: flex; gap: 5px; margin-bottom: 10px; align-items: center; }
-.variant-row select, .variant-row input { padding: 5px; border: 1px solid #ddd; border-radius: 3px; }
-.btn-add-variant { background: #27ae60; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; font-size: 0.9em; }
-.btn-del-variant { background: #c0392b; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+/* Custom Modal Styles */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+.form-container { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+.product-form { max-width: 900px !important; width: 95%; }
+@keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+.form-container h2 { margin-top: 0; margin-bottom: 25px; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { display: flex; flex-direction: column; }
+.form-group.full-width { grid-column: 1 / -1; }
+.form-group label { margin-bottom: 8px; font-weight: 600; color: #444; }
+.required { color: #e74c3c; margin-left: 3px; }
+.input-field { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; transition: all 0.3s ease; }
+.input-field:focus { border-color: #4776E6; outline: none; box-shadow: 0 0 0 3px rgba(71, 118, 230, 0.1); }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee; }
+.btn-save { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+.btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(71, 118, 230, 0.3); }
+
+/* Product variants styling */
+.image-row, .variant-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+.img-preview-mini { width: 46px; height: 46px; border: 1px dashed #ccc; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f8f9fa; flex-shrink: 0; }
+.img-preview-mini img { width: 100%; height: 100%; object-fit: cover; }
+.variant-header { display: flex; gap: 10px; margin-bottom: 5px; font-size: 0.85em; font-weight: bold; color: #666; padding: 0 10px; }
+.variants-container { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #eee; }
+.btn-add-variant { background: #e8f0fe; color: #0056b3; border: 1px dashed #0056b3; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; align-self: flex-start; }
+.btn-add-variant:hover { background: #cce5ff; }
+.btn-del-variant { background: #ffebee; color: #dc3545; border: none; width: 36px; height: 36px; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+.btn-del-variant:hover { background: #ffcdd2; }
 
 .filters { margin-bottom: 15px; display: flex; gap: 10px; }
 .filter-select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 200px; }
 .filter-input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 200px; flex: 1; }
 .product-count { display: flex; align-items: center; white-space: nowrap; color: #555; }
+
+/* Table Column Widths */
+.admin-table th.col-name { width: 18%; word-break: break-word; }
+.admin-table th.col-price { width: 10%; }
+.admin-table th.col-category { width: 12%; }
+.admin-table th.col-supplier { width: 12%; }
+.admin-table th.col-variants { width: 30%; } /* Mở rộng cột biến thể */
+.admin-table th.col-image { width: 8%; text-align: center; }
+.admin-table th.col-actions { width: 10%; text-align: center; }
+.admin-table td { vertical-align: middle; line-height: 1.4; }
+.admin-table td:nth-child(6), .admin-table td:nth-child(7) { text-align: center; }
+
+/* Confirm Delete Modal */
+.confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+.confirm-icon { font-size: 3rem; color: #e74c3c; margin-bottom: 15px; }
+.confirm-dialog h3 { margin-top: 0; color: #2c3e50; font-size: 1.5rem; }
+.confirm-dialog p { color: #666; margin-bottom: 25px; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: center; gap: 15px; }
+.confirm-actions button { padding: 10px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.btn-cancel { background: #f1f3f5; color: #495057; border: 1px solid #ddd; }
+.btn-cancel:hover { background: #e2e6ea; }
+.btn-confirm-delete { background: #e74c3c; color: white; }
+.btn-confirm-delete:hover { background: #c0392b; }
 </style>

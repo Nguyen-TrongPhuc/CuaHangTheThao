@@ -5,7 +5,10 @@ const ApiError = require("../api-error");
 exports.getSummary = async (req, res, next) => {
     try {
         const dashboardService = new DashboardService(MongoDB.client);
-        const summary = await dashboardService.getSummary();
+        
+        // Lấy quyền từ token (middleware xác thực đã gắn vào req.user)
+        const role = req.user ? req.user.role : 'staff'; 
+        const summary = await dashboardService.getSummary(role);
         res.send(summary);
     } catch (error) {
         console.error(error);
@@ -55,7 +58,17 @@ exports.getImportReport = async (req, res, next) => {
     try {
         const dashboardService = new DashboardService(MongoDB.client);
         const { startDate, endDate } = req.query;
-        const data = await dashboardService.getImportReport(startDate, endDate);
+        let data = await dashboardService.getImportReport(startDate, endDate);
+        
+        // BẢO MẬT: Nếu không phải Admin, xóa sạch dữ liệu giá vốn nhập hàng trước khi gửi về
+        const role = req.user ? req.user.role : 'staff';
+        if (role !== 'admin') {
+            data = data.map(item => {
+                const { import_price, total_cost, ...safeData } = item;
+                return safeData;
+            });
+        }
+
         res.send(data);
     } catch (error) {
         console.error(error);
@@ -71,5 +84,17 @@ exports.syncStock = async (req, res, next) => {
     } catch (error) {
         console.error(error);
         return next(new ApiError(500, "Error syncing stock"));
+    }
+};
+
+exports.getTopProductsByMonth = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const { year, month, limit } = req.query;
+        const data = await dashboardService.getTopSellingProductsByMonth(year, month, limit);
+        res.send(data);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving top products by month"));
     }
 };

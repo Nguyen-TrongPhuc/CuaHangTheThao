@@ -23,7 +23,7 @@
             @click="filterByCategory(cat._id)"
           >
             <div class="cat-icon">
-              <i :class="getCategoryIcon(cat.name)"></i>
+              <component :is="getCategoryIcon(cat.name)" :size="40" stroke-width="1.5" />
             </div>
             <span class="cat-name">{{ cat.name }}</span>
           </div>
@@ -34,7 +34,9 @@
       <section class="section-container new-arrivals" id="shop-now">
         <div class="section-header">
           <h2 class="section-title">Sản phẩm Mới nhất</h2>
-          <router-link to="/products" class="view-all-link">Xem tất cả <i class="fa-solid fa-arrow-right"></i></router-link>
+          <router-link to="/products" class="view-all-link" style="display:flex;align-items:center;gap:5px;">
+            Xem tất cả <ArrowRight :size="16" />
+          </router-link>
         </div>
         <div class="product-grid">
           <div v-for="product in newArrivals" :key="product._id" class="product-card" @click="goToProductDetail(product._id)">
@@ -64,18 +66,26 @@
       <!-- 3. Sản phẩm Gợi ý (Personalized Recommendations) -->
       <section class="section-container recommendations-section">
         <div class="section-header center">
-          <h2 class="section-title">Gợi ý dành riêng cho bạn</h2>
-          <p class="section-subtitle">Dựa trên sở thích và xu hướng thể thao hiện nay</p>
+          <h2 class="section-title">Sản phẩm Đánh giá cao</h2>
+          <p class="section-subtitle">Những sản phẩm được khách hàng yêu thích và đánh giá tốt nhất</p>
         </div>
         <div class="product-grid">
-          <div v-for="product in recommendedProducts" :key="product._id" class="product-card" @click="goToProductDetail(product._id)">
+          <div v-for="product in topRatedProducts" :key="product._id" class="product-card" @click="goToProductDetail(product._id)">
             <div class="image-container">
               <img :src="(product.images && product.images.length ? product.images[0].url : product.image) || 'https://via.placeholder.com/300'" :alt="product.name" />
             </div>
             <div class="card-body">
               <h3 class="product-name">{{ product.name }}</h3>
               <div class="product-meta">
-                <span class="category">{{ product.category_name || 'Gợi ý' }}</span>
+                <div class="rating-display" style="display:flex; align-items:center;">
+                  <template v-if="product.reviewCount > 0">
+                    <Star v-for="n in 5" :key="n" :size="14" :class="[n <= Math.round(product.averageRating) ? 'star-active' : 'star-inactive']" />
+                    <span style="color:#7f8c8d; font-size:0.85rem; margin-left:5px;">({{ product.averageRating.toFixed(1) }})</span>
+                  </template>
+                  <template v-else>
+                    <span style="color:#999; font-size:0.85rem; font-style: italic;">Chưa có đánh giá</span>
+                  </template>
+                </div>
                 <div class="price-box" style="text-align: right;">
                     <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.8rem; color: #999; text-decoration: line-through; display: block;">
                         {{ formatPrice(product.price) }}đ
@@ -103,7 +113,9 @@
             <div class="card-body">
               <h3 class="product-name">{{ product.name }}</h3>
               <div class="product-meta">
-                <span class="sold-count"><i class="fa-solid fa-fire"></i> Đã bán {{ product.sold || 0 }}</span>
+                <span class="sold-count" style="display:flex;align-items:center;gap:3px;">
+                  <Flame :size="14" color="#e67e22" /> Đã bán {{ product.sold || 0 }}
+                </span>
                 <div class="price-box" style="text-align: right;">
                     <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.8rem; color: #999; text-decoration: line-through; display: block;">
                         {{ formatPrice(product.price) }}đ
@@ -131,18 +143,20 @@ import ProductService from "@/services/products.service";
 import CategoryService from "@/services/categories.service";
 import SportService from "@/services/sports.service";
 import CustomerService from "@/services/customer.service";
+import ReviewsService from "@/services/reviews.service";
 import { showToast } from "@/utils/toast";
+import { ArrowRight, Flame, Footprints, Shirt, Dribbble, Target, ShoppingBag, Wind, Layers, Star } from "lucide-vue-next";
 
 export default {
   components: {
-    AppHeader,
-    AppFooter
+    AppHeader, AppFooter,
+    ArrowRight, Flame, Footprints, Shirt, Dribbble, Target, ShoppingBag, Wind, Layers, Star
   },
   data() {
     return { 
       allProducts: [],
       newArrivals: [],
-      recommendedProducts: [],
+      topRatedProducts: [],
       bestSellers: [],
       categories: [],
       sports: [],
@@ -163,8 +177,18 @@ export default {
             return p.createdAt && new Date(p.createdAt) >= thirtyDaysAgo;
         }).slice(0, 8);
 
-        // 2. Recommendations: Lấy ngẫu nhiên hoặc theo logic (ở đây lấy đoạn giữa làm ví dụ)
-        this.recommendedProducts = [...this.allProducts].sort(() => 0.5 - Math.random()).slice(0, 4);
+        // 2. Top Rated: Lấy 4 sản phẩm có ĐIỂM THẬT CAO NHẤT
+        const productsWithReviews = this.allProducts
+            .filter(p => p.averageRating > 0)
+            .sort((a, b) => b.averageRating - a.averageRating || (b.reviewCount || 0) - (a.reviewCount || 0));
+            
+        if (productsWithReviews.length >= 4) {
+            this.topRatedProducts = productsWithReviews.slice(0, 4);
+        } else {
+            // Nếu chưa có ai đánh giá (hoặc không đủ 4), tự thêm ngẫu nhiên cho đầy 4 khung của giao diện
+            const others = this.allProducts.filter(p => p.averageRating === 0).sort(() => 0.5 - Math.random());
+            this.topRatedProducts = [...productsWithReviews, ...others].slice(0, 4);
+        }
 
         // 3. Best Sellers: Sắp xếp giảm dần VÀ CHỈ LẤY sản phẩm có lượt bán > 0
         this.bestSellers = [...this.allProducts]
@@ -214,13 +238,13 @@ export default {
     getCategoryIcon(name) {
       // Helper đơn giản để map icon
       const n = name.toLowerCase();
-      if (n.includes('giày')) return 'fa-solid fa-shoe-prints';
-      if (n.includes('áo') || n.includes('quần')) return 'fa-solid fa-shirt';
-      if (n.includes('bóng')) return 'fa-solid fa-futbol';
-      if (n.includes('vợt')) return 'fa-solid fa-table-tennis-paddle-ball';
-      if (n.includes('túi') || n.includes('balo')) return 'fa-solid fa-bag-shopping';
-      if (n.includes('phụ kiện')) return 'fa-solid fa-socks';
-      return 'fa-solid fa-layer-group';
+      if (n.includes('giày')) return 'Footprints';
+      if (n.includes('áo') || n.includes('quần')) return 'Shirt';
+      if (n.includes('bóng')) return 'Dribbble';
+      if (n.includes('vợt')) return 'Target';
+      if (n.includes('túi') || n.includes('balo')) return 'ShoppingBag';
+      if (n.includes('phụ kiện')) return 'Wind';
+      return 'Layers';
     },
     filterByCategory(id) {
       // Chuyển hướng sang trang tìm kiếm/sản phẩm với filter category
@@ -242,229 +266,309 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .main-content {
   flex: 1;
-  background-color: #f9f9f9;
+  background-color: #fff;
 }
 
 /* Hero Banner */
 .hero-banner {
-  background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://www.fcbarcelona.com/photo-resources/2025/07/16/2f518d18-a8fb-4128-aa71-0b1c4c80638a/202507_1st_Kit_Sorteig_Leads_Banner_1800x900_01_ENG.jpg?width=1200&height=525');
-  background-size: cover;
-  background-position: center;
-  height: 500px;
+  position: relative;
+  background: url('https://www.fcbarcelona.com/photo-resources/2025/07/16/2f518d18-a8fb-4128-aa71-0b1c4c80638a/202507_1st_Kit_Sorteig_Leads_Banner_1800x900_01_ENG.jpg?width=1200&height=525') no-repeat center center/cover;
+  height: 550px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   color: white;
+  margin-bottom: 0;
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+  z-index: 1;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  padding: 0 20px;
+  animation: fadeInDown 1s ease-out;
 }
 
 .hero-content h1 {
-  font-size: 3.5rem;
+  font-size: 4rem;
+  font-weight: 800;
   margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
 }
 
 .hero-content p {
   font-size: 1.5rem;
-  margin-bottom: 30px;
+  margin-bottom: 40px;
+  font-weight: 300;
+  color: #e0e0e0;
 }
 
 .btn-cta {
-  padding: 12px 30px;
-  font-size: 1.1rem;
-  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  padding: 15px 40px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  background: #ee4d2d;
   color: white;
   border: none;
-  border-radius: 30px;
+  border-radius: 50px;
   cursor: pointer;
-  transition: transform 0.3s, background-color 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(238, 77, 45, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .btn-cta:hover {
-  background: linear-gradient(135deg, #24243e, #302b63, #0f0c29);
-  box-shadow: 0 5px 15px rgba(48, 43, 99, 0.4);
+  background: #d73211;
   transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(238, 77, 45, 0.6);
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* General Section Styles */
 .section-container {
-  padding: 60px 10%;
-  margin-bottom: 20px;
+  padding: 80px 10%;
+  background: white;
+}
+
+.section-container:nth-child(even) {
+  background: #f8f9fa;
 }
 
 .section-title {
   text-align: center;
-  font-size: 2.5rem;
+  font-size: 2.2rem;
   color: #2c3e50;
-  margin-bottom: 10px;
+  margin-bottom: 40px;
+  font-weight: 800;
+  text-transform: uppercase;
   position: relative;
-  font-weight: 700;
+}
+
+.section-title::after {
+  content: '';
+  display: block;
+  width: 60px;
+  height: 4px;
+  background: #ee4d2d;
+  margin: 15px auto 0;
+  border-radius: 2px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   margin-bottom: 40px;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 15px;
+}
+
+.section-header .section-title {
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.section-header .section-title::after {
+  margin: 15px 0 0 0;
 }
 
 .section-header.center {
   flex-direction: column;
   align-items: center;
-  border-bottom: none;
+}
+
+.section-header.center .section-title::after {
+  margin: 15px auto 0;
 }
 
 .section-subtitle {
   color: #7f8c8d;
   font-size: 1.1rem;
   margin-top: 5px;
+  margin-bottom: 30px;
 }
 
 .view-all-link {
-  color: #302b63;
+  color: #ee4d2d;
   text-decoration: none;
   font-weight: 600;
+  font-size: 1.05rem;
+  padding: 8px 20px;
+  border: 1px solid #ee4d2d;
+  border-radius: 20px;
   transition: 0.3s;
 }
+
 .view-all-link:hover {
-  color: #e74c3c;
-  transform: translateX(5px);
+  background: #ee4d2d;
+  color: white;
 }
 
 /* Categories Grid */
 .categories-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 25px;
-  justify-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 20px;
 }
 
 .category-card {
   background: white;
-  border-radius: 15px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 25px 15px;
   text-align: center;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.04);
   cursor: pointer;
-  transition: all 0.3s;
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid transparent;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid #f0f0f0;
 }
 
 .category-card:hover {
-  transform: translateY(-5px);
-  border-color: #302b63;
-  box-shadow: 0 10px 25px rgba(48, 43, 99, 0.15);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 25px rgba(0,0,0,0.1);
+  border-color: #ee4d2d;
 }
 
 .cat-icon {
   font-size: 2.5rem;
   color: #302b63;
   margin-bottom: 15px;
+  transition: color 0.3s;
+}
+
+.category-card:hover .cat-icon {
+  color: #ee4d2d;
 }
 
 .cat-name {
   font-weight: 600;
   color: #2c3e50;
-  display: block;
+  font-size: 1.05rem;
 }
 
 /* Product Grid */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 30px;
 }
 
 .product-card {
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-  transition: transform 0.3s, box-shadow 0.3s;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+  position: relative;
   display: flex;
   flex-direction: column;
-  cursor: pointer;
-  position: relative;
 }
 
 .product-card:hover {
-  transform: translateY(-10px);
+  transform: translateY(-8px);
   box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+  border-color: #eee;
 }
 
 .image-container {
-  height: 250px;
-  overflow: hidden;
+  height: 260px;
+  padding: 20px;
+  position: relative;
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  position: relative;
+  overflow: hidden;
+  cursor: pointer;
 }
 
 .image-container img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* Đảm bảo ảnh không bị méo */
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   transition: transform 0.5s;
 }
 
 .product-card:hover .image-container img {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .badge-new, .badge-hot {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 5px 10px;
-  border-radius: 4px;
+  top: 15px;
+  left: 15px;
+  padding: 4px 12px;
+  border-radius: 20px;
   color: white;
   font-size: 0.8rem;
-  font-weight: bold;
+  font-weight: 700;
   z-index: 2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.badge-new { background: #27ae60; }
-.badge-hot { background: #e74c3c; }
+
+.badge-new { background: linear-gradient(135deg, #2ecc71, #27ae60); box-shadow: 0 2px 5px rgba(46, 204, 113, 0.4); }
+.badge-hot { background: linear-gradient(135deg, #ff6b6b, #e74c3c); box-shadow: 0 2px 5px rgba(231, 76, 60, 0.4); }
 
 .card-body {
   padding: 20px;
   display: flex;
   flex-direction: column;
   flex: 1;
+  background: #fafafa;
+  border-top: 1px solid #f5f5f5;
 }
 
 .product-name {
   font-size: 1.1rem;
   color: #2c3e50;
   margin: 0 0 10px;
-  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1.4;
+  height: 3.08rem; /* exactly 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.product-name:hover {
+  color: #ee4d2d;
 }
 
 .product-meta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   margin-bottom: 15px;
+  margin-top: auto;
 }
 
 .category {
   font-size: 0.9rem;
   color: #7f8c8d;
-  background: #f0f2f5;
-  padding: 4px 8px;
-  border-radius: 4px;
 }
 
 .sold-count {
@@ -473,35 +577,39 @@ export default {
   font-weight: 600;
 }
 
+.price-box {
+  text-align: right;
+}
+
 .price {
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-size: 1.25rem;
+  font-weight: 800;
   color: #e74c3c;
 }
 
 .btn-buy-now {
-  margin-top: auto;
   width: 100%;
-  padding: 10px;
-  background: white;
-  color: #302b63;
-  border: 1px solid #302b63;
-  border-radius: 20px;
+  padding: 12px;
+  background: transparent;
+  color: #ee4d2d;
+  border: 1px solid #ee4d2d;
+  border-radius: 8px;
   font-weight: bold;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
-.btn-buy-now:hover {
-  background: #302b63;
+.product-card:hover .btn-buy-now {
+  background: #ee4d2d;
   color: white;
-  transform: translateY(-2px);
 }
 
 /* Recommendations Section Specifics */
 .recommendations-section {
-  background: linear-gradient(to bottom, #f9f9f9, #fff);
-  padding-top: 80px;
-  padding-bottom: 80px;
+  background: #f8f9fa;
 }
+
+.star-active { color: #f1c40f; fill: #f1c40f; }
+.star-inactive { color: #ddd; fill: transparent; }
 </style>

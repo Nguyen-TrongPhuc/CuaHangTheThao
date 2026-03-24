@@ -9,7 +9,7 @@
     <div v-else>
       <!-- Summary Cards -->
       <div class="summary-cards">
-        <div class="card">
+        <div v-if="userRole === 'admin'" class="card">
           <div class="card-icon revenue"><i class="fa-solid fa-dollar-sign"></i></div>
           <div class="card-content">
             <div class="card-title">Tổng doanh thu (Tháng này)</div>
@@ -37,17 +37,58 @@
             <div class="card-value">{{ summary.cancelledOrdersMonth }}</div>
           </div>
         </div>
+        <!-- Card dành riêng cho Staff tập trung vào Vận hành -->
+        <div v-if="userRole === 'staff'" class="card">
+          <div class="card-icon" style="background: linear-gradient(135deg, #f39c12, #d35400); color: white;"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          <div class="card-content">
+            <div class="card-title">Đơn chờ xử lý</div>
+            <div class="card-value" style="color: #f39c12;">{{ pendingOrdersCount }}</div>
+          </div>
+        </div>
       </div>
 
       <!-- Charts -->
-      <div class="charts-grid">
-        <div class="chart-container">
+      <div class="charts-grid" :style="userRole === 'staff' ? { gridTemplateColumns: '1fr 1fr' } : {}">
+        <div v-if="userRole === 'admin'" class="chart-container">
           <h3>Doanh thu 7 ngày qua</h3>
           <Line v-if="revenueChartData.labels.length" :data="revenueChartData" :options="chartOptions" />
         </div>
         <div class="chart-container">
           <h3>Tình trạng đơn hàng</h3>
           <Doughnut v-if="orderStatusChartData.labels.length" :data="orderStatusChartData" :options="chartOptions" />
+        </div>
+        
+        <!-- Thiết kế chuyên biệt cho Staff: Bảng nhiệm vụ vận hành -->
+        <div v-if="userRole === 'staff'" class="tasks-container">
+          <h3><i class="fa-solid fa-list-check"></i> Nhiệm vụ cần xử lý</h3>
+          <div class="task-list">
+            <router-link to="/orders" class="task-item">
+              <div class="task-icon warning"><i class="fa-solid fa-hourglass-half"></i></div>
+              <div class="task-info">
+                <span class="task-name">Đơn chờ xác nhận</span>
+                <span class="task-desc">Đơn hàng mới cần đóng gói và giao đi</span>
+              </div>
+              <div class="task-count" :class="{ 'has-task': pendingOrdersCount > 0 }">{{ pendingOrdersCount }}</div>
+            </router-link>
+
+            <router-link to="/orders" class="task-item">
+              <div class="task-icon danger"><i class="fa-solid fa-rotate-left"></i></div>
+              <div class="task-info">
+                <span class="task-name">Yêu cầu trả hàng</span>
+                <span class="task-desc">Khách yêu cầu hoàn trả, cần xử lý ngay</span>
+              </div>
+              <div class="task-count" :class="{ 'has-task': returnRequestedCount > 0 }">{{ returnRequestedCount }}</div>
+            </router-link>
+
+            <div class="task-item" @click="activeTab = 'stock'" style="cursor: pointer;">
+              <div class="task-icon stock-alert"><i class="fa-solid fa-boxes-stacked"></i></div>
+              <div class="task-info">
+                <span class="task-name">Sản phẩm sắp hết</span>
+                <span class="task-desc">Mặt hàng tồn kho thấp cần báo cáo nhập</span>
+              </div>
+              <div class="task-count" :class="{ 'has-task': lowStockProducts.length > 0 }">{{ lowStockProducts.length }}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -56,7 +97,7 @@
       <!-- NEW: Detailed Reports Tabs -->
       <div class="detailed-reports-container">
         <div class="dashboard-tabs">
-          <button :class="{ active: activeTab === 'sales' }" @click="activeTab = 'sales'">Doanh số tháng</button>
+          <button v-if="userRole === 'admin'" :class="{ active: activeTab === 'sales' }" @click="activeTab = 'sales'">Doanh số tháng</button>
           <button :class="{ active: activeTab === 'customers' }" @click="activeTab = 'customers'">Top Khách hàng</button>
           <button :class="{ active: activeTab === 'topProducts' }" @click="activeTab = 'topProducts'">Sản phẩm bán chạy</button>
           <button :class="{ active: activeTab === 'stock' }" @click="activeTab = 'stock'">Sắp hết hàng</button>
@@ -65,7 +106,7 @@
 
         <div class="tab-content">
           <!-- 1. Doanh số theo tháng -->
-          <div v-if="activeTab === 'sales'" class="report-section">
+          <div v-if="activeTab === 'sales' && userRole === 'admin'" class="report-section">
             <div class="section-header">
               <h3>Thống kê doanh số theo tháng</h3>
               <div class="filters">
@@ -107,9 +148,9 @@
             <div class="section-header">
               <h3>Khách hàng mua nhiều nhất</h3>
               <div class="filters">
-                <input type="date" v-model="customerStart" @change="fetchTopCustomers">
+                <input type="date" v-model="customerStart" @change="fetchTopCustomers" />
                 <span>đến</span>
-                <input type="date" v-model="customerEnd" @change="fetchTopCustomers">
+                <input type="date" v-model="customerEnd" @change="fetchTopCustomers" />
               </div>
             </div>
             <table class="data-table">
@@ -135,7 +176,16 @@
           <!-- 5. Top Sản phẩm bán chạy -->
           <div v-if="activeTab === 'topProducts'" class="report-section">
             <div class="section-header">
-              <h3>Top 5 Sản phẩm bán chạy nhất</h3>
+              <h3>Top {{ productLimit || 5 }} Sản phẩm bán chạy nhất - Tháng {{ productMonth }}/{{ productYear }}</h3>
+              <div class="filters">
+                <select v-model="productYear" @change="fetchTopProducts">
+                  <option v-for="y in years" :key="y" :value="y">Năm {{ y }}</option>
+                </select>
+                <select v-model="productMonth" @change="fetchTopProducts">
+                  <option v-for="m in 12" :key="m" :value="m">Tháng {{ m }}</option>
+                </select>
+                <input type="number" v-model="productLimit" @change="fetchTopProducts" placeholder="Số lượng" min="1" max="20" style="width: 80px" />
+              </div>
             </div>
             <table class="data-table">
               <thead>
@@ -155,7 +205,7 @@
                   <td>
                     <span class="rank-badge" :class="'rank-' + (index + 1)">#{{ index + 1 }}</span>
                   </td>
-                  <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img"></td>
+                  <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img" /></td>
                   <td style="font-weight: 500;">{{ p.name }}</td>
                   <td>{{ p.totalSold }}</td>
                   <td class="price-col text-success">{{ p.totalQuantity }}</td>
@@ -170,7 +220,7 @@
               <h3>Sản phẩm tồn kho thấp (≤ {{ stockThreshold }})</h3>
               <div class="filters">
                 <label>Mức cảnh báo:</label>
-                <input type="number" v-model="stockThreshold" @change="fetchLowStock" min="1" style="width: 60px">
+                <input type="number" v-model="stockThreshold" @change="fetchLowStock" min="1" style="width: 60px" />
               </div>
             </div>
             <table class="data-table">
@@ -184,7 +234,7 @@
               </thead>
               <tbody>
                 <tr v-for="p in lowStockProducts" :key="p._id">
-                  <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img"></td>
+                  <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img" /></td>
                   <td>{{ p.name }}</td>
                   <td>{{ formatPrice(p.price) }}</td>
                   <td>
@@ -207,30 +257,35 @@
             <div class="section-header">
               <h3>Báo cáo nhập hàng</h3>
               <div class="filters">
-                <input type="date" v-model="importStart" @change="fetchImportReport">
+                <input type="date" v-model="importStart" @change="fetchImportReport" />
                 <span>đến</span>
-                <input type="date" v-model="importEnd" @change="fetchImportReport">
+                <input type="date" v-model="importEnd" @change="fetchImportReport" />
               </div>
             </div>
             <table class="data-table">
               <thead>
                 <tr>
+                  <th>Mã phiếu</th>
                   <th>Ngày nhập</th>
                   <th>Sản phẩm</th>
                   <th>Người nhập</th>
                   <th>Số lượng</th>
-                  <th>Đơn giá gốc</th>
-                  <th>Thành tiền</th>
+                  <th v-if="userRole === 'admin'">Đơn giá gốc</th>
+                  <th v-if="userRole === 'admin'">Thành tiền</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="i in importReport" :key="i._id">
+                <tr v-for="(i, index) in importReport" :key="index">
+                  <td><span class="receipt-id">#{{ String(i._id).slice(-6).toUpperCase() }}</span></td>
                   <td>{{ formatDate(i.createdAt) }}</td>
-                  <td>{{ i.product_name }}</td>
-                  <td>{{ i.importer }}</td>
+                  <td>
+                    {{ i.product_name }}
+                    <span v-if="i.variant_desc && i.variant_desc !== '---'" style="font-size: 0.85em; color: #7f8c8d; margin-left: 5px;">({{ i.variant_desc }})</span>
+                  </td>
+                  <td>{{ i.importer || 'Admin' }}</td>
                   <td>{{ i.quantity }}</td>
-                  <td>{{ formatPrice(i.import_price) }}</td>
-                  <td class="price-col">{{ formatPrice(i.total_cost) }}</td>
+                  <td v-if="userRole === 'admin'">{{ formatPrice(i.import_price) }}</td>
+                  <td v-if="userRole === 'admin'" class="price-col">{{ formatPrice(i.total_cost) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -253,13 +308,16 @@ export default {
   components: { Line, Doughnut },
   data() {
     return {
+      userRole: localStorage.getItem("user_role") || "staff",
       isLoading: true,
       summary: {
         totalRevenueMonth: 0,
         newOrdersToday: 0,
         newUsersMonth: 0,
         cancelledOrdersMonth: 0,
+        orderStatusDistribution: []
       },
+      summaryTopProducts: [],
       revenueChartData: {
         labels: [],
         datasets: [{
@@ -282,7 +340,7 @@ export default {
         maintainAspectRatio: false,
       },
       // New Data
-      activeTab: 'sales',
+      activeTab: localStorage.getItem("user_role") === 'admin' ? 'sales' : 'customers',
       salesYear: new Date().getFullYear(),
       years: [ 2024, 2025, 2026,2027],
       monthlySales: [],
@@ -291,10 +349,25 @@ export default {
       topCustomers: [],
       stockThreshold: 10,
       lowStockProducts: [],
+      productYear: new Date().getFullYear(),
+      productMonth: new Date().getMonth() + 1,
+      productLimit: 5,
       importStart: '',
       importEnd: '',
       importReport: []
     };
+  },
+  computed: {
+    pendingOrdersCount() {
+      if (!this.summary.orderStatusDistribution) return 0;
+      const pending = this.summary.orderStatusDistribution.find(s => s.status === 'pending');
+      return pending ? pending.count : 0;
+    },
+    returnRequestedCount() {
+      if (!this.summary.orderStatusDistribution) return 0;
+      const returned = this.summary.orderStatusDistribution.find(s => s.status === 'return_requested');
+      return returned ? returned.count : 0;
+    }
   },
   methods: {
     formatPrice(value) {
@@ -326,7 +399,10 @@ export default {
           newOrdersToday: data.newOrdersToday,
           newUsersMonth: data.newUsersMonth,
           cancelledOrdersMonth: data.cancelledOrdersMonth,
+          orderStatusDistribution: data.orderStatusDistribution || []
         };
+        
+        this.summaryTopProducts = data.topSellingProducts || [];
 
         // Revenue Chart
         this.revenueChartData.labels = data.dailyRevenue.map(d => new Date(d.date).toLocaleDateString('vi-VN'));
@@ -375,13 +451,21 @@ export default {
     },
     // New Fetch Methods
     async fetchMonthlySales() {
-      try { this.monthlySales = await DashboardService.getMonthlySales(this.salesYear); } catch (e) { console.error(e); }
+      if (this.userRole !== 'admin') return;
+      try { 
+        this.monthlySales = await DashboardService.getMonthlySales(this.salesYear); 
+      } catch (e) { console.error(e); }
     },
     async fetchTopCustomers() {
       try { this.topCustomers = await DashboardService.getTopCustomers(this.customerStart, this.customerEnd); } catch (e) { console.error(e); }
     },
     async fetchLowStock() {
       try { this.lowStockProducts = await DashboardService.getLowStockProducts(this.stockThreshold); } catch (e) { console.error(e); }
+    },
+    async fetchTopProducts() {
+      try { 
+        this.topProducts = await DashboardService.getTopProductsByMonth(this.productYear, this.productMonth, this.productLimit); 
+      } catch (e) { console.error(e); }
     },
     async fetchImportReport() {
       try { this.importReport = await DashboardService.getImportReport(this.importStart, this.importEnd); } catch (e) { console.error(e); }
@@ -392,10 +476,28 @@ export default {
     this.fetchDashboardData();
     
     // Fetch new reports
-    this.fetchMonthlySales();
+    if (this.userRole === 'admin') {
+      this.fetchMonthlySales();
+    }
     this.fetchTopCustomers();
     this.fetchLowStock();
+    this.fetchTopProducts();
     this.fetchImportReport();
+  },
+  watch: {
+    activeTab(newTab) {
+      if (newTab === 'topProducts') {
+        this.fetchTopProducts();
+      } else if (newTab === 'sales') {
+        this.fetchMonthlySales();
+      } else if (newTab === 'customers') {
+        this.fetchTopCustomers();
+      } else if (newTab === 'stock') {
+        this.fetchLowStock();
+      } else if (newTab === 'import') {
+        this.fetchImportReport();
+      }
+    }
   }
 };
 </script>
@@ -419,16 +521,23 @@ export default {
 .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
 .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 400px; }
 .chart-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #343a40; }
-.top-products-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-.top-products-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #343a40; }
-.empty-list { color: #6c757d; text-align: center; padding: 20px 0; }
-.product-list { list-style: none; padding: 0; margin: 0; }
-.product-list li { display: flex; align-items: center; gap: 15px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
-.product-list li:last-child { border-bottom: none; }
-.rank { font-size: 16px; font-weight: bold; color: #6c757d; width: 20px; text-align: center; }
-.product-img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
-.product-name { flex: 1; font-weight: 500; color: #343a40; }
-.product-sold { font-size: 14px; color: #28a745; font-weight: bold; }
+
+/* Staff Task List */
+.tasks-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 400px; overflow-y: auto; }
+.tasks-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #343a40; display: flex; align-items: center; gap: 10px;}
+.tasks-container h3 i { color: #4776E6; }
+.task-list { display: flex; flex-direction: column; gap: 15px; }
+.task-item { display: flex; align-items: center; padding: 15px; border: 1px solid #eee; border-radius: 8px; text-decoration: none; color: inherit; transition: all 0.3s ease; background: #fafafa;}
+.task-item:hover { border-color: #3498db; background: #fff; transform: translateX(5px); box-shadow: 0 4px 12px rgba(0,0,0,0.05);}
+.task-icon { width: 45px; height: 45px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 15px; color: white;}
+.task-icon.warning { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+.task-icon.danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.task-icon.stock-alert { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+.task-info { flex: 1; display: flex; flex-direction: column; }
+.task-name { font-weight: 600; font-size: 15px; color: #2c3e50; margin-bottom: 4px;}
+.task-desc { font-size: 12px; color: #7f8c8d; }
+.task-count { font-size: 20px; font-weight: bold; color: #bdc3c7; min-width: 30px; text-align: right;}
+.task-count.has-task { color: #e74c3c; }
 
 /* Bottom Grid */
 .bottom-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 30px; }
@@ -471,6 +580,7 @@ export default {
 .text-success { color: #28a745 !important; }
 .text-danger { color: #dc3545 !important; }
 
+.receipt-id { background: #f0f2f5; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; color: #555; }
 /* Rank Badge */
 .rank-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 13px; background: #f0f0f0; color: #555; }
 .rank-1 { background: #fff3cd; color: #856404; } /* Vàng */

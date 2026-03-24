@@ -28,6 +28,11 @@ class DashboardService {
     async syncStock() {
         return (await this.api.post("/sync-stock")).data;
     }
+
+    async getTopProductsByMonth(year, month, limit) {
+        const params = new URLSearchParams({ year, month, limit });
+        return (await this.api.get(`/top-products-by-month?${params}`)).data;
+    }
 }
 
 export default new DashboardService();

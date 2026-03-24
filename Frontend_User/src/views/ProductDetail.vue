@@ -6,14 +6,14 @@
       <!-- Breadcrumb -->
       <div class="breadcrumb">
         <router-link to="/">Trang chủ</router-link> 
-        <i class="fa-solid fa-chevron-right"></i>
+        <ChevronRight :size="12" />
         <router-link to="/products">Sản phẩm</router-link>
-        <i class="fa-solid fa-chevron-right"></i>
+        <ChevronRight :size="12" />
         <span>{{ product ? product.name : 'Chi tiết' }}</span>
       </div>
 
       <div v-if="isLoading" class="loading-state">
-        <i class="fa-solid fa-spinner fa-spin"></i> Đang tải sản phẩm...
+        <Loader2 class="lucide-spin" :size="48" style="margin-bottom: 20px;" /> Đang tải sản phẩm...
       </div>
 
       <div v-else-if="product" class="product-main-wrapper">
@@ -22,10 +22,10 @@
             <div class="main-image-container">
               <img :src="displayedImage" :alt="product.name" class="main-image" />
               <button v-if="imageList.length > 1" class="img-nav prev" @click="prevImage">
-                <i class="fa-solid fa-chevron-left"></i>
+                <ChevronLeft :size="24" />
               </button>
               <button v-if="imageList.length > 1" class="img-nav next" @click="nextImage">
-                <i class="fa-solid fa-chevron-right"></i>
+                <ChevronRight :size="24" />
               </button>
             </div>
             <!-- thumbnails -->
@@ -44,7 +44,9 @@
           <h1 class="product-name">{{ product.name }}</h1>
           
           <div class="product-rating-summary" v-if="reviews.length > 0">
-             <span class="stars"><i v-for="n in 5" :key="n" :class="['fa-solid fa-star', n <= Math.round(averageRating) ? 'active' : '']"></i></span>
+             <span class="stars" style="display:flex;align-items:center;">
+               <Star v-for="n in 5" :key="n" :size="16" :class="[n <= Math.round(averageRating) ? 'active' : 'inactive']" />
+             </span>
              <span class="rating-text">({{ averageRating }}/5 - {{ reviews.length }} đánh giá)</span>
           </div>
 
@@ -100,16 +102,42 @@
 
           <div class="action-buttons">
             <button class="btn-add-to-cart" @click="addToCart" :disabled="maxQuantity === 0 || quantity <= 0 || (hasVariants && !selectedVariant)">
-              <i class="fa-solid fa-cart-plus"></i> Thêm vào giỏ hàng
+              <ShoppingCart :size="18" /> Thêm vào giỏ
             </button>
             <button class="btn-buy-now" @click="buyNow" :disabled="maxQuantity === 0 || quantity <= 0 || (hasVariants && !selectedVariant)">
               Mua ngay
             </button>
             <button class="btn-chat-now" @click="chatNow">
-              <i class="fa-solid fa-comments"></i> Chat ngay
+              <MessageCircle :size="18" /> Chat ngay
             </button>
           </div>
         </div>
+        </div>
+
+        <!-- Phần Sản phẩm gợi ý -->
+        <div class="recommendations-section" v-if="recommendedProducts && recommendedProducts.length > 0">
+          <div class="section-title-wrapper">
+            <h2 class="section-header-rec">SẢN PHẨM TƯƠNG TỰ</h2>
+            <div class="title-underline"></div>
+          </div>
+          <div class="product-grid-rec">
+            <div v-for="rec in recommendedProducts" :key="rec._id" class="product-card-rec">
+              <router-link :to="{ name: 'product.detail', params: { id: rec._id } }">
+                <div class="image-wrapper-rec">
+                  <img :src="rec.image || 'https://via.placeholder.com/300'" :alt="rec.name" />
+                </div>
+                <div class="info-rec">
+                  <h3 class="product-name-rec">{{ rec.name }}</h3>
+                  <div class="price-rec">
+                    <span v-if="loyalty && loyalty.discountPercent > 0" style="font-size: 0.85rem; color: #999; text-decoration: line-through; display: block; line-height: 1; margin-bottom: 4px; font-weight: normal;">
+                        {{ formatPrice(rec.price) }}
+                    </span>
+                    {{ formatPrice(getDisplayPrice(rec.price)) }}
+                  </div>
+                </div>
+              </router-link>
+            </div>
+          </div>
         </div>
 
         <!-- Phần dưới: Chi tiết, Mô tả, Đánh giá (Full width) -->
@@ -158,7 +186,9 @@
                         <img :src="review.user.avatar || 'https://placehold.co/40'" class="user-avatar" />
                         <div class="user-info">
                             <span class="user-name">{{ review.user.last_name }} {{ review.user.first_name }}</span>
-                            <div class="user-rating"><i v-for="n in 5" :key="n" :class="['fa-solid fa-star', n <= review.rating ? 'active' : '']"></i></div>
+                            <div class="user-rating" style="display:flex;">
+                              <Star v-for="n in 5" :key="n" :size="12" :class="[n <= review.rating ? 'active' : 'inactive']" />
+                            </div>
                         </div>
                         <span class="review-date">{{ new Date(review.createdAt).toLocaleDateString('vi-VN') }}</span>
                     </div>
@@ -168,17 +198,23 @@
                 </div>
                 
                 <div v-if="reviews.length > 3" class="review-actions">
-                    <button v-if="visibleReviewsCount < reviews.length" @click="showMoreReviews" class="btn-show-more">Xem thêm đánh giá <i class="fa-solid fa-chevron-down"></i></button>
-                    <button v-if="visibleReviewsCount > 3" @click="showLessReviews" class="btn-show-less">Thu gọn <i class="fa-solid fa-chevron-up"></i></button>
+                    <button v-if="visibleReviewsCount < reviews.length" @click="showMoreReviews" class="btn-show-more" style="display:inline-flex;align-items:center;gap:5px;">
+                      Xem thêm đánh giá <ChevronDown :size="14" />
+                    </button>
+                    <button v-if="visibleReviewsCount > 3" @click="showLessReviews" class="btn-show-less" style="display:inline-flex;align-items:center;gap:5px;">
+                      Thu gọn <ChevronUp :size="14" />
+                    </button>
                 </div>
             </div>
           </div>
+
+       
         </div>
 
       </div>
 
       <div v-else class="no-product-found">
-        <i class="fa-solid fa-box-open"></i>
+        <PackageOpen :size="64" color="#bdc3c7" style="margin-bottom: 20px" />
         <p>Không tìm thấy sản phẩm này.</p>
         <router-link to="/products" class="btn-back">Quay lại danh sách sản phẩm</router-link>
       </div>
@@ -199,9 +235,10 @@ import { cartStore } from "@/utils/cart";
 import { showToast } from "@/utils/toast";
 import ReviewsService from "@/services/reviews.service";
 import CustomerService from "@/services/customer.service";
+import { ChevronRight, Loader2, ChevronLeft, Star, ShoppingCart, MessageCircle, ChevronDown, ChevronUp, PackageOpen } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter },
+  components: { AppHeader, AppFooter, ChevronRight, Loader2, ChevronLeft, Star, ShoppingCart, MessageCircle, ChevronDown, ChevronUp, PackageOpen },
   data() {
     return {
       product: null,
@@ -217,7 +254,8 @@ export default {
       ,
       loyalty: null,
       visibleReviewsCount: 3,
-      displayedImage: ''
+      displayedImage: '',
+      recommendedProducts: []
     };
   },
   computed: {
@@ -322,6 +360,17 @@ export default {
             this.reviews = await ReviewsService.getByProduct(this.$route.params.id);
         } catch (error) {
             console.error("Lỗi tải đánh giá:", error);
+        }
+    },
+    async fetchRecommendations() {
+        try {
+            const res = await fetch(`http://127.0.0.1:5555/api?id=${this.$route.params.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                this.recommendedProducts = data['san pham goi y'] || [];
+            }
+        } catch (e) {
+            console.error("Lỗi tải API AI gợi ý:", e);
         }
     },
     async loadFilterData() {
@@ -497,10 +546,33 @@ export default {
       }
     },
     buyNow() {
-      if (this.processAddToCart(true)) {
-        // Chuyển hướng ngay đến trang thanh toán
-        this.$router.push("/checkout");
+      // Validate trước khi checkout
+      if (this.maxQuantity === 0 || this.quantity <= 0 || (this.hasVariants && !this.selectedVariant)) {
+        showToast("Vui lòng chọn sản phẩm và số lượng hợp lệ", "warning");
+        return;
       }
+      
+      // Tạo temp cart cho checkout trực tiếp (KHÔNG lưu vào cart localStorage)
+      const checkoutItem = {
+        _id: this.product._id,
+        name: this.product.name,
+        image: this.imageList[0] || this.product.image,
+        price: this.hasVariants ? this.selectedVariant.price : this.product.price,
+        quantity: this.quantity,
+        variant: this.hasVariants ? {
+          size_id: this.selectedVariant.size_id,
+          color_id: this.selectedVariant.color_id
+        } : null
+      };
+      
+      // Lưu temp checkout vào sessionStorage (xóa khi đóng tab)
+      sessionStorage.setItem('checkout_direct', JSON.stringify([checkoutItem]));
+      
+      // Chuyển đến checkout với flag direct checkout
+      this.$router.push({
+        path: "/checkout",
+        query: { direct: '1' }
+      });
     },
     chatNow() {
       this.$router.push({
@@ -516,6 +588,12 @@ export default {
     },
     formatPrice(price) {
       return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+    },
+    getDisplayPrice(price) {
+        if (this.loyalty && this.loyalty.discountPercent > 0) {
+            return Math.round(price * (1 - this.loyalty.discountPercent / 100));
+        }
+        return price;
     },
     openImage(url) {
         window.open(url, '_blank');
@@ -538,13 +616,22 @@ export default {
     await this.fetchProduct(); // Sau đó tải sản phẩm
     await this.fetchLoyalty(); // Tải thông tin VIP
     await this.fetchReviews(); // Tải đánh giá
+    await this.fetchRecommendations(); // Tải gợi ý từ Python AI
   },
   watch: {
     // Theo dõi thay đổi ID sản phẩm trên URL để tải lại dữ liệu
     "$route.params.id": function() {
         window.scrollTo(0, 0);
+        
+        // Reset lại trạng thái các biến thể khi chuyển sang sản phẩm khác từ danh sách gợi ý
+        this.selectedSizeId = "";
+        this.selectedColorId = "";
+        this.selectedVariant = null;
+        this.quantity = 1;
+
         this.fetchProduct();
         this.fetchReviews();
+        this.fetchRecommendations();
     },
     // Tự động điều chỉnh nếu nhập quá số lượng tồn kho
     quantity(newVal) {
@@ -623,7 +710,8 @@ export default {
 
 .product-rating-summary { margin-bottom: 15px; color: #f1c40f; font-size: 1.1rem; }
 .product-rating-summary .stars .active { color: #f1c40f; }
-.product-rating-summary .stars i { color: #ddd; margin-right: 2px; }
+.product-rating-summary .stars .inactive { color: #ddd; }
+.product-rating-summary .stars svg { margin-right: 2px; }
 .product-rating-summary .rating-text { color: #7f8c8d; font-size: 0.9rem; margin-left: 8px; }
 
 .variant-selection { margin-bottom: 20px; }
@@ -705,12 +793,12 @@ export default {
 
 /* Chat ngay: Màu xanh dương/tím than */
 .btn-chat-now {
-  background: #302b63;
+  background: #2c3e50;
   color: white;
-  border: 1px solid #302b63;
+  border: 1px solid #2c3e50;
 }
 .btn-chat-now:hover {
-  background: #241f4b;
+  background: #1a252f;
 }
 
 /* Trạng thái Disabled chung cho các nút */
@@ -724,8 +812,9 @@ button:disabled {
 }
 
 /* Full width details section */
-.product-details-container { background: white; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 20px; }
-.section-header { background: #fafafa; padding: 15px; font-size: 1.1rem; font-weight: 500; color: #333; margin: 0 0 20px 0; text-transform: uppercase; }
+.product-details-container { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 30px; border: 1px solid #f0f0f0; }
+.section-header { font-size: 1.5rem; font-weight: 800; color: #2c3e50; margin: 0 0 25px 0; text-transform: uppercase; border-bottom: 2px solid #eee; padding-bottom: 10px; position: relative; }
+.section-header::after { content: ''; position: absolute; left: 0; bottom: -2px; width: 60px; height: 4px; background: #ee4d2d; border-radius: 2px; }
 
 .details-section, .description-section, .product-reviews-section { margin-bottom: 40px; }
 
@@ -746,8 +835,9 @@ button:disabled {
 .user-avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; object-fit: cover; }
 .user-info { flex: 1; }
 .user-name { font-weight: bold; color: #333; display: block; }
-.user-rating i { font-size: 0.8rem; color: #ddd; }
-.user-rating i.active { color: #f1c40f; }
+.user-rating svg { margin-right: 2px; }
+.user-rating .active { color: #f1c40f; }
+.user-rating .inactive { color: #ddd; }
 .review-date { font-size: 0.85rem; color: #999; }
 .review-content { color: #555; line-height: 1.5; margin-bottom: 10px; }
 .review-image-attachment { width: 100px; height: 100px; object-fit: cover; border-radius: 5px; cursor: pointer; border: 1px solid #eee; }
@@ -756,12 +846,41 @@ button:disabled {
 .btn-show-more, .btn-show-less { background: none; border: 1px solid #ddd; padding: 8px 20px; border-radius: 20px; cursor: pointer; color: #555; font-size: 0.9rem; transition: 0.3s; margin: 0 5px; }
 .btn-show-more:hover, .btn-show-less:hover { background: #f0f0f0; color: #302b63; border-color: #302b63; }
 
+/* Recommendation Styles Nâng Cấp */
+.recommendations-section { margin-top: 40px; margin-bottom: 20px; padding: 40px 30px; background: #f8f9fa; border-radius: 12px; box-shadow: none; border: 1px solid #eee; }
+.section-title-wrapper { text-align: center; margin-bottom: 40px; }
+.section-header-rec { font-size: 2.2rem; font-weight: 800; color: #2c3e50; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+.title-underline { width: 60px; height: 4px; background-color: #ee4d2d; margin: 15px auto 0; border-radius: 2px; }
+
+.product-grid-rec { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 30px; }
+.product-card-rec { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: all 0.3s ease; border: 1px solid #f0f0f0; display: flex; flex-direction: column; }
+.product-card-rec:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); border-color: #eee; }
+.product-card-rec a { text-decoration: none; color: inherit; display: flex; flex-direction: column; height: 100%; }
+
+.image-wrapper-rec { position: relative; width: 100%; height: 240px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+.image-wrapper-rec img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.5s ease; }
+.product-card-rec:hover .image-wrapper-rec img { transform: scale(1.08); }
+
+.info-rec { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; background: #fafafa; border-top: 1px solid #f5f5f5; text-align: left; }
+.product-name-rec { font-size: 1.1rem; font-weight: 600; color: #2c3e50; margin: 0 0 10px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; white-space: normal; height: 3.08rem; transition: color 0.2s; }
+.product-card-rec:hover .product-name-rec { color: #ee4d2d; }
+.price-rec { color: #ee4d2d; font-weight: 800; margin: 0; font-size: 1.25rem; text-align: right; margin-top: auto; }
+
 
 @media (max-width: 768px) {
   .product-content { flex-direction: column; }
+  .product-grid-rec { grid-template-columns: repeat(2, 1fr); gap: 15px; }
   .product-image-gallery, .product-details { max-width: 100%; }
   .variant-group { flex-direction: column; align-items: flex-start; gap: 10px; }
   .variant-label { width: auto; }
   .action-buttons { flex-direction: column; }
+}
+@media (max-width: 480px) {
+  .product-grid-rec { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .info-rec { padding: 10px; } .product-name-rec { font-size: 0.85rem; } .price-rec { font-size: 1rem; }
+}
+.lucide-spin { animation: spin 2s linear infinite; }
+@keyframes spin {
+  100% { transform: rotate(360deg); }
 }
 </style>

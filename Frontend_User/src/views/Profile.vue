@@ -9,7 +9,7 @@
             <img v-if="user.avatar" :src="user.avatar" alt="Avatar" />
             <span v-else>{{ userAvatar }}</span>
             <div class="overlay">
-              <i class="fa-solid fa-camera"></i>
+              <Camera :size="24" />
             </div>
           </div>
           <h3>{{ user.last_name }} {{ user.first_name }}</h3>
@@ -17,10 +17,10 @@
           
           <div class="menu-list">
             <button :class="{ active: activeTab === 'info' }" @click="activeTab = 'info'">
-              <i class="fa-solid fa-user"></i> Thông tin cá nhân
+              <User :size="18" style="margin-right:10px" /> Thông tin cá nhân
             </button>
             <button :class="{ active: activeTab === 'password' }" @click="activeTab = 'password'">
-              <i class="fa-solid fa-lock"></i> Đổi mật khẩu
+              <Lock :size="18" style="margin-right:10px" /> Đổi mật khẩu
             </button>
             
             <!-- Input file ẩn -->
@@ -35,7 +35,7 @@
             
             <!-- VIP Loyalty Section -->
             <div v-if="loyaltyInfo" class="vip-section">
-              <h3><i class="fa-solid fa-star"></i> Khách hàng thân thiết</h3>
+              <h3 style="display:flex;align-items:center;gap:8px;"><Star :size="20" color="#f1c40f" /> Khách hàng thân thiết</h3>
               <div class="vip-card">
                 <div class="vip-rank" :class="loyaltyInfo.customerRank">
                   <span class="rank-label">{{ getRankLabel(loyaltyInfo.customerRank) }}</span>
@@ -112,21 +112,21 @@
                 </div>
                 <input v-model="passwordForm.oldPassword" type="password" placeholder="Nhập mật khẩu hiện tại" required />
                   <span class="toggle-pass" @click="showOldPwd = !showOldPwd">
-                    <i :class="showOldPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                    <EyeOff v-if="showOldPwd" :size="18" /><Eye v-else :size="18" />
                   </span>
               </div>
               <div class="form-group">
                 <label>Mật khẩu mới</label>
                 <input v-model="passwordForm.newPassword" type="password" required />
                   <span class="toggle-pass" @click="showNewPwd = !showNewPwd">
-                    <i :class="showNewPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                    <EyeOff v-if="showNewPwd" :size="18" /><Eye v-else :size="18" />
                   </span>
               </div>
               <div class="form-group">
                 <label>Nhập lại mật khẩu mới</label>
                 <input v-model="passwordForm.confirmPassword" type="password" required />
                   <span class="toggle-pass" @click="showConfirmPwd = !showConfirmPwd">
-                    <i :class="showConfirmPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+                    <EyeOff v-if="showConfirmPwd" :size="18" /><Eye v-else :size="18" />
                   </span>
               </div>
 
@@ -147,9 +147,10 @@ import AppFooter from "@/components/AppFooter.vue";
 import CustomerService from "@/services/customer.service";
 import UploadService from "@/services/upload.service";
 import { showToast } from "@/utils/toast";
+import { Camera, User, Lock, Star, Eye, EyeOff } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter },
+  components: { AppHeader, AppFooter, Camera, User, Lock, Star, Eye, EyeOff },
   data() {
     return {
       activeTab: 'info',
@@ -333,7 +334,7 @@ export default {
 .menu-list button { display: block; width: 100%; padding: 12px 15px; text-align: left; background: none; border: none; cursor: pointer; color: #2c3e50; font-size: 1rem; border-radius: 8px; margin-bottom: 5px; transition: 0.2s; }
 .menu-list button:hover { background: #e9ecef; }
 .menu-list button.active { background: linear-gradient(135deg, #0f0c29, #302b63); color: white; }
-.menu-list button i { margin-right: 10px; width: 20px; text-align: center; }
+.menu-list button { display: flex; align-items: center; }
 .profile-content { flex: 1; padding: 40px; }
 .section-title { margin-bottom: 25px; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
 .form-row { display: flex; gap: 20px; }

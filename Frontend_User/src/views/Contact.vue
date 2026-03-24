@@ -2,30 +2,9 @@
   <div class="contact-page-wrapper">
     <AppHeader />
 
-    <div class="messenger-container">
-      <!-- Sidebar: Danh sách hội thoại -->
-      <div class="messenger-sidebar">
-        <div class="sidebar-header">
-          <h2>Đoạn chat</h2>
-        </div>
-        
-        <div class="conversation-list">
-            <div class="conversation-item active">
-                <div class="avatar">
-                    <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Admin">
-                </div>
-                <div class="info">
-                    <div class="top-row">
-                        <span class="name">Hỗ trợ viên SportStore</span>
-                        <span class="time">Vừa truy cập</span>
-                    </div>
-                    <div class="bottom-row">
-                        <span class="preview">Chúng tôi luôn sẵn sàng hỗ trợ bạn.</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-      </div>
+    <div class="container">
+      <h1 class="page-title">Trung tâm Hỗ trợ trực tuyến</h1>
+      <div class="messenger-container">
 
       <!-- Main Chat Area -->
       <div class="messenger-content">
@@ -34,10 +13,10 @@
             <div class="chat-header">
                 <div class="user-info">
                     <div class="avatar">
-                        <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Admin">
+                        <img src="/logo.jpg" alt="SportStore Admin">
                     </div>
                     <div class="details">
-                        <span class="name">Hỗ trợ viên SportStore</span>
+                        <span class="name">CSKH SportStore</span>
                         <span class="status">Đang hoạt động</span>
                     </div>
                 </div>
@@ -46,7 +25,7 @@
             <!-- Messages Flow -->
             <div class="messages-flow" ref="messagesContainer">
                 <div v-if="isLoadingMessages" class="loading-state">
-                    <i class="fa-solid fa-spinner fa-spin"></i> Đang tải tin nhắn...
+                    <Loader2 class="lucide-spin" :size="20" style="margin-right: 8px;" /> Đang tải tin nhắn...
                 </div>
                 <div v-else-if="userMessages.length === 0" class="system-notice">
                     <p>Bắt đầu cuộc trò chuyện với chúng tôi ngay hôm nay!</p>
@@ -62,14 +41,14 @@
                                     <img :src="parseMessage(msg.message).image" alt="Product" />
                                     <div class="chat-product-info">
                                         <span class="chat-product-name">{{ parseMessage(msg.message).name }}</span>
-                                        <div class="chat-product-rating">
-                                            <i v-for="n in 5" :key="n" :class="['fa-solid fa-star', n <= Math.round(parseMessage(msg.message).rating) ? 'active' : '']"></i>
+                                        <div class="chat-product-rating" style="display:flex;align-items:center;">
+                                            <Star v-for="n in 5" :key="n" :size="10" :class="n <= Math.round(parseMessage(msg.message).rating) ? 'active' : 'inactive'" />
                                         </div>
                                         <span class="chat-product-price">{{ formatPrice(parseMessage(msg.message).price) }}đ</span>
                                     </div>
                                 </div>
                                 <div class="chat-product-actions">
-                                    <button class="btn-chat-action cart" @click.stop="addToCartFromChat(parseMessage(msg.message))"><i class="fa-solid fa-cart-plus"></i> Thêm giỏ</button>
+                                    <button class="btn-chat-action cart" @click.stop="addToCartFromChat(parseMessage(msg.message))" style="display:flex;align-items:center;justify-content:center;gap:4px;"><ShoppingCart :size="14" /> Thêm giỏ</button>
                                     <button class="btn-chat-action buy" @click.stop="buyNowFromChat(parseMessage(msg.message))">Mua ngay</button>
                                 </div>
                             </div>
@@ -78,15 +57,15 @@
                         </div>
                         <div class="bubble-meta">
                             {{ formatTime(msg.created_at) }}
-                            <i v-if="msg.status === 'unread'" class="fa-solid fa-check" title="Đã gửi"></i>
-                            <i v-else class="fa-solid fa-check-double" title="Đã xem/Trả lời"></i>
+                            <Check v-if="msg.status === 'unread'" :size="14" title="Đã gửi" />
+                            <CheckCheck v-else :size="14" title="Đã xem/Trả lời" color="#3498db" />
                         </div>
                     </div>
 
                     <!-- Admin Reply -->
                     <div v-if="msg.reply_message" class="message-bubble you">
                         <div class="avatar-small">
-                            <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Admin">
+                            <img src="/logo.jpg" alt="SportStore Admin">
                         </div>
                         <div class="bubble-group">
                             <div class="bubble-content" :title="formatDateTime(msg.replied_at)">
@@ -106,7 +85,7 @@
                         <span class="attachment-label">Đang quan tâm:</span>
                         <span class="attachment-name">{{ attachedProduct.name }}</span>
                     </div>
-                    <button class="btn-remove-attachment" @click="attachedProduct = null"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="btn-remove-attachment" @click="attachedProduct = null"><X :size="16" /></button>
                 </div>
                 <form @submit.prevent="submitQuickMessage" class="input-wrapper">
                     <input 
@@ -116,11 +95,12 @@
                         :disabled="isSubmitting"
                     >
                     <button type="submit" class="btn-icon-send" :disabled="!formData.message || isSubmitting">
-                        <i class="fa-solid fa-paper-plane"></i>
+                        <Send :size="20" />
                     </button>
                 </form>
         </div>
       </div>
+    </div>
     </div>
     </div>
 
@@ -136,11 +116,13 @@ import AppFooter from '@/components/AppFooter.vue';
 import ContactService from '@/services/contact.service';
 import { showToast } from '@/utils/toast';
 import { cartStore } from "@/utils/cart";
+import { Loader2, Star, ShoppingCart, Check, CheckCheck, X, Send } from "lucide-vue-next";
 
 export default {
   components: {
     AppHeader,
-    AppFooter
+    AppFooter,
+    Loader2, Star, ShoppingCart, Check, CheckCheck, X, Send
   },
   setup() {
     const route = useRoute();
@@ -390,19 +372,24 @@ export default {
 /* Messenger Container */
 .messenger-container {
   display: flex;
-  height: calc(100vh - 70px); /* Trừ header */
-  max-width: 100%;
+  height: 70vh;
+  max-width: 1200px;
+  margin: 0 auto;
   background: white;
-  border-top: 1px solid #ddd;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  max-height: 600px;
 }
 
 /* Sidebar */
 .messenger-sidebar {
-  width: 360px;
-  border-right: 1px solid #ddd;
+  width: 320px;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: #fafbfc;
 }
 
 .sidebar-header {
@@ -417,10 +404,10 @@ export default {
 .conversation-list { flex: 1; overflow-y: auto; }
 
 .conversation-item {
-  padding: 10px 15px; display: flex; gap: 12px; cursor: pointer; border-radius: 8px; margin: 0 8px; transition: 0.2s;
+  padding: 15px; display: flex; gap: 12px; cursor: pointer; border-radius: 12px; margin: 10px; transition: all 0.3s ease; border: 1px solid transparent;
 }
-.conversation-item:hover { background: #f0f2f5; }
-.conversation-item.active { background: #e7f3ff; }
+.conversation-item:hover { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-color: #eee; }
+.conversation-item.active { background: #fff5f1; border-color: #ffe8e0; border-left: 4px solid #ee4d2d; }
 
 .avatar img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
 .info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -441,37 +428,37 @@ export default {
 .chat-window.empty { align-items: center; justify-content: center; background: #fff; }
 
 .chat-header {
-  padding: 10px 15px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: white; z-index: 10;
 }
 .user-info { display: flex; align-items: center; gap: 10px; }
-.user-info .avatar img { width: 40px; height: 40px; }
+.user-info .avatar img { width: 45px; height: 45px; border-radius: 50%; object-fit: contain; border: 1px solid #eee; padding: 2px; }
 .user-info .details { display: flex; flex-direction: column; }
-.user-info .name { font-size: 16px; font-weight: 600; }
+.user-info .name { font-size: 16px; font-weight: 700; color: #2c3e50; }
 .user-info .status { font-size: 12px; color: #31a24c; }
 
 /* Messages Flow */
-.messages-flow { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: white; }
+.messages-flow { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; background: #fdfdfd; }
 
 .message-bubble { max-width: 70%; display: flex; flex-direction: column; position: relative; }
 .message-bubble.me { align-self: flex-end; align-items: flex-end; }
 .message-bubble.you { align-self: flex-start; align-items: flex-start; }
 
 .bubble-content {
-  padding: 10px 15px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word;
+  padding: 12px 18px; border-radius: 20px; font-size: 15px; line-height: 1.5; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
-.me .bubble-content { background: #e7f3ff; color: #050505; border-bottom-right-radius: 4px; }
-.you .bubble-content { background: #e4e6eb; color: #050505; border-bottom-left-radius: 4px; }
+.me .bubble-content { background: linear-gradient(135deg, #ff7337, #ee4d2d); color: white; border-bottom-right-radius: 4px; box-shadow: 0 4px 10px rgba(238, 77, 45, 0.2); }
+.you .bubble-content { background: #f8f9fa; color: #2c3e50; border-bottom-left-radius: 4px; border: 1px solid #eee; }
 
 /* Style cho thẻ sản phẩm trong tin nhắn */
 .chat-product-card {
     display: flex;
     flex-direction: column;
     background: #ffffff;
-    border-radius: 8px;
+    border-radius: 12px;
     margin-bottom: 8px;
     overflow: hidden;
     color: #333;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
     width: 220px;
     border: 1px solid #eee;
 }
@@ -479,12 +466,14 @@ export default {
 .chat-product-card img { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; }
 .chat-product-info { display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
 .chat-product-name { font-weight: bold; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.chat-product-rating { font-size: 10px; color: #f1c40f; margin-bottom: 2px; }
+.chat-product-rating { margin-bottom: 2px; }
+.chat-product-rating .active { fill: #f1c40f; color: #f1c40f; }
+.chat-product-rating .inactive { fill: transparent; color: #ddd; }
 .chat-product-price { font-weight: bold; color: #e74c3c; font-size: 13px; }
 
 .chat-product-actions { display: flex; }
-.btn-chat-action { flex: 1; border: none; padding: 8px 0; font-size: 11px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-.btn-chat-action.cart { background: #f8f9fa; color: #333; }
+.btn-chat-action { flex: 1; border: none; padding: 10px 0; font-size: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+.btn-chat-action.cart { background: #f8f9fa; color: #555; }
 .btn-chat-action.cart:hover { background: #e9ecef; }
 .btn-chat-action.buy { background: #e74c3c; color: white; }
 .btn-chat-action.buy:hover { background: #c0392b; }
@@ -493,14 +482,15 @@ export default {
 
 .bubble-group { display: flex; flex-direction: column; }
 .you .avatar-small { margin-bottom: 5px; }
-.you .avatar-small img { width: 28px; height: 28px; border-radius: 50%; }
+.you .avatar-small img { width: 32px; height: 32px; border-radius: 50%; object-fit: contain; border: 1px solid #eee; padding: 2px; background: white; }
 .you { flex-direction: row; gap: 8px; }
 
-.bubble-meta { font-size: 11px; color: #65676b; margin-top: 5px; }
-.system-notice { text-align: center; color: #65676b; font-style: italic; margin-top: 10px; }
+.bubble-meta { font-size: 11px; color: #999; margin-top: 5px; display: flex; align-items: center; gap: 4px; }
+.me .bubble-meta { justify-content: flex-end; }
+.system-notice { text-align: center; color: #666; font-style: italic; margin-top: 10px; font-size: 0.95rem; }
 
 /* Chat Footer */
-.chat-footer { padding: 10px; border-top: 1px solid #ddd; }
+.chat-footer { padding: 15px 20px; border-top: 1px solid #eee; background: white; }
 
 .product-attachment-preview { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #f0f8ff; border-radius: 8px; margin-bottom: 10px; border: 1px solid #dbeeff; }
 .product-attachment-preview img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
@@ -511,18 +501,38 @@ export default {
 .btn-remove-attachment:hover { color: #e74c3c; }
 
 .input-wrapper {
-  display: flex; align-items: center; gap: 15px; background: #f0f2f5; padding: 8px 15px; border-radius: 20px;
+  display: flex; align-items: center; gap: 15px; background: #f5f6f8; padding: 8px 15px; border-radius: 25px; border: 1px solid #eee; transition: all 0.3s;
 }
+.input-wrapper:focus-within { border-color: #ee4d2d; background: white; box-shadow: 0 0 0 3px rgba(238, 77, 45, 0.1); }
 .input-wrapper input { flex: 1; border: none; background: transparent; outline: none; font-size: 15px; }
 
 .btn-icon-send {
-    background: none; border: none; color: #0084ff; font-size: 18px; cursor: pointer;
+    background: none; border: none; color: #ee4d2d; font-size: 20px; cursor: pointer; transition: transform 0.2s;
 }
-.btn-icon-send:disabled { color: #ccc; cursor: not-allowed; }
+.btn-icon-send:hover:not(:disabled) { transform: scale(1.15) rotate(10deg); }
+.btn-icon-send:disabled { color: #ccc; cursor: not-allowed; transform: none; }
+
+.lucide-spin { animation: spin 2s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+.page-title {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 700;
+  font-size: clamp(2rem, 5vw, 2.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 1.5rem 0 2.5rem;
+  text-align: center;
+  color: var(--vt-c-indigo, #2c3e50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  text-shadow: 0 0 1px rgba(0,0,0,0.05);
+}
 
 @media (max-width: 768px) {
-  .messenger-container { flex-direction: column; height: auto; }
-  .messenger-sidebar { width: 100%; height: 300px; border-right: none; border-bottom: 1px solid #ddd; }
   .messenger-content { height: 500px; }
 }
 </style>

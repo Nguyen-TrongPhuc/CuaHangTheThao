@@ -3,7 +3,9 @@
     <div class="container">
       <!-- Logo -->
       <router-link to="/" class="logo">
-        <i class="fa-solid fa-dumbbell"></i> SportStore
+        
+        <img src="/logo.jpg" alt="SportStore Logo" class="img-logo" />
+       
       </router-link>
 
       <!-- Search Bar -->
@@ -14,7 +16,7 @@
           @keyup.enter="handleSearch"
           placeholder="Tìm kiếm sản phẩm..." 
         />
-        <button @click="handleSearch"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button @click="handleSearch"><Search :size="20" /></button>
       </div>
 
       <!-- Navigation -->
@@ -29,20 +31,24 @@
       <div class="user-actions">
         <!-- Cart -->
         <router-link to="/cart" class="cart-btn">
-          <i class="fa-solid fa-cart-shopping"></i>
+          <ShoppingCart :size="24" />
           <span class="cart-count" v-if="cartTotal > 0">{{ cartTotal }}</span>
         </router-link>
 
         <!-- User Auth -->
         <div v-if="isLoggedIn" class="user-dropdown">
           <span class="user-name" @click="toggleDropdown">
-            <i class="fa-solid fa-user-circle"></i> {{ userName }}
+            <CircleUser :size="20" style="margin-right: 5px;" /> {{ userName }}
           </span>
-          <div v-if="showDropdown" class="dropdown-menu">
-            <router-link to="/profile" class="dropdown-item">Hồ sơ cá nhân</router-link>
-            <router-link to="/orders" class="dropdown-item">Lịch sử đơn hàng</router-link>
-            <a @click="logout" class="dropdown-item">Đăng xuất</a>
-          </div>
+          <transition name="dropdown-fade">
+            <div v-if="showDropdown" class="dropdown-menu">
+              <div class="dropdown-header">Xin chào, {{ userName }}</div>
+              <router-link to="/profile" class="dropdown-item"><UserCog :size="18" /> Hồ sơ cá nhân</router-link>
+              <router-link to="/orders" class="dropdown-item"><Package :size="18" /> Lịch sử đơn hàng</router-link>
+              <div class="dropdown-divider"></div>
+              <a @click="logout" class="dropdown-item text-danger"><LogOut :size="18" /> Đăng xuất</a>
+            </div>
+          </transition>
         </div>
         <div v-else class="auth-links">
           <router-link to="/login">Đăng nhập</router-link>
@@ -58,8 +64,10 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { cartStore } from "@/utils/cart";
+import { Search, ShoppingCart, CircleUser, UserCog, Package, LogOut } from "lucide-vue-next";
 
 export default {
+  components: { Search, ShoppingCart, CircleUser, UserCog, Package, LogOut },
   setup() {
     const router = useRouter();
     const searchQuery = ref("");
@@ -140,11 +148,11 @@ export default {
   position: sticky;
   top: 0;
   z-index: 1000;
-  padding: 15px 0;
+  padding: 10px 0; /* Giảm padding một chút để cân bằng với logo lớn hơn */
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -162,13 +170,24 @@ export default {
   gap: 10px;
 }
 
+.img-logo {
+  height: 75px; /* Tăng đáng kể chiều cao của logo */
+  width: auto;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.img-logo:hover {
+  transform: scale(1.05); /* Thêm hiệu ứng phóng to nhẹ khi di chuột */
+}
+
 .search-bar {
   display: flex;
   align-items: center;
   background: #f5f5f5;
   border-radius: 25px;
   padding: 5px 15px;
-  width: 300px;
+  width: 400px;
 }
 
 .search-bar input {
@@ -184,10 +203,11 @@ export default {
   border: none;
   cursor: pointer;
   color: #555;
+  font-size: 1.2rem;
 }
 
-.nav-links { display: flex; gap: 20px; }
-.nav-links a { text-decoration: none; color: #333; font-weight: 500; transition: color 0.3s; position: relative; }
+.nav-links { display: flex; gap: 25px; }
+.nav-links a { text-decoration: none; color: #333; font-weight: 500; transition: color 0.3s; position: relative; font-size: 1.1rem; }
 .nav-links a:hover { color: #302b63; }
 
 /* Active link styling */
@@ -203,26 +223,50 @@ export default {
 
 .user-actions { display: flex; align-items: center; gap: 20px; }
 
-.cart-btn { position: relative; color: #333; font-size: 1.2rem; }
+.cart-btn { position: relative; color: #333; font-size: 1.5rem; display: flex; align-items: center; }
 .cart-count {
   position: absolute; top: -8px; right: -8px;
   background: #e74c3c; color: white; font-size: 0.7rem;
-  width: 18px; height: 18px; border-radius: 50%;
+  width: 20px; height: 20px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
+  font-weight: bold;
 }
 
 .auth-links a { text-decoration: none; color: #333; font-weight: 500; }
 .divider { margin: 0 5px; color: #ccc; }
 
 .user-dropdown { position: relative; cursor: pointer; }
-.user-name { font-weight: 600; color: #302b63; }
+.user-name { font-weight: 600; color: #2c3e50; font-size: 1.05rem; display: flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: 20px; transition: background 0.3s; }
+.user-name:hover { background: #f5f5f5; }
+
 .dropdown-menu {
-  position: absolute; top: 100%; right: 0;
-  background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-radius: 5px; width: 180px; margin-top: 10px; overflow: hidden;
+  position: absolute; top: calc(100% + 10px); right: 0;
+  background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border-radius: 12px; width: 220px; overflow: visible;
+  border: 1px solid #eee; z-index: 1000;
+  transform-origin: top right;
 }
-.dropdown-item { display: block; padding: 10px 15px; text-decoration: none; color: #333; transition: background 0.2s; cursor: pointer; }
-.dropdown-item:hover { background: #f5f5f5; }
+
+.dropdown-menu::before {
+  content: ''; position: absolute; top: -6px; right: 20px;
+  width: 12px; height: 12px; background: white;
+  transform: rotate(45deg); border-left: 1px solid #eee; border-top: 1px solid #eee;
+}
+
+.dropdown-header {
+  padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee;
+  font-weight: 700; color: #2c3e50; font-size: 0.95rem; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 12px 12px 0 0;
+}
+
+.dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; text-decoration: none; color: #555; transition: all 0.2s; cursor: pointer; font-weight: 500; font-size: 0.95rem; }
+.dropdown-item:hover { background: #fff5f1; color: #ee4d2d; padding-left: 25px; }
+.dropdown-item.text-danger:hover { background: #fee2e2; color: #e74c3c; }
+
+.dropdown-divider { height: 1px; background: #eee; margin: 5px 0; }
+
+.dropdown-fade-enter-active, .dropdown-fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.dropdown-fade-enter-from, .dropdown-fade-leave-to { opacity: 0; transform: translateY(-10px) scale(0.95); }
 
 @media (max-width: 768px) {
   .container { flex-direction: column; gap: 15px; }

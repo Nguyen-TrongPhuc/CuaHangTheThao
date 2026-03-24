@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 class OrderDetailsService {
     constructor(client) {
         this.OrderDetails = client.db().collection("order_details");
+        this.Orders = client.db().collection("orders"); // Thêm collection orders để kiểm tra đối chiếu
     }
 
     // =======================
@@ -69,6 +70,15 @@ class OrderDetailsService {
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         };
 
+        // --- ORDER WORKFLOW: BẢO VỆ CHI TIẾT ĐƠN HÀNG ---
+        const currentDetail = await this.findById(id);
+        if (currentDetail) {
+            const order = await this.Orders.findOne({ _id: currentDetail.order_id });
+            if (order && ['shipping', 'delivered', 'completed'].includes(order.status)) {
+                throw new Error("LỖI QUY TRÌNH: Không thể sửa số lượng hoặc giá của sản phẩm trong đơn hàng đã xuất kho.");
+            }
+        }
+
         const updateData = { ...payload };
 
         // nếu cập nhật quantity hoặc unit_price thì tính lại total_price
@@ -111,6 +121,15 @@ class OrderDetailsService {
     // XÓA 1 CHI TIẾT
     // =======================
     async delete(id) {
+        // --- ORDER WORKFLOW: BẢO VỆ CHI TIẾT ĐƠN HÀNG ---
+        const currentDetail = await this.findById(id);
+        if (currentDetail) {
+            const order = await this.Orders.findOne({ _id: currentDetail.order_id });
+            if (order && ['shipping', 'delivered', 'completed'].includes(order.status)) {
+                throw new Error("LỖI QUY TRÌNH: Không thể xóa sản phẩm khỏi đơn hàng đã xuất kho hoặc hoàn thành.");
+            }
+        }
+
         const result = await this.OrderDetails.findOneAndDelete({
             _id: ObjectId.isValid(id) ? new ObjectId(id) : null,
         });

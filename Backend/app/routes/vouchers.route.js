@@ -28,11 +28,11 @@ router.route("/stats")
 // Admin APIs (protected)
 router.route("/")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], vouchers.findAll)
-    .post([auth.verifyToken, auth.isEmployeeOrAdmin], vouchers.create);
+    .post([auth.verifyToken, auth.isAdmin], vouchers.create);
 
 router.route("/:id")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], vouchers.findOne)
-    .put([auth.verifyToken, auth.isEmployeeOrAdmin], vouchers.update)
-    .delete([auth.verifyToken, auth.isEmployeeOrAdmin], vouchers.delete);
+    .put([auth.verifyToken, auth.isAdmin], vouchers.update)
+    .delete([auth.verifyToken, auth.isAdmin], vouchers.delete);
 
 module.exports = router;

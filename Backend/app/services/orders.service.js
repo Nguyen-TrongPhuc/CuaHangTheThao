@@ -58,7 +58,7 @@ class OrderService {
         let payment_status = 'unpaid';
         if (payload.payment_method === 'cod') {
             payment_status = 'pending'; // COD - wait for cash on delivery
-        } else if (['vnpay', 'momo', 'bank_transfer'].includes(payload.payment_method)) {
+        } else if (['vnpay', 'momo'].includes(payload.payment_method)) {
             payment_status = payload.payment_status || 'unpaid';
         }
 
@@ -257,6 +257,24 @@ class OrderService {
     async update(id, payload) {
         const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
         
+        // --- ORDER WORKFLOW: BẢO VỆ ĐƠN HÀNG ---
+        const existingOrder = await this.Orders.findOne(filter);
+        if (existingOrder && ['shipping', 'delivered', 'completed'].includes(existingOrder.status)) {
+            // Cấm sửa các thông tin cốt lõi (như khách hàng, tổng tiền, items...) khi đã xử lý
+            // Chỉ cho phép Staff cập nhật trạng thái (status) hoặc thanh toán (payment_status)
+            const allowedFields = ['status', 'payment_status', 'updatedAt'];
+            const isModifyingDisallowed = Object.keys(payload).some(key => !allowedFields.includes(key));
+            
+            if (isModifyingDisallowed) {
+                throw new Error("LỖI BẢO MẬT: Không thể sửa đổi thông tin chi tiết của đơn hàng đã xuất kho hoặc hoàn thành.");
+            }
+
+            // Cấm lùi trạng thái về chờ xử lý do hàng đã ra khỏi kho
+            if (payload.status === 'pending') {
+                throw new Error("LỖI QUY TRÌNH: Không thể lùi trạng thái đơn hàng đã xuất kho về Chờ xử lý.");
+            }
+        }
+
         // Logic hoàn kho (Restocking) khi hủy đơn hàng HOẶC trả hàng thành công
         if (payload.status === 'cancelled' || payload.status === 'returned') {
             const order = await this.Orders.findOne(filter);

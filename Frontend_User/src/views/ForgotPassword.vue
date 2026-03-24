@@ -61,11 +61,8 @@
             required
             placeholder="Ít nhất 8 ký tự (Hoa, thường, số, ký tự đặc biệt)"
           />
-          <i
-            :class="['fa-solid', showNewPwd ? 'fa-eye-slash' : 'fa-eye']"
-            class="toggle-pwd"
-            @click="showNewPwd = !showNewPwd"
-          ></i>
+          <EyeOff v-if="showNewPwd" class="toggle-pwd" @click="showNewPwd = !showNewPwd" :size="20" />
+          <Eye v-else class="toggle-pwd" @click="showNewPwd = !showNewPwd" :size="20" />
         </div>
 
         <div class="input-group password-wrapper">
@@ -76,11 +73,8 @@
             required
             placeholder="Nhập lại mật khẩu mới"
           />
-          <i
-            :class="['fa-solid', showConfirmPwd ? 'fa-eye-slash' : 'fa-eye']"
-            class="toggle-pwd"
-            @click="showConfirmPwd = !showConfirmPwd"
-          ></i>
+          <EyeOff v-if="showConfirmPwd" class="toggle-pwd" @click="showConfirmPwd = !showConfirmPwd" :size="20" />
+          <Eye v-else class="toggle-pwd" @click="showConfirmPwd = !showConfirmPwd" :size="20" />
         </div>
 
         <button type="submit" class="btn-submit" :disabled="isLoading">
@@ -93,7 +87,7 @@
       </form>
 
       <p class="back-link">
-        <router-link to="/login"><i class="fa-solid fa-arrow-left"></i> Quay lại đăng nhập</router-link>
+        <router-link to="/login" style="display:inline-flex;align-items:center;gap:5px;"><ArrowLeft :size="16" /> Quay lại đăng nhập</router-link>
       </p>
     </div>
   </div>
@@ -102,8 +96,10 @@
 <script>
 import AuthService from "@/services/auth.service"; // Giả sử AuthService có các hàm này
 import { showToast } from "@/utils/toast";
+import { Eye, EyeOff, ArrowLeft } from "lucide-vue-next";
 
 export default {
+  components: { Eye, EyeOff, ArrowLeft },
   data() {
     return {
       step: 1,

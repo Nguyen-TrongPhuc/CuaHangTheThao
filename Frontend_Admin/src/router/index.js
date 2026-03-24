@@ -40,6 +40,7 @@ const routes = [
   { path: '/sizes', name: 'SizeManager', component: SizeManager },
   { path: '/employees', name: 'EmployeeManager', component: EmployeeManager },
   { path: '/warehouse', name: 'WarehouseManager', component: WarehouseManager },
+  { path: '/warehouse/import', name: 'WarehouseImport', component: () => import('../views/WarehouseImport.vue') },
   { path: '/suppliers', name: 'SupplierManager', component: SupplierManager },
   { path: '/contacts', name: 'ContactManager', component: ContactManager },
 ];

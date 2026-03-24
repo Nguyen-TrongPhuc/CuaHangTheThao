@@ -8,7 +8,7 @@ router.route("/summary")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getSummary);
 
 router.route("/monthly-sales")
-    .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getMonthlySales);
+    .get([auth.verifyToken, auth.isAdmin], dashboard.getMonthlySales);
 
 router.route("/top-customers")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getTopCustomers);
@@ -21,5 +21,8 @@ router.route("/import-report")
 
 router.route("/sync-stock")
     .post([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.syncStock);
+
+router.route("/top-products-by-month")
+    .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getTopProductsByMonth);
 
 module.exports = router;

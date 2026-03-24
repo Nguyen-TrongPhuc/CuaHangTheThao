@@ -44,7 +44,7 @@
           </div>
 
           <button class="btn-remove" @click="removeItem(index)">
-            <i class="fa-solid fa-trash"></i>
+            <Trash2 :size="18" />
           </button>
         </div>
       </div>
@@ -64,7 +64,7 @@
     </div>
 
     <div v-else class="empty-cart">
-      <i class="fa-solid fa-shopping-bag"></i>
+      <ShoppingBag :size="64" />
       <p>Giỏ hàng của bạn đang trống</p>
       <router-link to="/" class="btn-continue">Tiếp tục mua sắm</router-link>
     </div>
@@ -83,9 +83,10 @@ import { showToast } from "@/utils/toast";
 import SizesService from "@/services/sizes.service";
 import ColorsService from "@/services/colors.service";
 import CustomerService from "@/services/customer.service";
+import { Trash2, ShoppingBag } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter },
+  components: { AppHeader, AppFooter, Trash2, ShoppingBag },
   setup() {
     const totalAmount = computed(() => {
       return cartStore.state.items
