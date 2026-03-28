@@ -56,9 +56,13 @@
             <i class="fa-solid fa-chevron-down arrow" :class="{ 'open': openMenus.system }"></i>
           </div>
           <div class="menu-group-items" v-show="openMenus.system">
-            <router-link v-if="!isAdmin" to="/my-payslips" class="nav-item">Lương của tôi</router-link>
-            <router-link v-if="isAdmin" to="/employees" class="nav-item">Quản lý Nhân viên</router-link>
-            <router-link v-if="isAdmin" to="/payroll" class="nav-item">Bảng lương</router-link>
+            <template v-if="isAdmin">
+              <router-link to="/employees" class="nav-item">Quản lý Nhân viên</router-link>
+              <router-link to="/payroll" class="nav-item">Bảng lương</router-link>
+            </template>
+            <template v-else>
+              <router-link to="/my-payslips" class="nav-item">Lương của tôi</router-link>
+            </template>
             <router-link to="/contacts" class="nav-item">
               Tin nhắn liên hệ
               <span v-if="unreadContactsCount > 0 && !isContactPage" class="unread-badge">{{ unreadContactsCount }}</span>
