@@ -29,9 +29,14 @@ class DashboardService {
         return (await this.api.post("/sync-stock")).data;
     }
 
-    async getTopProductsByMonth(year, month, limit) {
+async getTopProductsByMonth(year, month, limit) {
         const params = new URLSearchParams({ year, month, limit });
         return (await this.api.get(`/top-products-by-month?${params}`)).data;
+    }
+
+    async getDailyRevenueRange(startDate, endDate) {
+        const params = new URLSearchParams({ startDate, endDate });
+        return (await this.api.get(`/daily-revenue-range?${params}`)).data;
     }
 }
 

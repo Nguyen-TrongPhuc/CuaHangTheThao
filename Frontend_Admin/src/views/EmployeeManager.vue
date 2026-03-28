@@ -27,7 +27,7 @@
             </span>
           </td>
           <td>
-            <button class="btn-edit" @click="$router.push({ name: 'employee.edit', params: { id: emp._id } })">Sửa</button>
+            <button class="btn-edit" @click="$router.push({ name: 'EmployeeEdit', params: { id: emp._id } })">Sửa</button>
             <button class="btn-del" @click="remove(emp._id)">Xóa</button>
           </td>
         </tr>

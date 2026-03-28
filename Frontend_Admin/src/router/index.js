@@ -10,9 +10,12 @@ import SportManager from '../views/SportManager.vue';
 import ColorManager from '../views/ColorManager.vue';
 import SizeManager from '../views/SizeManager.vue';
 import EmployeeManager from '../views/EmployeeManager.vue';
+import EmployeeForm from '../views/EmployeeForm.vue';
 import SupplierManager from '../views/SupplierManager.vue';
 import WarehouseManager from '../views/WarehouseManager.vue';
 import ContactManager from '../views/ContactManager.vue';
+import PayrollManager from '../views/PayrollManager.vue';
+import MyPayslips from '../views/MyPayslips.vue';
 
 const routes = [
   {
@@ -39,10 +42,14 @@ const routes = [
   { path: '/colors', name: 'ColorManager', component: ColorManager },
   { path: '/sizes', name: 'SizeManager', component: SizeManager },
   { path: '/employees', name: 'EmployeeManager', component: EmployeeManager },
+  { path: '/employees/add', name: 'EmployeeAdd', component: EmployeeForm },
+  { path: '/employees/edit/:id', name: 'EmployeeEdit', component: EmployeeForm, props: true },
   { path: '/warehouse', name: 'WarehouseManager', component: WarehouseManager },
   { path: '/warehouse/import', name: 'WarehouseImport', component: () => import('../views/WarehouseImport.vue') },
   { path: '/suppliers', name: 'SupplierManager', component: SupplierManager },
   { path: '/contacts', name: 'ContactManager', component: ContactManager },
+  { path: '/payroll', name: 'PayrollManager', component: PayrollManager },
+  { path: '/my-payslips', name: 'MyPayslips', component: MyPayslips },
 ];
 
 const router = createRouter({

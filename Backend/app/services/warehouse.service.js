@@ -53,6 +53,20 @@ class WarehouseService {
         const result = await this.Warehouse.insertOne(receipt);
         return result;
     }
+
+    async findByDateRange(year, month) {
+        if (!year || !month || month === 'all') {
+            return this.findAll();
+        }
+        const y = parseInt(year);
+        const m = parseInt(month);
+        const start = new Date(y, m - 1, 1);
+        const end = new Date(y, m, 0, 23, 59, 59, 999);
+        const cursor = await this.Warehouse.find({
+            createdAt: { $gte: start, $lte: end }
+        }).sort({ createdAt: -1 });
+        return await cursor.toArray();
+    }
 }
 
 module.exports = WarehouseService;

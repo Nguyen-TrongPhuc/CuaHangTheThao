@@ -1,0 +1,176 @@
+const { ObjectId } = require("mongodb");
+
+class SalariesService {
+    constructor(client) {
+        this.Salaries = client.db().collection("salaries");
+        this.Employees = client.db().collection("employees");
+        this.Orders = client.db().collection("orders");
+    }
+
+    // ==========================================
+    // TỰ ĐỘNG TÍNH LƯƠNG & HOA HỒNG (ADVANCED)
+    // ==========================================
+    async generatePayroll(month, year, commissionRate = 0.01) { // Mặc định hoa hồng 1%
+        const m = parseInt(month);
+        const y = parseInt(year);
+
+        // 1. Lấy danh sách nhân viên (CHỈ lấy 'staff', KHÔNG lấy 'admin')
+        const employees = await this.Employees.find({ role: "staff" }).toArray();
+        
+        // 2. Mốc thời gian mặc định của tháng cần tính
+        const normalStartDate = new Date(y, m - 1, 1);
+        const endDate = new Date(y, m, 0, 23, 59, 59);
+
+        // Để xử lý việc cộng dồn hoa hồng từ tháng trước, ta kéo dữ liệu từ đầu tháng trước nữa
+        const prevMonthStartDate = new Date(y, m - 2, 1);
+
+        // 3. Quét tất cả Đơn hàng đã "Hoàn thành" và "Trả hàng" trong khoảng thời gian rộng
+        const allCompletedOrders = await this.Orders.find({
+            status: "completed",
+            updatedAt: { $gte: prevMonthStartDate, $lte: endDate },
+            employee_id: { $ne: null }
+        }).toArray();
+
+        const allReturnedOrders = await this.Orders.find({
+            status: "returned",
+            updatedAt: { $gte: prevMonthStartDate, $lte: endDate },
+            employee_id: { $ne: null }
+        }).toArray();
+
+        const payrolls = [];
+
+        // 4. Lặp qua từng nhân viên để tạo/cập nhật phiếu lương
+        for (const emp of employees) {
+            // Lấy lại phiếu lương cũ (nếu có) để không bị ghi đè
+            const existingSalary = await this.Salaries.findOne({ employee_id: emp._id, month: m, year: y });
+            
+            // BẢO VỆ KẾT TOÁN (LOCK)
+            if (existingSalary && existingSalary.status === "paid") {
+                payrolls.push(existingSalary);
+                continue; 
+            }
+
+            // --- LOGIC CỘNG DỒN HOA HỒNG (CARRY-OVER COMMISSION) ---
+            const prevMonth = m === 1 ? 12 : m - 1;
+            const prevYear = m === 1 ? y - 1 : y;
+            const prevSalary = await this.Salaries.findOne({ employee_id: emp._id, month: prevMonth, year: prevYear });
+            
+            let empStartDate = normalStartDate;
+            let carryOverNote = "";
+            
+            // Nếu tháng trước đã thanh toán sớm (payment_date < ngày cuối tháng trước)
+            if (prevSalary && prevSalary.status === "paid" && prevSalary.payment_date) {
+                const prevMonthEndDate = new Date(prevYear, prevMonth, 0, 23, 59, 59);
+                if (new Date(prevSalary.payment_date) < prevMonthEndDate) {
+                    // Dời ngày bắt đầu tính hoa hồng về thời điểm bấm nút Thanh toán của tháng trước
+                    empStartDate = new Date(prevSalary.payment_date);
+                    carryOverNote = ` (Cộng dồn hoa hồng từ ngày ${empStartDate.toLocaleDateString('vi-VN')} của tháng trước).`;
+                }
+            }
+
+            // Lọc đơn hàng của nhân viên này
+            const empCompletedOrders = allCompletedOrders.filter(o => {
+                const isMyOrder = String(o.employee_id) === String(emp._id);
+                const orderDate = new Date(o.updatedAt);
+                // Dùng > thay vì >= để tránh trùng khớp giây bấm thanh toán
+                const isAfterStart = (empStartDate.getTime() === normalStartDate.getTime()) 
+                                     ? orderDate >= empStartDate 
+                                     : orderDate > empStartDate;
+                return isMyOrder && isAfterStart && orderDate <= endDate;
+            });
+
+            const empReturnedOrders = allReturnedOrders.filter(o => {
+                const isMyOrder = String(o.employee_id) === String(emp._id);
+                const orderDate = new Date(o.updatedAt);
+                const isAfterStart = (empStartDate.getTime() === normalStartDate.getTime()) 
+                                     ? orderDate >= empStartDate 
+                                     : orderDate > empStartDate;
+                return isMyOrder && isAfterStart && orderDate <= endDate;
+            });
+
+            // Tìm doanh thu mà nhân viên này mang lại
+            const revenue = empCompletedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+            const orderCount = empCompletedOrders.length;
+            
+            // Tìm doanh thu bị hoàn trả để TRUY THU
+            const returnedRevenue = empReturnedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+            const returnedCount = empReturnedOrders.length;
+
+            // Tính toán tiền thưởng từ hoa hồng
+            const calculatedCommission = revenue * commissionRate;
+            const autoDeduction = returnedRevenue * commissionRate; // Tiền truy thu
+
+            // Mức lương cơ bản mặc định nếu chưa được Admin thiết lập
+            const baseSalary = emp.base_salary || 5000000; 
+            const allowance = emp.allowance || 0;
+            
+            const manualBonus = existingSalary ? (existingSalary.bonus || 0) : 0;
+            // Nếu chưa có phạt tay, mặc định lấy tiền truy thu làm tiền phạt
+            const manualDeduction = existingSalary ? (existingSalary.deduction || 0) : autoDeduction;
+            const status = existingSalary ? existingSalary.status : "unpaid";
+            const payment_date = existingSalary ? existingSalary.payment_date : null;
+            
+            // Tạo câu ghi chú động
+            let noteText = `Lương T${m}/${y}. Hoa hồng ${(commissionRate*100).toFixed(1)}% từ ${revenue.toLocaleString()}đ (${orderCount} đơn).${carryOverNote}`;
+            if (returnedCount > 0) {
+                noteText += ` TRUY THU: -${autoDeduction.toLocaleString()}đ do ${returnedCount} đơn bị khách trả hàng.`;
+            }
+
+            const payrollInfo = {
+                employee_id: emp._id,
+                employee_name: emp.full_name,
+                employee_role: emp.role,
+                month: m,
+                year: y,
+                base_salary: baseSalary,
+                allowance: allowance,
+                commission_revenue: revenue,
+                commission_amount: calculatedCommission, // Lưu riêng tiền hoa hồng tự động
+                order_count: orderCount,
+                bonus: manualBonus, // Giữ nguyên tiền thưởng tay của bạn
+                deduction: manualDeduction, // Giữ nguyên tiền phạt tay của bạn
+                net_salary: baseSalary + allowance + calculatedCommission + manualBonus - manualDeduction, // Thực lãnh mới
+                status: status,
+                payment_date: payment_date,
+                note: noteText,
+                updatedAt: new Date()
+            };
+
+            // Cập nhật nếu đã có phiếu lương tháng này, hoặc tạo mới nếu chưa có (upsert)
+            const result = await this.Salaries.findOneAndUpdate(
+                { employee_id: emp._id, month: m, year: y },
+                { $set: payrollInfo, $setOnInsert: { createdAt: new Date() } },
+                { upsert: true, returnDocument: "after" }
+            );
+            
+            payrolls.push(result);
+        }
+        return payrolls;
+    }
+
+    async findAll(filter = {}) {
+        filter.employee_role = "staff"; // BẢO VỆ: Luôn chặn và ẩn Role Admin khỏi danh sách
+        return await this.Salaries.find(filter).sort({ year: -1, month: -1, employee_name: 1 }).toArray();
+    }
+
+    async update(id, payload) {
+        const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
+        const salary = await this.Salaries.findOne(filter);
+        if (!salary) throw new Error("Không tìm thấy bảng lương");
+
+        const updateData = { ...payload, updatedAt: new Date() };
+        
+        // Tính lại thực lãnh nếu Admin sửa tay Thưởng/Phạt
+        const base_salary = updateData.base_salary !== undefined ? Number(updateData.base_salary) : salary.base_salary;
+        const allowance = updateData.allowance !== undefined ? Number(updateData.allowance) : salary.allowance;
+        const commission_amount = salary.commission_amount || 0; // Lấy hoa hồng tự động hiện tại
+        const bonus = updateData.bonus !== undefined ? Number(updateData.bonus) : salary.bonus;
+        const deduction = updateData.deduction !== undefined ? Number(updateData.deduction) : salary.deduction;
+        
+        updateData.net_salary = base_salary + allowance + commission_amount + bonus - deduction;
+
+        return await this.Salaries.findOneAndUpdate(filter, { $set: updateData }, { returnDocument: "after" });
+    }
+}
+
+module.exports = SalariesService;

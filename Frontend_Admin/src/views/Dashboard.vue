@@ -16,18 +16,18 @@
             <div class="card-value">{{ formatPrice(summary.totalRevenueMonth) }}</div>
           </div>
         </div>
+        <div v-if="userRole === 'admin'" class="card">
+          <div class="card-icon" style="background: linear-gradient(135deg, #e74c3c, #c0392b); color: white;"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+          <div class="card-content">
+            <div class="card-title">Tổng chi phí (Tháng này)</div>
+            <div class="card-value text-danger">{{ formatPrice(summary.totalCostMonth) }}</div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-icon orders"><i class="fa-solid fa-box"></i></div>
           <div class="card-content">
             <div class="card-title">Đơn hàng mới (Hôm nay)</div>
             <div class="card-value">{{ summary.newOrdersToday }}</div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-icon users"><i class="fa-solid fa-users"></i></div>
-          <div class="card-content">
-            <div class="card-title">Người dùng mới (Tháng này)</div>
-            <div class="card-value">{{ summary.newUsersMonth }}</div>
           </div>
         </div>
         <div class="card">
@@ -50,12 +50,39 @@
       <!-- Charts -->
       <div class="charts-grid" :style="userRole === 'staff' ? { gridTemplateColumns: '1fr 1fr' } : {}">
         <div v-if="userRole === 'admin'" class="chart-container">
-          <h3>Doanh thu 7 ngày qua</h3>
-          <Line v-if="revenueChartData.labels.length" :data="revenueChartData" :options="chartOptions" />
+          <div class="section-header">
+            <h3>Doanh thu theo ngày</h3>
+            <div class="filters">
+              <input type="date" v-model="revenueFromDate" @change="fetchRevenueChart" />
+              <span>đến</span>
+              <input type="date" v-model="revenueToDate" @change="fetchRevenueChart" />
+              <button @click="fetchRevenueChart" style="padding: 5px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">Cập nhật</button>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <Line v-if="revenueChartData.labels.length" :data="revenueChartData" :options="chartOptions" />
+          </div>
         </div>
         <div class="chart-container">
-          <h3>Tình trạng đơn hàng</h3>
-          <Doughnut v-if="orderStatusChartData.labels.length" :data="orderStatusChartData" :options="chartOptions" />
+          <div class="section-header" style="margin-bottom: 10px;">
+            <h3>Tình trạng đơn hàng</h3>
+            <div class="filters">
+              <select v-model="orderStatusType" @change="updateOrderStatusChart" class="filter-select-small">
+                <option value="month">Theo tháng</option>
+                <option value="all">Tất cả</option>
+              </select>
+              <select v-if="orderStatusType === 'month'" v-model.number="orderStatusMonth" @change="updateOrderStatusChart" class="filter-select-small">
+                <option v-for="m in 12" :key="m" :value="m">Tháng {{ m }}</option>
+              </select>
+              <select v-if="orderStatusType === 'month'" v-model.number="orderStatusYear" @change="updateOrderStatusChart" class="filter-select-small">
+                <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <Doughnut v-if="orderStatusChartData.labels && orderStatusChartData.labels.length > 0" :data="orderStatusChartData" :options="chartOptions" />
+            <div v-else class="empty-chart">Chưa có đơn hàng nào</div>
+          </div>
         </div>
         
         <!-- Thiết kế chuyên biệt cho Staff: Bảng nhiệm vụ vận hành -->
@@ -124,6 +151,7 @@
                   <th>Doanh thu</th>
                   <th>SL Nhập vào</th>
                   <th>Chi phí nhập</th>
+                  <th>Chi phí lương</th>
                   <th>Lợi nhuận gộp</th>
                 </tr>
               </thead>
@@ -135,6 +163,7 @@
                   <td class="price-col text-success">+{{ formatPrice(item.totalRevenue) }}</td>
                   <td>{{ item.totalImportQuantity || 0 }}</td>
                   <td class="price-col text-danger">-{{ formatPrice(item.totalImportCost || 0) }}</td>
+                  <td class="price-col text-danger">-{{ formatPrice(item.totalSalaryCost || 0) }}</td>
                   <td class="price-col" :class="item.profit >= 0 ? 'text-success' : 'text-danger'">
                     {{ item.profit > 0 ? '+' : '' }}{{ formatPrice(item.profit || 0) }}
                   </td>
@@ -298,6 +327,7 @@
 
 <script>
 import DashboardService from '@/services/dashboard.service';
+import OrderService from '@/services/orders.service';
 import { Line, Doughnut } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, PointElement, LineElement, ArcElement } from 'chart.js';
 import { showToast } from "@/utils/toast";
@@ -312,8 +342,8 @@ export default {
       isLoading: true,
       summary: {
         totalRevenueMonth: 0,
+        totalCostMonth: 0,
         newOrdersToday: 0,
-        newUsersMonth: 0,
         cancelledOrdersMonth: 0,
         orderStatusDistribution: []
       },
@@ -335,6 +365,8 @@ export default {
         }]
       },
       topProducts: [],
+      revenueFromDate: '',
+      revenueToDate: '',
       chartOptions: {
         responsive: true,
         maintainAspectRatio: false,
@@ -354,7 +386,11 @@ export default {
       productLimit: 5,
       importStart: '',
       importEnd: '',
-      importReport: []
+      importReport: [],
+      orderStatusType: 'month',
+      orderStatusMonth: new Date().getMonth() + 1,
+      orderStatusYear: new Date().getFullYear(),
+      allOrdersData: []
     };
   },
   computed: {
@@ -383,9 +419,12 @@ export default {
     },
     initDates() {
       const today = new Date();
-      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(today.getDate() - 30);
       const formatDateInput = (date) => date.toISOString().split('T')[0];
-      this.customerStart = this.importStart = formatDateInput(firstDay);
+      this.revenueFromDate = formatDateInput(thirtyDaysAgo);
+      this.revenueToDate = formatDateInput(today);
+      this.customerStart = this.importStart = formatDateInput(new Date(today.getFullYear(), today.getMonth(), 1));
       this.customerEnd = this.importEnd = formatDateInput(today);
     },
     async fetchDashboardData() {
@@ -396,36 +435,16 @@ export default {
         // Summary Cards
       this.summary = {
           totalRevenueMonth: data.totalRevenueMonth,
+          totalCostMonth: data.totalCostMonth,
           newOrdersToday: data.newOrdersToday,
-          newUsersMonth: data.newUsersMonth,
           cancelledOrdersMonth: data.cancelledOrdersMonth,
           orderStatusDistribution: data.orderStatusDistribution || []
         };
         
         this.summaryTopProducts = data.topSellingProducts || [];
 
-        // Revenue Chart
-        this.revenueChartData.labels = data.dailyRevenue.map(d => new Date(d.date).toLocaleDateString('vi-VN'));
-        this.revenueChartData.datasets[0].data = data.dailyRevenue.map(d => d.total);
-
-        // Order Status Chart
-        this.orderStatusChartData.labels = data.orderStatusDistribution.map(s => this.translateStatus(s.status));
-        this.orderStatusChartData.datasets[0].data = data.orderStatusDistribution.map(s => s.count);
-        
-        // Cập nhật màu sắc theo trạng thái
-        this.orderStatusChartData.datasets[0].backgroundColor = data.orderStatusDistribution.map(s => {
-            const colors = {
-                'pending': '#ffc107', // Chờ xử lý (Vàng)
-                'shipping': '#17a2b8', // Đang giao (Xanh dương nhạt)
-                'delivered': '#20c997', // Đã giao (Xanh ngọc)
-                'completed': '#28a745', // Hoàn thành (Xanh lá)
-                'cancelled': '#dc3545', // Đã hủy (Đỏ)
-                'return_requested': '#fd7e14', // Yêu cầu trả hàng (Cam)
-                'return_accepted': '#6f42c1', // Đồng ý trả hàng (Tím)
-                'returned': '#6c757d' // Đã trả hàng (Xám)
-            };
-            return colors[s.status] || '#6c757d';
-        });
+        // Initial revenue chart from summary (current month)
+        await this.fetchRevenueChart();
 
         // Top Products
         this.topProducts = data.topSellingProducts;
@@ -450,6 +469,43 @@ export default {
         return map[status] || status;
     },
     // New Fetch Methods
+    async fetchAllOrdersForChart() {
+      try {
+        this.allOrdersData = await OrderService.getAll();
+        this.updateOrderStatusChart();
+      } catch (e) { console.error("Lỗi tải danh sách đơn hàng cho biểu đồ:", e); }
+    },
+    updateOrderStatusChart() {
+      let filtered = this.allOrdersData || [];
+      if (this.orderStatusType === 'month') {
+        filtered = filtered.filter(o => {
+          if (!o.createdAt) return false;
+          const d = new Date(o.createdAt);
+          return d.getMonth() + 1 === this.orderStatusMonth && d.getFullYear() === this.orderStatusYear;
+        });
+      }
+
+      const dist = {};
+      filtered.forEach(o => {
+        dist[o.status] = (dist[o.status] || 0) + 1;
+      });
+
+      const colors = { 'pending': '#ffc107', 'shipping': '#17a2b8', 'delivered': '#20c997', 'completed': '#28a745', 'cancelled': '#dc3545', 'return_requested': '#fd7e14', 'return_accepted': '#6f42c1', 'returned': '#6c757d' };
+      const labels = [];
+      const data = [];
+      const bgColors = [];
+
+      for (const [status, count] of Object.entries(dist)) {
+          labels.push(this.translateStatus(status));
+          data.push(count);
+          bgColors.push(colors[status] || '#6c757d');
+      }
+
+      this.orderStatusChartData = {
+        labels: labels,
+        datasets: [{ backgroundColor: bgColors, data: data }]
+      };
+    },
     async fetchMonthlySales() {
       if (this.userRole !== 'admin') return;
       try { 
@@ -467,6 +523,24 @@ export default {
         this.topProducts = await DashboardService.getTopProductsByMonth(this.productYear, this.productMonth, this.productLimit); 
       } catch (e) { console.error(e); }
     },
+    async fetchRevenueChart() {
+      if (this.userRole !== 'admin') return;
+      try {
+        const data = await DashboardService.getDailyRevenueRange(this.revenueFromDate, this.revenueToDate);
+        this.revenueChartData = {
+          labels: data.map(d => d.date), // Lấy thẳng chuỗi 'Ngày/Tháng' do backend trả về, không dùng toLocaleDateString nữa
+          datasets: [{
+            label: 'Doanh thu',
+            backgroundColor: '#4776E6',
+            borderColor: '#4776E6',
+            data: data.map(d => d.total),
+          }]
+        };
+      } catch (e) {
+        console.error('Lỗi tải biểu đồ doanh thu:', e);
+      }
+    },
+
     async fetchImportReport() {
       try { this.importReport = await DashboardService.getImportReport(this.importStart, this.importEnd); } catch (e) { console.error(e); }
     }
@@ -474,6 +548,7 @@ export default {
   mounted() {
     this.initDates();
     this.fetchDashboardData();
+    this.fetchAllOrdersForChart();
     
     // Fetch new reports
     if (this.userRole === 'admin') {
@@ -519,8 +594,9 @@ export default {
 
 /* Charts Grid */
 .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
-.chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 400px; }
+.chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 400px; display: flex; flex-direction: column; }
 .chart-container h3 { margin-top: 0; margin-bottom: 20px; font-size: 18px; color: #343a40; }
+.chart-wrapper { flex: 1; position: relative; min-height: 0; }
 
 /* Staff Task List */
 .tasks-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); height: 400px; overflow-y: auto; }
@@ -586,4 +662,6 @@ export default {
 .rank-1 { background: #fff3cd; color: #856404; } /* Vàng */
 .rank-2 { background: #e2e3e5; color: #383d41; } /* Bạc */
 .rank-3 { background: #f8d7da; color: #721c24; } /* Đồng/Đỏ nhạt */
+.filter-select-small { padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85rem; outline: none; background: #fdfdfd; cursor: pointer; }
+.empty-chart { text-align: center; color: #999; margin-top: 60px; font-style: italic; font-size: 0.95rem; }
 </style>

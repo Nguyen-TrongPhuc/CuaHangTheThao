@@ -29,9 +29,10 @@
                     <div class="item-qty">x{{ item.quantity }}</div>
                 </div>
                 <div class="item-price-col">
-                    <div class="item-total-price">{{ formatPrice(item.unit_price * item.quantity) }}đ</div>
+                    <div class="item-unit-price">{{ formatPrice(item.unit_price) }}đ</div>
                 </div>
                 <div v-if="order.status === 'completed'" class="item-action">
+                    <button class="btn-buy-again" @click.stop="goToProduct(item.product_id)">Mua lại</button>
                     <button v-if="!item.is_reviewed" class="btn-review" @click="openReviewModal(item, order)">Đánh giá</button>
                     <span v-else class="text-reviewed" style="display:inline-flex;align-items:center;gap:4px;">
                       <Check :size="14" /> Đã đánh giá
@@ -45,7 +46,6 @@
             <p class="order-subtotal">Tổng tiền hàng: {{ formatPrice(order.subtotal) }}đ</p>
             <p class="order-shipping">Phí vận chuyển: {{ formatPrice(order.shipping_fee) }}đ</p>
             <p class="order-discount" v-if="order.discount_amount > 0">Giảm giá: <span class="discount-value">-{{ formatPrice(order.discount_amount) }}đ</span></p>
-            <p class="order-total">Thanh toán: <strong>{{ formatPrice(order.total_amount) }}đ</strong></p>
             <p class="order-payment">
               <span>Thanh toán: <strong>{{ getPaymentMethodName(order.payment_method) }}</strong></span>
               <span :class="['payment-status', order.payment_status]">{{ getPaymentStatusName(order.payment_status) }}</span>
@@ -54,11 +54,16 @@
             <p class="order-address">Địa chỉ: {{ order.address || 'Chưa cập nhật (Đơn hàng cũ)' }}</p>
           </div>
 
+          <div class="order-total-row">
+              Thành tiền: <span class="total-price">{{ formatPrice(order.total_amount) }}đ</span>
+          </div>
+
           <div class="order-footer">
              <!-- Có thể thêm nút Xem chi tiết tại đây -->
              <span class="note" v-if="order.note">Ghi chú: {{ order.note }}</span>
              
              <div class="action-right">
+                <button v-if="['vnpay', 'momo'].includes(order.payment_method) && order.payment_status === 'unpaid' && order.status === 'pending'" class="btn-pay-now" @click="retryPayment(order)">Thanh toán ngay</button>
                 <button v-if="order.status === 'pending'" class="btn-cancel" @click="cancelOrder(order)">Hủy đơn</button>
                 <button v-if="order.status === 'delivered'" class="btn-return" @click="openReturnModal(order)">Trả hàng</button>
                 <button v-if="order.status === 'delivered'" class="btn-confirm-received" @click="confirmReceived(order)">Đã nhận hàng</button>
@@ -104,6 +109,7 @@ import AppFooter from "@/components/AppFooter.vue";
 import ReturnRequestModal from "@/components/ReturnRequestModal.vue";
 import ReviewModal from "@/components/ReviewModal.vue";
 import ReviewsService from "@/services/reviews.service";
+import PaymentService from "@/services/payment.service";
 import { showToast } from "@/utils/toast";
 import { Check } from "lucide-vue-next";
 
@@ -241,8 +247,25 @@ export default {
           order.status = 'cancelled';
           showToast("Đã hủy đơn hàng thành công", "success");
         } catch (error) {
-          showToast("Lỗi khi hủy đơn hàng", "error");
+          const msg = error.response?.data?.message || "Lỗi khi hủy đơn hàng";
+          showToast(msg, "error");
+          this.fetchOrders(); // Tải lại danh sách để cập nhật trạng thái mới nhất từ server
         }
+      }
+    },
+    async retryPayment(order) {
+      try {
+        showToast("Đang kết nối đến cổng thanh toán...", "info");
+        if (order.payment_method === 'vnpay') {
+            const res = await PaymentService.createVnpayPayment(order._id);
+            if (res.paymentUrl) window.location.href = res.paymentUrl;
+        } else if (order.payment_method === 'momo') {
+            const res = await PaymentService.createMomoPayment(order._id);
+            if (res.paymentUrl) window.location.href = res.paymentUrl;
+        }
+      } catch (e) {
+        console.error(e);
+        showToast("Không thể tạo kết nối thanh toán lúc này.", "error");
       }
     },
     openReturnModal(order) {
@@ -276,9 +299,15 @@ export default {
         this.showReviewModal = true;
     },
     async handleReviewSubmit(reviewData) {
+        // Kiểm tra token trước khi submit
+        if (!localStorage.getItem("user_token")) {
+          showToast("Vui lòng đăng nhập để đánh giá!", "error");
+          this.$router.push("/login");
+          return;
+        }
         try {
             await ReviewsService.create(reviewData);
-            showToast("Cảm ơn bạn đã đánh giá sản phẩm!", "success");
+            showToast("Đánh giá thành công! Bạn được cộng 100đ vào ví.", "success");
             
             // Cập nhật trạng thái đã đánh giá cho sản phẩm trong đơn hàng hiện tại
             if (this.selectedOrderForReview && this.selectedProductForReview) {
@@ -292,7 +321,13 @@ export default {
             this.showReviewModal = false;
         } catch (error) {
             console.error(error);
-            showToast("Lỗi khi gửi đánh giá", "error");
+            if (error.response?.status === 401) {
+              showToast("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!", "error");
+              localStorage.removeItem("user_token");
+              this.$router.push("/login");
+            } else {
+              showToast("Lỗi khi gửi đánh giá", "error");
+            }
         }
     },
     goToProduct(id) {
@@ -339,10 +374,14 @@ export default {
 .item-name:hover { color: #007bff; }
 .item-meta { font-size: 0.85rem; color: #777; margin-top: 2px; }
 .item-qty { font-size: 0.85rem; color: #555; margin-top: 2px; }
-.item-price-col { text-align: right; margin-left: 10px; }
-.item-unit-price { font-weight: 500; color: #333; }
-.item-total-price { font-size: 0.85rem; color: #e74c3c; font-weight: bold; margin-top: 2px; }
-.item-action { margin-left: 15px; }
+.item-price-col { text-align: right; margin-left: 10px; min-width: 80px; }
+.item-unit-price { font-weight: bold; color: #ee4d2d; }
+.item-action { margin-left: 15px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.btn-buy-again {
+    background: #fff; border: 1px solid #ee4d2d; color: #ee4d2d;
+    padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+}
+.btn-buy-again:hover { background: #ee4d2d; color: white; }
 .btn-review {
     background: #fff; border: 1px solid #2980b9; color: #2980b9;
     padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
@@ -351,20 +390,22 @@ export default {
 .text-reviewed { font-size: 0.85rem; color: #27ae60; font-weight: bold; }
 
 .order-body p { margin: 5px 0; color: #444; font-size: 0.95rem; }
-.order-total { font-size: 1.1rem !important; margin-top: 10px !important; padding-top: 10px; border-top: 1px dashed #ddd; color: #e74c3c !important; }
-.order-footer { margin-top: 15px; font-size: 0.9rem; color: #777; font-style: italic; display: flex; justify-content: space-between; align-items: center; }
+.order-total-row { text-align: right; padding: 15px 0; border-top: 1px dashed #eee; font-size: 1.1rem; color: #555; }
+.order-total-row .total-price { font-size: 1.5rem; color: #ee4d2d; font-weight: bold; margin-left: 10px; }
+.order-footer { font-size: 0.9rem; color: #777; font-style: italic; display: flex; justify-content: space-between; align-items: center; }
 
 .discount-value { color: #28a745; font-weight: bold; }
 .action-right { margin-left: auto; }
-.btn-confirm-received, .btn-cancel, .btn-return {
+.btn-confirm-received, .btn-cancel, .btn-return, .btn-pay-now {
   background: linear-gradient(135deg, #28a745, #218838);
   color: white; border: none; padding: 8px 15px;
   border-radius: 20px; cursor: pointer; font-weight: bold;
   transition: 0.3s;
 }
-.btn-confirm-received:hover, .btn-cancel:hover, .btn-return:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+.btn-confirm-received:hover, .btn-cancel:hover, .btn-return:hover, .btn-pay-now:hover { transform: translateY(-2px); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
 .btn-cancel { background: linear-gradient(135deg, #dc3545, #c82333); }
+.btn-pay-now { background: linear-gradient(135deg, #007bff, #0056b3); margin-right: 10px; }
 .btn-return { background: linear-gradient(135deg, #6c757d, #5a6268); margin-right: 10px; }
 
 .text-warning { color: #d35400; font-weight: bold; font-size: 0.9rem; font-style: italic; }

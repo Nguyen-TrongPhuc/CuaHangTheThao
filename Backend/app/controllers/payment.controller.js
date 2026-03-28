@@ -208,7 +208,7 @@ async function geocodeAddress(address) {
         
         return null;
     } catch (error) {
-        console.error('Geocoding error:', error);
+        console.error('Geocoding failed:', error.message);
         return null;
     }
 }
@@ -230,6 +230,7 @@ async function reverseGeocode(lat, lon) {
         });
         
         if (!response.ok) {
+            console.error('Reverse geocoding API error:', response.status);
             return null;
         }
         
@@ -245,7 +246,7 @@ async function reverseGeocode(lat, lon) {
         
         return null;
     } catch (error) {
-        console.error('Reverse geocoding error:', error);
+        console.error('Reverse geocoding failed:', error.message);
         return null;
     }
 }
@@ -553,10 +554,12 @@ exports.getShippingFee = async (req, res, next) => {
             shipping_type: type,
         });
     } catch (error) {
-        console.error("Get Shipping Fee Error:", error);
+        console.error("Get Shipping Fee Error. Query:", req.query);
+        console.error("Error details:", error.message);
         return next(new ApiError(500, "Error calculating shipping fee"));
     }
 };
+
 
 /**
  * Handle MoMo payment (Real API integration)

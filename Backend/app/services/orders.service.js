@@ -4,6 +4,7 @@ const VoucherService = require("./vouchers.service");
 
 class OrderService {
     constructor(client) {
+        this.client = client;
         this.Orders = client.db().collection("orders");
         this.Products = client.db().collection("products");
         this.Vouchers = new VoucherService(client);
@@ -62,6 +63,21 @@ class OrderService {
             payment_status = payload.payment_status || 'unpaid';
         }
 
+        // Tính toán giảm giá từ ví (Wallet)
+        let wallet_discount = 0;
+        if (payload.use_wallet && payload.customer_id) {
+            const customer = await this.client.db().collection("customers").findOne({ _id: new ObjectId(payload.customer_id) });
+            if (customer && customer.wallet_balance > 0) {
+                const current_total = subtotal + shipping_fee - total_discount_amount;
+                wallet_discount = Math.min(customer.wallet_balance, current_total);
+                
+                if (wallet_discount < 0) wallet_discount = 0;
+                
+                // Trừ tiền trong ví khách hàng ngay lập tức
+                await this.client.db().collection("customers").updateOne({ _id: new ObjectId(payload.customer_id) }, { $inc: { wallet_balance: -wallet_discount } });
+            }
+        }
+
         const order = {
             customer_id: payload.customer_id ? new ObjectId(payload.customer_id) : null,
             name: payload.name,
@@ -75,7 +91,8 @@ class OrderService {
             subtotal: subtotal,
             discount_amount: total_discount_amount,
             vouchers: applied_vouchers,
-            total_amount: subtotal + shipping_fee - total_discount_amount, // Final total sau discount
+            wallet_discount: wallet_discount,
+            total_amount: subtotal + shipping_fee - total_discount_amount - wallet_discount, // Final total sau discount và ví
             status: "pending", // Trạng thái mặc định
             items: payload.items.map(item => ({
                 product_id: new ObjectId(item._id || item.product_id),
@@ -239,39 +256,115 @@ class OrderService {
     }
 
     async findAll() {
-        return await this.Orders.find({}).sort({ createdAt: -1 }).toArray();
+        return await this.Orders.aggregate([
+            {
+                $lookup: {
+                    from: "employees",
+                    localField: "employee_id",
+                    foreignField: "_id",
+                    as: "employee"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$employee",
+                    preserveNullAndEmptyArrays: true // Giữ lại cả những đơn chưa có người xử lý
+                }
+            },
+            {
+                $project: {
+                    "employee.password": 0, // Ẩn mật khẩu nhân viên
+                }
+            },
+            { $sort: { createdAt: -1 } }
+        ]).toArray();
     }
 
     async findByCustomerId(customerId) {
+        let objectId = null;
+        try {
+            const cleanId = customerId ? String(customerId).trim() : "";
+            if (ObjectId.isValid(cleanId)) objectId = new ObjectId(cleanId);
+        } catch (e) {
+            objectId = null;
+        }
         return await this.Orders.find({ 
-            customer_id: new ObjectId(customerId) 
+            customer_id: objectId !== null ? objectId : customerId 
         }).sort({ createdAt: -1 }).toArray();
     }
 
     async findById(id) {
+        let objectId = null;
+        try {
+            const cleanId = id ? String(id).trim() : "";
+            if (ObjectId.isValid(cleanId)) objectId = new ObjectId(cleanId);
+        } catch (e) {
+            objectId = null;
+        }
         return await this.Orders.findOne({ 
-            _id: ObjectId.isValid(id) ? new ObjectId(id) : null 
+            _id: objectId !== null ? objectId : id 
         });
     }
 
     async update(id, payload) {
-        const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
+        let objectId = null;
+        try {
+            const cleanId = id ? String(id).trim() : "";
+            if (ObjectId.isValid(cleanId)) objectId = new ObjectId(cleanId);
+        } catch (e) {
+            objectId = null;
+        }
+        const filter = { _id: objectId !== null ? objectId : id };
         
         // --- ORDER WORKFLOW: BẢO VỆ ĐƠN HÀNG ---
         const existingOrder = await this.Orders.findOne(filter);
+
+        // 1. Ngăn chặn thay đổi trạng thái nếu đơn hàng đã ở trạng thái cuối
+        if (existingOrder && ['completed', 'cancelled', 'returned'].includes(existingOrder.status)) {
+            if (payload.status && payload.status !== existingOrder.status) {
+                throw new Error("LỖI QUY TRÌNH: Đơn hàng đã ở trạng thái cuối, không thể thay đổi trạng thái nữa.");
+            }
+        }
+
+        // 2. Chặn khách hàng hủy đơn khi nhân viên đã duyệt giao hàng (Xử lý Race condition)
+        if (existingOrder && ['shipping', 'delivered'].includes(existingOrder.status) && payload.status === 'cancelled') {
+            throw new Error("LỖI QUY TRÌNH: Đơn hàng đã được xuất kho hoặc đang giao, không thể hủy.");
+        }
+
+        // 3. Bảo vệ trạng thái thanh toán (Không cho phép lùi trạng thái thanh toán)
+        if (payload.payment_status && existingOrder.payment_status !== payload.payment_status) {
+            if (['paid', 'failed', 'refunded'].includes(existingOrder.payment_status)) {
+                // Ngoại lệ duy nhất: Cho phép hệ thống tự chuyển từ 'paid' sang 'refunded' khi đơn bị hủy/trả
+                if (!(existingOrder.payment_status === 'paid' && payload.payment_status === 'refunded')) {
+                    throw new Error("LỖI QUY TRÌNH: Trạng thái thanh toán đã ở mức cuối, không thể thay đổi.");
+                }
+            }
+        }
+
         if (existingOrder && ['shipping', 'delivered', 'completed'].includes(existingOrder.status)) {
             // Cấm sửa các thông tin cốt lõi (như khách hàng, tổng tiền, items...) khi đã xử lý
-            // Chỉ cho phép Staff cập nhật trạng thái (status) hoặc thanh toán (payment_status)
-            const allowedFields = ['status', 'payment_status', 'updatedAt'];
-            const isModifyingDisallowed = Object.keys(payload).some(key => !allowedFields.includes(key));
-            
-            if (isModifyingDisallowed) {
-                throw new Error("LỖI BẢO MẬT: Không thể sửa đổi thông tin chi tiết của đơn hàng đã xuất kho hoặc hoàn thành.");
+            // Chỉ cho phép Staff cập nhật trạng thái, thanh toán, và lưu lại người xử lý
+            const allowedFields = ['status', 'payment_status', 'updatedAt', 'employee_id', 'return_reason'];
+            for (const key of Object.keys(payload)) {
+                if (!allowedFields.includes(key)) {
+                    delete payload[key]; // Lọc bỏ thay vì quăng lỗi để tránh sập khi FE gửi nguyên object order
+                }
             }
 
             // Cấm lùi trạng thái về chờ xử lý do hàng đã ra khỏi kho
             if (payload.status === 'pending') {
                 throw new Error("LỖI QUY TRÌNH: Không thể lùi trạng thái đơn hàng đã xuất kho về Chờ xử lý.");
+            }
+        }
+        
+        // Chuyển đổi employee_id sang ObjectId nếu có
+        if (payload.employee_id && ObjectId.isValid(payload.employee_id)) {
+            payload.employee_id = new ObjectId(payload.employee_id);
+            
+            // BẢO VỆ HOA HỒNG: Chỉ ghi nhận nhân viên đầu tiên duyệt đơn
+            // Nếu đơn hàng đã có người xử lý (employee_id) trước đó, xóa bỏ việc cập nhật lại trường này
+            if (existingOrder && existingOrder.employee_id) {
+                delete payload.employee_id;
             }
         }
 
@@ -280,6 +373,11 @@ class OrderService {
             const order = await this.Orders.findOne(filter);
             // Chỉ hoàn kho nếu đơn hàng tồn tại và trạng thái trước đó KHÔNG phải là cancelled hoặc returned
             if (order && order.status !== 'cancelled' && order.status !== 'returned') {
+                // Hoàn lại tiền vào ví nếu đơn hàng bị hủy hoặc trả lại
+                if (order.wallet_discount > 0 && order.customer_id) {
+                    await this.client.db().collection("customers").updateOne({ _id: new ObjectId(order.customer_id) }, { $inc: { wallet_balance: order.wallet_discount } });
+                }
+                
                 for (const item of order.items) {
                     if (item.variant_size_id || item.variant_color_id) {
                         // Hoàn kho cho biến thể: Cộng lại stock, Trừ đi sold
@@ -341,8 +439,7 @@ class OrderService {
         // Cộng tổng chi khi trạng thái thanh toán chuyển sang Đã thanh toán
         if (oldOrder && oldOrder.customer_id && newPaymentStatus === 'paid' && oldOrder.payment_status !== 'paid') {
             const CustomerService = require('./customer.service');
-            const MongoDB = require('../utils/mongodb.util');
-            const customerService = new CustomerService(MongoDB.client);
+            const customerService = new CustomerService(this.client);
             await customerService.addTotalSpent(String(oldOrder.customer_id), oldOrder.total_amount);
             await customerService.updateRank(String(oldOrder.customer_id));
             console.log(`⭐ Loyalty: Added ${oldOrder.total_amount.toLocaleString()}đ to totalSpent for customer ${oldOrder.customer_id}`);
@@ -351,8 +448,7 @@ class OrderService {
         // Trừ tổng chi khi đơn hàng bị trả lại/hủy (hoàn tiền) và trước đó đã tính điểm (đã thanh toán)
         if (oldOrder && oldOrder.customer_id && newPaymentStatus === 'refunded' && oldOrder.payment_status === 'paid') {
             const CustomerService = require('./customer.service');
-            const MongoDB = require('../utils/mongodb.util');
-            const customerService = new CustomerService(MongoDB.client);
+            const customerService = new CustomerService(this.client);
             await customerService.addTotalSpent(String(oldOrder.customer_id), -oldOrder.total_amount);
             await customerService.updateRank(String(oldOrder.customer_id));
             console.log(`⭐ Loyalty: Subtracted ${oldOrder.total_amount.toLocaleString()}đ from totalSpent for customer ${oldOrder.customer_id} due to refund`);
@@ -363,7 +459,14 @@ class OrderService {
     }
 
     async delete(id) {
-        return await this.Orders.deleteOne({ _id: new ObjectId(id) });
+        let objectId = null;
+        try {
+            const cleanId = id ? String(id).trim() : "";
+            if (ObjectId.isValid(cleanId)) objectId = new ObjectId(cleanId);
+        } catch (e) {
+            objectId = null;
+        }
+        return await this.Orders.deleteOne({ _id: objectId !== null ? objectId : id });
     }
 
     async deleteAll() {

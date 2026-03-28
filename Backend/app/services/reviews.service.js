@@ -2,6 +2,7 @@ const { ObjectId } = require("mongodb");
 
 class ReviewsService {
     constructor(client) {
+        this.client = client;
         this.Reviews = client.db().collection("reviews");
     }
 
@@ -16,7 +17,17 @@ class ReviewsService {
             reply: null,
             createdAt: new Date(),
         };
-        return await this.Reviews.insertOne(review);
+        const result = await this.Reviews.insertOne(review);
+
+        // Thưởng 100đ cho khách hàng sau khi đánh giá thành công
+        if (payload.user_id) {
+            await this.client.db().collection("customers").updateOne(
+                { _id: new ObjectId(payload.user_id) },
+                { $inc: { wallet_balance: 100 } }
+            );
+        }
+        
+        return result;
     }
 
     async findByProduct(productId) {

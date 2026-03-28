@@ -15,11 +15,17 @@
         
         <div class="menu-group">
           <div class="menu-group-title" @click="toggleMenu('business')">
-            <span><i class="fa-solid fa-briefcase"></i> Kinh doanh</span>
+            <span style="display: flex; align-items: center;">
+              <i class="fa-solid fa-briefcase"></i> Kinh doanh
+              <span v-if="pendingOrdersCount > 0 && !isOrderPage" class="unread-dot"></span>
+            </span>
             <i class="fa-solid fa-chevron-down arrow" :class="{ 'open': openMenus.business }"></i>
           </div>
           <div class="menu-group-items" v-show="openMenus.business">
-            <router-link to="/orders" class="nav-item">Đơn hàng</router-link>
+            <router-link to="/orders" class="nav-item">
+              Đơn hàng
+              <span v-if="pendingOrdersCount > 0 && !isOrderPage" class="unread-badge">{{ pendingOrdersCount }}</span>
+            </router-link>
             <router-link to="/customers" class="nav-item">Khách hàng</router-link>
             <router-link to="/vouchers" class="nav-item">Khuyến mãi (Voucher)</router-link>
           </div>
@@ -50,7 +56,9 @@
             <i class="fa-solid fa-chevron-down arrow" :class="{ 'open': openMenus.system }"></i>
           </div>
           <div class="menu-group-items" v-show="openMenus.system">
+            <router-link v-if="!isAdmin" to="/my-payslips" class="nav-item">Lương của tôi</router-link>
             <router-link v-if="isAdmin" to="/employees" class="nav-item">Quản lý Nhân viên</router-link>
+            <router-link v-if="isAdmin" to="/payroll" class="nav-item">Bảng lương</router-link>
             <router-link to="/contacts" class="nav-item">
               Tin nhắn liên hệ
               <span v-if="unreadContactsCount > 0 && !isContactPage" class="unread-badge">{{ unreadContactsCount }}</span>
@@ -78,6 +86,7 @@
 
 <script>
 import ContactService from "@/services/contacts.service";
+import DashboardService from "@/services/dashboard.service";
 import { toastState, showToast } from "@/utils/toast";
 
 export default {
@@ -86,9 +95,12 @@ export default {
       userRole: localStorage.getItem("user_role") || "",
       userName: localStorage.getItem("user_name") || "",
       unreadContactsCount: 0,
+      pendingOrdersCount: 0,
       contactPollInterval: null,
+      orderPollInterval: null,
       toastState, // Đưa state vào data để template sử dụng
       isFirstContactLoad: true, // Biến kiểm tra lần tải đầu tiên
+      isFirstOrderLoad: true,
       openMenus: {
         business: true,     // Mở mặc định khi vào
         warehouse: false,
@@ -98,13 +110,16 @@ export default {
   },
   computed: {
     isLoginPage() {
-      return this.$route.path === '/login' || this.$route.name === 'login';
+      return this.$route?.path === '/login' || this.$route?.name === 'login';
     },
     isAdmin() {
       return this.userRole === 'admin';
     },
+    isOrderPage() {
+      return this.$route?.path?.startsWith('/orders') || false;
+    },
     isContactPage() {
-      return this.$route.path.startsWith('/contacts');
+      return this.$route?.path?.startsWith('/contacts') || false;
     }
   },
   watch: {
@@ -115,6 +130,7 @@ export default {
       
       if (this.userRole) {
         this.fetchUnreadContacts();
+        this.fetchPendingOrders();
       }
     }
   },
@@ -148,6 +164,31 @@ export default {
         console.error("Lỗi đếm tin nhắn chưa đọc:", error);
       }
     },
+    async fetchPendingOrders() {
+      if (!this.userRole) return; 
+      try {
+        const data = await DashboardService.getSummary();
+        const distribution = data.orderStatusDistribution || [];
+        const pending = distribution.find(s => s.status === 'pending');
+        const pendingCount = pending ? pending.count : 0;
+        
+        if (pendingCount > this.pendingOrdersCount) {
+            if (!this.openMenus.business) {
+                this.openMenus.business = true;
+            }
+            if (!this.isFirstOrderLoad) {
+                if (!this.isOrderPage) {
+                    showToast("Bạn có đơn hàng mới đang chờ xử lý!", "success");
+                }
+                try { new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg').play(); } catch (e) {}
+            }
+        }
+        this.pendingOrdersCount = pendingCount;
+        this.isFirstOrderLoad = false;
+      } catch (error) {
+        console.error("Lỗi đếm đơn hàng:", error);
+      }
+    },
     toggleMenu(menu) {
       this.openMenus[menu] = !this.openMenus[menu];
     },
@@ -160,11 +201,14 @@ export default {
   },
   mounted() {
     this.fetchUnreadContacts();
+    this.fetchPendingOrders();
     // Thiết lập quét tin nhắn mới mỗi 15 giây
     this.contactPollInterval = setInterval(this.fetchUnreadContacts, 15000); 
+    this.orderPollInterval = setInterval(this.fetchPendingOrders, 15000); 
   },
   unmounted() {
     if (this.contactPollInterval) clearInterval(this.contactPollInterval);
+    if (this.orderPollInterval) clearInterval(this.orderPollInterval);
   }
 }
 </script>
@@ -335,6 +379,7 @@ body { margin: 0; font-family: Arial, sans-serif; }
   position: fixed;
   bottom: 20px;
   right: 20px;
+  background: #333; /* Màu nền mặc định phòng hờ */
   padding: 15px 25px;
   border-radius: 8px;
   color: white;
@@ -352,5 +397,12 @@ body { margin: 0; font-family: Arial, sans-serif; }
 }
 .toast-notification.error {
   background: linear-gradient(135deg, #FF512F, #DD2476);
+}
+.toast-notification.warning {
+  background: linear-gradient(135deg, #f1c40f, #f39c12);
+  color: #fff;
+}
+.toast-notification.info {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
 }
 </style>

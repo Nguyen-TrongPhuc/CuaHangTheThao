@@ -25,6 +25,7 @@
           <th>Trạng thái TT</th>
           <th>Ngày tạo</th>
           <th>Trạng thái đơn</th>
+          <th>Người duyệt</th>
           <th>Thao tác</th>
         </tr>
       </thead>
@@ -47,7 +48,7 @@
             </span>
           </td>
           <td>
-            <select :value="order.payment_status" @change="updatePaymentStatus(order._id, $event)" class="status-select" :class="order.payment_status">
+            <select :value="order.payment_status" @change="updatePaymentStatus(order._id, $event)" class="status-select" :class="order.payment_status" :disabled="['paid', 'failed', 'refunded'].includes(order.payment_status) || ['cancelled', 'returned'].includes(order.status)" :title="(['paid', 'failed', 'refunded'].includes(order.payment_status) || ['cancelled', 'returned'].includes(order.status)) ? 'Trạng thái thanh toán ở mức cuối không thể thay đổi' : ''">
                 <option value="unpaid">Chưa thanh toán</option>
                 <option value="paid">Đã thanh toán</option>
                 <option value="pending">Chờ thanh toán</option>
@@ -57,7 +58,7 @@
           </td>
           <td>{{ new Date(order.createdAt).toLocaleString() }}</td>
           <td>
-            <select :value="order.status" @change="updateStatus(order._id, $event)" class="status-select">
+            <select :value="order.status" @change="updateStatus(order._id, $event)" class="status-select" :disabled="['completed', 'cancelled', 'returned'].includes(order.status)" :title="['completed', 'cancelled', 'returned'].includes(order.status) ? 'Đơn hàng ở trạng thái cuối không thể thay đổi' : ''">
                 <option value="pending">Chờ xử lý</option>
                 <option value="shipping">Đang giao</option>
                 <option value="delivered">Đã giao</option>
@@ -70,6 +71,10 @@
             <div v-if="order.status === 'return_requested' && order.return_reason" class="return-reason">
                Lý do: {{ order.return_reason }}
             </div>
+          </td>
+          <td>
+            <span class="employee-name" v-if="order.employee?.full_name">{{ order.employee.full_name }}</span>
+            <span style="color: #999; font-size: 0.85em;" v-else>Hệ thống</span>
           </td>
           <td>
             <button class="btn-view" @click="viewOrderDetails(order)" title="Xem chi tiết">
@@ -155,26 +160,48 @@ export default {
     }
   },
   methods: {
+    getEmployeeId() {
+        try {
+            const token = localStorage.getItem("admin_token");
+            if (token) {
+                const decoded = JSON.parse(atob(token.split('.')[1]));
+                return decoded.userId || decoded.id || decoded._id;
+            }
+        } catch (e) {
+            console.error("Lỗi lấy ID nhân viên:", e);
+        }
+        return null;
+    },
     async loadData() {
       this.orders = await OrderService.getAll();
     },
     async updateStatus(id, event) {
-        try {
             const newStatus = event.target.value;
-            // Lấy payment_status hiện tại để update cả 2
             const order = this.orders.find(o => o._id === id);
+            if (!order) return;
+            
+            const originalStatus = order.status;
+            
+            // Chặn việc chọn lùi trạng thái ngay tại Frontend để không gọi API
+            if (['shipping', 'delivered', 'completed'].includes(originalStatus) && newStatus === 'pending') {
+                showToast("Không thể lùi trạng thái đơn hàng đã xuất kho về Chờ xử lý.", "warning");
+                event.target.value = originalStatus; // Tự động búng thanh Select về trạng thái cũ
+                return;
+            }
+
+            try {
             const updatedOrder = await OrderService.update(id, { 
                 status: newStatus, 
-                payment_status: order.payment_status || 'paid' 
+                payment_status: order.payment_status || 'paid',
+                employee_id: this.getEmployeeId()
             });
-            showToast("Cập nhật trạng thái + VIP tự động!", "success");
-            const currentOrder = this.orders.find(o => o._id === id);
-            if (currentOrder) {
-                currentOrder.status = newStatus;
-                currentOrder.payment_status = updatedOrder.payment_status || 'paid';
-            }
+            showToast("Cập nhật trạng thái thành công!", "success");
+            // Tải lại dữ liệu để lấy tên người duyệt mới nhất
+            await this.loadData();
         } catch (error) {
-            showToast("Lỗi cập nhật trạng thái", "error");
+            const msg = error.response?.data?.message || "Lỗi cập nhật trạng thái";
+            showToast(msg, "error");
+            event.target.value = originalStatus; // Phục hồi giao diện hiển thị cũ nếu có lỗi mạng
         }
     },
     async remove(id) {
@@ -217,22 +244,22 @@ export default {
         this.selectedOrder = null;
     },
     async updatePaymentStatus(id, event) {
-        try {
             const newStatus = event.target.value;
-            // Lấy status hiện tại để update cả 2
             const order = this.orders.find(o => o._id === id);
+            if (!order) return;
+            const originalPaymentStatus = order.payment_status;
+            try {
             const updatedOrder = await OrderService.update(id, { 
                 payment_status: newStatus,
-                status: order.status || 'delivered' 
+                status: order.status || 'delivered',
+                employee_id: this.getEmployeeId()
             });
-            showToast("Cập nhật thanh toán + VIP tự động!", "success");
-            const currentOrder = this.orders.find(o => o._id === id);
-            if (currentOrder) {
-                currentOrder.payment_status = newStatus;
-                currentOrder.status = updatedOrder.status || 'delivered';
-            }
+            showToast("Cập nhật trạng thái thanh toán thành công!", "success");
+            // Tải lại dữ liệu để lấy tên người duyệt mới nhất
+            await this.loadData();
         } catch (error) {
             showToast("Lỗi cập nhật trạng thái thanh toán", "error");
+            event.target.value = originalPaymentStatus; // Phục hồi giao diện hiển thị cũ nếu có lỗi mạng
         }
     }
   },
@@ -276,6 +303,8 @@ export default {
 .status-select.pending { background: #e3f2fd; color: #1976d2; }
 .status-select.failed { background: #ffebee; color: #d32f2f; }
 .status-select.refunded { background: #fbe9e7; color: #d84315; }
+
+.employee-name { background: #e8f4f8; color: #2980b9; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; white-space: nowrap; }
 
 .return-reason { font-size: 0.85em; color: #d35400; margin-top: 5px; font-style: italic; }
 

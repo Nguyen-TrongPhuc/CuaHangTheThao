@@ -5,7 +5,8 @@ const auth = require("../middleware/auth.middleware");
 const router = express.Router();
 
 router.route("/")
-    .get(warehouse.findAll);
+    .get(warehouse.findFiltered);
+
 
 router.route("/import")
     .post([auth.verifyToken, auth.isAdmin], warehouse.create);

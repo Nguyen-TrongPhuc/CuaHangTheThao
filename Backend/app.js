@@ -17,9 +17,19 @@ const dashboardRouter = require("./app/routes/dashboard.route");
 const warehouseRouter = require("./app/routes/warehouse.route");
 const paymentRouter = require("./app/routes/payment.route");
 const vouchersRouter = require("./app/routes/vouchers.route");
+const salariesRouter = require("./app/routes/salaries.route");
 
+const fs = require("fs");
+const path = require("path");
 const ApiError = require("./app/api-error");
 const app = express();
+
+// Tự động tạo thư mục lưu trữ ảnh nếu chưa tồn tại
+const uploadDir = path.join(__dirname, "public/uploads");
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log("✅ Đã tự động tạo thư mục: " + uploadDir);
+}
 
 app.use(cors({
     origin: ["http://localhost:3004", "http://localhost:3005"], // Frontend Admin và Frontend User
@@ -52,6 +62,7 @@ app.use("/api/dashboard", dashboardRouter);
 app.use("/api/warehouse", warehouseRouter);
 app.use("/api/payment", paymentRouter);
 app.use("/api/vouchers", vouchersRouter);
+app.use("/api/salaries", salariesRouter);
 
 app.use((req, res, next) => {
   return next(new ApiError(404, "Resource not found"));

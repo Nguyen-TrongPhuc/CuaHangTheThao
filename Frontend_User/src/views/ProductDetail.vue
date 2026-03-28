@@ -19,12 +19,12 @@
       <div v-else-if="product" class="product-main-wrapper">
         <div class="product-overview-card">
         <div class="product-image-gallery">
-            <div class="main-image-container">
-              <img :src="displayedImage" :alt="product.name" class="main-image" />
-              <button v-if="imageList.length > 1" class="img-nav prev" @click="prevImage">
+            <div class="main-image-container" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave" @click="openFullscreen(displayedImage)">
+              <img :src="displayedImage" :alt="product.name" class="main-image" :style="zoomStyle" title="Bấm để xem ảnh lớn" />
+              <button v-if="imageList.length > 1" class="img-nav prev" @click.stop="prevImage">
                 <ChevronLeft :size="24" />
               </button>
-              <button v-if="imageList.length > 1" class="img-nav next" @click="nextImage">
+              <button v-if="imageList.length > 1" class="img-nav next" @click.stop="nextImage">
                 <ChevronRight :size="24" />
               </button>
             </div>
@@ -64,7 +64,10 @@
 
           <div class="variant-selection" v-if="hasVariants">
             <div class="variant-group" v-if="availableSizes.length > 0">
-              <span class="variant-label">Kích thước</span>
+              <div style="width: 100px; flex-shrink: 0; display: flex; flex-direction: column;">
+                <span class="variant-label" style="width: 100%;">Kích thước</span>
+                <span class="size-guide-link" @click="showSizeGuide = true">Hướng dẫn</span>
+              </div>
               <div class="variant-options">
                 <button 
                   v-for="size in availableSizes" 
@@ -193,7 +196,7 @@
                         <span class="review-date">{{ new Date(review.createdAt).toLocaleDateString('vi-VN') }}</span>
                     </div>
                     <p class="review-content">{{ review.comment }}</p>
-                    <img v-if="review.image" :src="review.image" class="review-image-attachment" @click="openImage(review.image)" />
+                    <img v-if="review.image" :src="review.image" class="review-image-attachment" @click="openFullscreen(review.image)" />
                     <div v-if="review.reply" class="store-reply"><strong>Phản hồi từ cửa hàng:</strong> {{ review.reply.text }}</div>
                 </div>
                 
@@ -220,6 +223,86 @@
       </div>
     </div>
 
+    <!-- Modal Xem ảnh Fullscreen phong cách Adidas -->
+    <transition name="fade">
+      <div v-if="showFullscreen" class="fullscreen-modal" @click.self="closeFullscreen">
+        <button class="btn-close-fs" @click="closeFullscreen"><X :size="32" /></button>
+        
+        <!-- Nút điều hướng trái -->
+        <button v-if="imageList.length > 1" class="fs-nav prev" @click.stop="prevFullscreenImage">
+          <ChevronLeft :size="36" />
+        </button>
+
+        <div class="fullscreen-img-container" :class="{ 'is-zoomed': isFullscreenZoomed }" @click.stop="toggleFullscreenZoom" @mousemove="handleFullscreenMouseMove" @mouseleave="handleFullscreenMouseLeave">
+          <img :src="fullscreenImage" class="fullscreen-img" :style="fullscreenZoomStyle" />
+        </div>
+
+        <!-- Nút điều hướng phải -->
+        <button v-if="imageList.length > 1" class="fs-nav next" @click.stop="nextFullscreenImage">
+          <ChevronRight :size="36" />
+        </button>
+
+        <!-- Thumbnails (Ảnh thu nhỏ ở dưới cùng) -->
+        <div v-if="imageList.length > 1" class="fs-thumbnails" @click.stop>
+          <img
+            v-for="(img, idx) in imageList"
+            :key="idx"
+            :src="img"
+            :class="['fs-thumb', { active: img === fullscreenImage }]"
+            @click.stop="selectFullscreenImage(img)"
+          />
+        </div>
+      </div>
+    </transition>
+
+    <!-- Modal Hướng dẫn chọn size -->
+    <transition name="fade">
+      <div v-if="showSizeGuide" class="modal-overlay" @click.self="showSizeGuide = false">
+        <div class="modal-content size-guide-modal">
+          <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+            <h3 style="margin:0; color:#2c3e50;">Hướng dẫn chọn kích thước</h3>
+            <button class="btn-close-modal" @click="showSizeGuide = false"><X :size="24" /></button>
+          </div>
+          <div class="modal-body" style="overflow-y: auto; max-height: 70vh; padding-right: 5px;">
+            <p style="color: #666; margin-bottom: 15px; font-size: 0.95rem; line-height: 1.5;">Bảng kích thước dưới đây mang tính chất tham khảo. Tùy thuộc vào form dáng sản phẩm và sở thích mặc ôm hay rộng mà bạn có thể cân nhắc tăng giảm size.</p>
+            
+            <!-- Bảng size Quần Áo -->
+            <div v-if="productTypeForSizeGuide === 'clothes' || productTypeForSizeGuide === 'all'">
+              <h4 style="color: #ee4d2d; margin-bottom: 10px;">Bảng size Quần Áo</h4>
+              <table class="size-guide-table">
+                <thead>
+                  <tr><th>Size</th><th>Cân nặng (kg)</th><th>Chiều cao (cm)</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>S</td><td>45 - 55</td><td>150 - 160</td></tr>
+                  <tr><td>M</td><td>55 - 65</td><td>160 - 168</td></tr>
+                  <tr><td>L</td><td>65 - 75</td><td>168 - 175</td></tr>
+                  <tr><td>XL</td><td>75 - 85</td><td>175 - 180</td></tr>
+                  <tr><td>XXL</td><td>85 - 95</td><td>180 - 185</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Bảng size Giày -->
+            <div v-if="productTypeForSizeGuide === 'shoes' || productTypeForSizeGuide === 'all'" style="margin-top: 25px;">
+              <h4 style="color: #ee4d2d; margin-bottom: 10px;">Bảng size Giày</h4>
+              <table class="size-guide-table">
+              <thead>
+                <tr><th>Size VN/EU</th><th>Chiều dài chân (cm)</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>36</td><td>22.5 - 23.0</td></tr><tr><td>37</td><td>23.1 - 23.5</td></tr>
+                <tr><td>38</td><td>23.6 - 24.0</td></tr><tr><td>39</td><td>24.1 - 24.5</td></tr>
+                <tr><td>40</td><td>24.6 - 25.0</td></tr><tr><td>41</td><td>25.1 - 25.5</td></tr>
+                <tr><td>42</td><td>25.6 - 26.0</td></tr><tr><td>43</td><td>26.1 - 26.5</td></tr>
+              </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <AppFooter />
   </div>
 </template>
@@ -235,10 +318,10 @@ import { cartStore } from "@/utils/cart";
 import { showToast } from "@/utils/toast";
 import ReviewsService from "@/services/reviews.service";
 import CustomerService from "@/services/customer.service";
-import { ChevronRight, Loader2, ChevronLeft, Star, ShoppingCart, MessageCircle, ChevronDown, ChevronUp, PackageOpen } from "lucide-vue-next";
+import { ChevronRight, Loader2, ChevronLeft, Star, ShoppingCart, MessageCircle, ChevronDown, ChevronUp, PackageOpen, X } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter, ChevronRight, Loader2, ChevronLeft, Star, ShoppingCart, MessageCircle, ChevronDown, ChevronUp, PackageOpen },
+  components: { AppHeader, AppFooter, ChevronRight, Loader2, ChevronLeft, Star, ShoppingCart, MessageCircle, ChevronDown, ChevronUp, PackageOpen, X },
   data() {
     return {
       product: null,
@@ -255,7 +338,13 @@ export default {
       loyalty: null,
       visibleReviewsCount: 3,
       displayedImage: '',
-      recommendedProducts: []
+      recommendedProducts: [],
+      zoomStyle: { transformOrigin: 'center center', transform: 'scale(1)' },
+      showFullscreen: false,
+      fullscreenImage: '',
+      fullscreenZoomStyle: { transformOrigin: 'center center', transform: 'scale(1)' },
+      isFullscreenZoomed: false,
+      showSizeGuide: false,
     };
   },
   computed: {
@@ -327,9 +416,103 @@ export default {
             return this.product.variants.reduce((sum, v) => sum + v.stock, 0);
         }
         return this.product ? this.product.stock : 0;
+    },
+    productTypeForSizeGuide() {
+        if (!this.product || !this.categories.length) return 'all';
+        const cat = this.categories.find(c => String(c._id) === String(this.product.category_id));
+        if (!cat) return 'all';
+        const name = cat.name.toLowerCase();
+        if (name.includes('giày')) return 'shoes';
+        if (name.includes('áo') || name.includes('quần')) return 'clothes';
+        return 'all';
     }
   },
   methods: {
+    handleMouseMove(e) {
+        const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - left) / width) * 100;
+        const y = ((e.clientY - top) / height) * 100;
+        this.zoomStyle = {
+            transformOrigin: `${x}% ${y}%`,
+            transform: 'scale(2)' // Phóng to 2 lần tại vị trí chuột
+        };
+    },
+    handleMouseLeave() {
+        this.zoomStyle = { transformOrigin: 'center center', transform: 'scale(1)' };
+    },
+    openFullscreen(url) {
+        this.fullscreenImage = url;
+        this.showFullscreen = true;
+        this.resetFullscreenZoom();
+    },
+    closeFullscreen() {
+        this.showFullscreen = false;
+        this.resetFullscreenZoom();
+    },
+    resetFullscreenZoom() {
+        this.isFullscreenZoomed = false;
+        this.fullscreenZoomStyle = { transformOrigin: 'center center', transform: 'scale(1)' };
+    },
+    handleFullscreenMouseMove(e) {
+        if (!this.isFullscreenZoomed) return;
+        const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
+        const x = ((e.clientX - left) / width) * 100;
+        const y = ((e.clientY - top) / height) * 100;
+        this.fullscreenZoomStyle = {
+            transformOrigin: `${x}% ${y}%`,
+            transform: 'scale(2.5)' // Phóng to 2.5 lần trong chế độ Fullscreen
+        };
+    },
+    handleFullscreenMouseLeave() {
+        // Không cần làm gì để giữ nguyên vị trí cuối cùng
+    },
+    toggleFullscreenZoom(e) {
+        this.isFullscreenZoomed = !this.isFullscreenZoomed;
+        if (this.isFullscreenZoomed) this.handleFullscreenMouseMove(e);
+        else this.fullscreenZoomStyle = { transformOrigin: 'center center', transform: 'scale(1)' };
+    },
+    selectFullscreenImage(img) {
+        this.fullscreenImage = img;
+        this.resetFullscreenZoom();
+    },
+    prevFullscreenImage() {
+        if (!this.imageList || this.imageList.length <= 1) return;
+        const currentIndex = this.imageList.indexOf(this.fullscreenImage);
+        if (currentIndex > 0) {
+            this.fullscreenImage = this.imageList[currentIndex - 1];
+        } else {
+            this.fullscreenImage = this.imageList[this.imageList.length - 1];
+        }
+        this.resetFullscreenZoom();
+    },
+    nextFullscreenImage() {
+        if (!this.imageList || this.imageList.length <= 1) return;
+        const currentIndex = this.imageList.indexOf(this.fullscreenImage);
+        if (currentIndex < this.imageList.length - 1) {
+            this.fullscreenImage = this.imageList[currentIndex + 1];
+        } else {
+            this.fullscreenImage = this.imageList[0];
+        }
+        this.resetFullscreenZoom();
+    },
+    prevImage() {
+        if (!this.imageList || this.imageList.length <= 1) return;
+        const currentIndex = this.currentImageIndex;
+        if (currentIndex > 0) {
+            this.displayedImage = this.imageList[currentIndex - 1];
+        } else {
+            this.displayedImage = this.imageList[this.imageList.length - 1]; // Vòng lại ảnh cuối cùng
+        }
+    },
+    nextImage() {
+        if (!this.imageList || this.imageList.length <= 1) return;
+        const currentIndex = this.currentImageIndex;
+        if (currentIndex < this.imageList.length - 1) {
+            this.displayedImage = this.imageList[currentIndex + 1];
+        } else {
+            this.displayedImage = this.imageList[0]; // Vòng lại ảnh đầu tiên
+        }
+    },
     async fetchProduct() {
       this.isLoading = true;
       try {
@@ -422,31 +605,26 @@ export default {
     },
     // Kiểm tra xem Size có nên bị disable không
     isSizeDisabled(sizeId) {
-      // Nếu chưa chọn màu nào -> Chỉ disable những size không có hàng hoặc không tồn tại trong bất kỳ biến thể nào
-      if (!this.selectedColorId && this.availableColors.length > 0) {
-        return !this.product.variants.some(v => 
-          String(v.size_id) === String(sizeId) && v.stock > 0
-        );
+      if (!this.selectedColorId) {
+        // Nếu chưa chọn màu, Size được bật nếu CÓ ÍT NHẤT 1 biến thể mang size này còn hàng
+        return !this.product.variants.some(v => String(v.size_id) === String(sizeId) && v.stock > 0);
       }
 
-      // Nếu đã chọn màu -> Kiểm tra xem cặp (Size này + Màu đang chọn) có tồn tại và còn hàng không
+      // Nếu đã chọn màu, phải xét đúng cặp (Size + Màu)
       return !this.product.variants.some(v => 
         String(v.size_id) === String(sizeId) && 
-        (this.selectedColorId ? String(v.color_id) === String(this.selectedColorId) : !v.color_id) && 
+        String(v.color_id) === String(this.selectedColorId) && 
         v.stock > 0
       );
     },
     // Kiểm tra xem Màu có nên bị disable không
     isColorDisabled(colorId) {
-      // Tương tự logic của Size
-      if (!this.selectedSizeId && this.availableSizes.length > 0) {
-        return !this.product.variants.some(v => 
-          String(v.color_id) === String(colorId) && v.stock > 0
-        );
+      if (!this.selectedSizeId) {
+        return !this.product.variants.some(v => String(v.color_id) === String(colorId) && v.stock > 0);
       }
 
       return !this.product.variants.some(v => 
-        (this.selectedSizeId ? String(v.size_id) === String(this.selectedSizeId) : !v.size_id) && 
+        String(v.size_id) === String(this.selectedSizeId) && 
         String(v.color_id) === String(colorId) && 
         v.stock > 0
       );
@@ -476,8 +654,8 @@ export default {
         if (this.maxQuantity > 0 && this.quantity === 0) this.quantity = 1;
       }
     },
-    // Hàm xử lý logic thêm vào giỏ hàng (dùng chung cho cả 2 nút)
-    processAddToCart(isBuyNow = false) {
+    // Hàm xử lý logic thêm vào giỏ hàng
+    processAddToCart() {
       // Tính toán giá sau giảm
       const originalPrice = this.hasVariants ? this.selectedVariant.price : this.product.price;
       const finalPrice = this.discountPercent > 0 
@@ -504,11 +682,6 @@ export default {
           }
       }
 
-      // Nếu là Mua ngay, bỏ chọn tất cả sản phẩm khác trong giỏ để chỉ thanh toán sản phẩm này
-      if (isBuyNow) {
-        cartStore.state.items.forEach(item => item.selected = false);
-      }
-
       // Sử dụng hàm addToCart từ store
       cartStore.addToCart(
         this.product, 
@@ -522,8 +695,8 @@ export default {
           stock: this.selectedVariant.stock // Thêm stock để validate bên Cart
         } : null,
         this.quantity,
-        isBuyNow, // isSelected
-        isBuyNow // replaceQuantity: Nếu là Mua ngay thì thay thế số lượng cũ
+        true, // isSelected
+        false // replaceQuantity
       );
 
       // Xử lý cho sản phẩm đơn giản (không có biến thể)
@@ -541,38 +714,54 @@ export default {
       return true;
     },
     addToCart() {
-      if (this.processAddToCart(false)) {
+      if (this.processAddToCart()) {
         showToast(`Đã thêm ${this.quantity} sản phẩm vào giỏ hàng!`, "success");
       }
     },
     buyNow() {
       // Validate trước khi checkout
-      if (this.maxQuantity === 0 || this.quantity <= 0 || (this.hasVariants && !this.selectedVariant)) {
-        showToast("Vui lòng chọn sản phẩm và số lượng hợp lệ", "warning");
-        return;
+      if (this.hasVariants) {
+          if (!this.selectedVariant || this.selectedVariant.stock === 0 || this.quantity <= 0) {
+            showToast("Vui lòng chọn biến thể và số lượng hợp lệ.", "warning");
+            return;
+          }
+          if (this.quantity > this.selectedVariant.stock) {
+            showToast(`Số lượng mua (${this.quantity}) vượt quá tồn kho (${this.selectedVariant.stock}).`, "warning");
+            return;
+          }
+      } else {
+          if (this.product.stock === 0 || this.quantity <= 0) {
+              showToast("Sản phẩm đã hết hàng.", "warning");
+              return;
+          }
+          if (this.quantity > this.product.stock) {
+              showToast(`Số lượng mua (${this.quantity}) vượt quá tồn kho (${this.product.stock}).`, "warning");
+              return;
+          }
       }
-      
+
+      const originalPrice = this.hasVariants ? this.selectedVariant.price : this.product.price;
+      const finalPrice = this.discountPercent > 0 
+          ? Math.round(originalPrice * (1 - this.discountPercent / 100)) 
+          : originalPrice;
+          
       // Tạo temp cart cho checkout trực tiếp (KHÔNG lưu vào cart localStorage)
       const checkoutItem = {
         _id: this.product._id,
         name: this.product.name,
-        image: this.imageList[0] || this.product.image,
-        price: this.hasVariants ? this.selectedVariant.price : this.product.price,
+        price: finalPrice,
+        originalPrice: originalPrice,
+        vipDiscountPercent: this.discountPercent,
+        vipPrice: finalPrice,
+        stock: this.hasVariants ? this.selectedVariant.stock : this.product.stock,
+        image: this.displayedImage || (this.product.images && this.product.images.length ? this.product.images[0].url : this.product.image),
+        variant: this.hasVariants ? { size_id: this.selectedVariant.size_id, color_id: this.selectedVariant.color_id, stock: this.selectedVariant.stock } : null,
         quantity: this.quantity,
-        variant: this.hasVariants ? {
-          size_id: this.selectedVariant.size_id,
-          color_id: this.selectedVariant.color_id
-        } : null
+        selected: true
       };
       
-      // Lưu temp checkout vào sessionStorage (xóa khi đóng tab)
       sessionStorage.setItem('checkout_direct', JSON.stringify([checkoutItem]));
-      
-      // Chuyển đến checkout với flag direct checkout
-      this.$router.push({
-        path: "/checkout",
-        query: { direct: '1' }
-      });
+      this.$router.push({ path: "/checkout", query: { direct: '1' } });
     },
     chatNow() {
       this.$router.push({
@@ -594,9 +783,6 @@ export default {
             return Math.round(price * (1 - this.loyalty.discountPercent / 100));
         }
         return price;
-    },
-    openImage(url) {
-        window.open(url, '_blank');
     },
     showMoreReviews() {
         this.visibleReviewsCount += 5;
@@ -661,9 +847,9 @@ export default {
 .product-overview-card { display: flex; flex-wrap: wrap; gap: 30px; background: white; padding: 20px; border-radius: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
 
 .product-image-gallery { flex: 1; min-width: 300px; max-width: 50%; }
-.main-image { width: 100%; height: auto; border-radius: 8px; object-fit: contain; max-height: 500px; }
+.main-image { width: 100%; height: auto; border-radius: 8px; object-fit: contain; max-height: 500px; transition: transform 0.15s ease-out; will-change: transform; pointer-events: none; }
 
-.main-image-container { position: relative; }
+.main-image-container { position: relative; overflow: hidden; border-radius: 8px; cursor: zoom-in; }
 .img-nav {
   position: absolute;
   top: 50%;
@@ -866,6 +1052,58 @@ button:disabled {
 .product-card-rec:hover .product-name-rec { color: #ee4d2d; }
 .price-rec { color: #ee4d2d; font-weight: 800; margin: 0; font-size: 1.25rem; text-align: right; margin-top: auto; }
 
+/* Fullscreen Modal Styles */
+.fullscreen-modal {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255, 255, 255, 0.98);
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+}
+.btn-close-fs {
+  position: absolute; top: 30px; right: 40px;
+  background: rgba(0,0,0,0.05); border: none; color: #333; cursor: pointer;
+  width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  z-index: 10000; transition: all 0.3s;
+}
+.btn-close-fs:hover { background: #ee4d2d; color: white; transform: rotate(90deg); }
+
+.fullscreen-img-container {
+  width: 100vw; height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; cursor: zoom-in;
+}
+.fullscreen-img-container.is-zoomed { cursor: zoom-out; }
+.fullscreen-img {
+  max-width: 90vw; max-height: 90vh; object-fit: contain; pointer-events: none;
+  transition: transform 0.15s ease-out; will-change: transform;
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+/* Fullscreen Navigation & Thumbnails */
+.fs-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(0,0,0,0.05); border: none; color: #555;
+  padding: 10px; border-radius: 50%; cursor: pointer;
+  z-index: 10000; transition: all 0.3s; display: flex; align-items: center; justify-content: center;
+}
+.fs-nav:hover { background: #ee4d2d; color: white; }
+.fs-nav.prev { left: 30px; }
+.fs-nav.next { right: 30px; }
+
+.fs-thumbnails {
+  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 12px; z-index: 10000; background: rgba(255,255,255,0.9);
+  padding: 10px 20px; border-radius: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  max-width: 90vw; overflow-x: auto;
+}
+.fs-thumbnails::-webkit-scrollbar { display: none; }
+.fs-thumb {
+  width: 60px; height: 60px; object-fit: cover; border-radius: 8px; cursor: pointer;
+  border: 2px solid transparent; transition: all 0.2s; opacity: 0.6;
+}
+.fs-thumb:hover { opacity: 1; }
+.fs-thumb.active { border-color: #ee4d2d; opacity: 1; transform: scale(1.1); box-shadow: 0 4px 10px rgba(238,77,45,0.3); }
 
 @media (max-width: 768px) {
   .product-content { flex-direction: column; }
@@ -883,4 +1121,20 @@ button:disabled {
 @keyframes spin {
   100% { transform: rotate(360deg); }
 }
+
+/* Size Guide Modal Styles */
+.size-guide-link { font-size: 0.85rem; color: #3498db; cursor: pointer; margin-top: 5px; text-decoration: underline; display: inline-block; transition: 0.2s; }
+.size-guide-link:hover { color: #2980b9; }
+
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000; backdrop-filter: blur(2px); }
+.modal-content.size-guide-modal { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: fadeInDown 0.3s ease; }
+.btn-close-modal { background: none; border: none; color: #999; cursor: pointer; transition: 0.2s; padding: 0; display: flex; align-items: center; justify-content: center; }
+.btn-close-modal:hover { color: #e74c3c; transform: rotate(90deg); }
+
+.size-guide-table { width: 100%; border-collapse: collapse; text-align: center; font-size: 0.95rem; margin-bottom: 10px; }
+.size-guide-table th, .size-guide-table td { border: 1px solid #eee; padding: 10px; color: #333; }
+.size-guide-table th { background: #f8f9fa; color: #2c3e50; font-weight: 600; }
+.size-guide-table tr:nth-child(even) { background: #fafafa; }
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 </style>

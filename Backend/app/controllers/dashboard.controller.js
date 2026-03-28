@@ -98,3 +98,18 @@ exports.getTopProductsByMonth = async (req, res, next) => {
         return next(new ApiError(500, "Error retrieving top products by month"));
     }
 };
+
+exports.getDailyRevenueRange = async (req, res, next) => {
+    try {
+        const dashboardService = new DashboardService(MongoDB.client);
+        const { startDate, endDate } = req.query;
+        if (!startDate || !endDate) {
+            return next(new ApiError(400, "startDate and endDate are required"));
+        }
+        const data = await dashboardService.getDailyRevenueByRange(startDate, endDate);
+        res.send(data);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving daily revenue range"));
+    }
+};

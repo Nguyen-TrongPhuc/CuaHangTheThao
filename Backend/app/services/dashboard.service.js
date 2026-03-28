@@ -7,19 +7,18 @@ class DashboardService {
         this.Products = client.db().collection("products");
         this.Customers = client.db().collection("customers");
         this.Warehouse = client.db().collection("warehouse");
+        this.Salaries = client.db().collection("salaries");
     }
 
     async getSummary(role = 'staff') {
         // 1. Dữ liệu cơ bản (Staff & Admin đều xem được)
         const [
             newOrdersToday,
-            newUsersMonth,
             cancelledOrdersMonth,
             orderStatusDistribution,
             topSellingProducts
         ] = await Promise.all([
             this.getNewOrdersToday(),
-            this.getNewUsersMonth(),
             this.getCancelledOrdersMonth(),
             this.getOrderStatusDistribution(),
             this.getTopSellingProducts(5)
@@ -28,18 +27,20 @@ class DashboardService {
         // 2. Dữ liệu nhạy cảm (Doanh thu - Chỉ Admin mới được database tính toán)
         let totalRevenueMonth = 0;
         let dailyRevenue = [];
+        let totalCostMonth = 0;
 
         if (role === 'admin') {
-            [totalRevenueMonth, dailyRevenue] = await Promise.all([
+            [totalRevenueMonth, dailyRevenue, totalCostMonth] = await Promise.all([
                 this.getTotalRevenueMonth(),
-                this.getDailyRevenueLast7Days()
+                this.getDailyRevenueCurrentMonth(),
+                this.getTotalCostMonth()
             ]);
         }
 
         return {
             totalRevenueMonth,
+            totalCostMonth,
             newOrdersToday,
-            newUsersMonth,
             cancelledOrdersMonth,
             dailyRevenue,
             orderStatusDistribution,
@@ -83,16 +84,39 @@ class DashboardService {
         });
     }
 
-    // Đếm người dùng mới trong tháng
-    async getNewUsersMonth() {
+    // Thống kê tổng chi phí trong tháng hiện tại
+    async getTotalCostMonth() {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-        return await this.Customers.countDocuments({
-            // Giả sử collection người dùng có trường createdAt
-            createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-        });
+        // 1. Chi phí nhập hàng
+        const importsResult = await this.Warehouse.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+                }
+            },
+            { $unwind: "$items" },
+            {
+                $group: {
+                    _id: null,
+                    totalImportCost: { $sum: { $multiply: ["$items.import_price", "$items.quantity"] } }
+                }
+            }
+        ]).toArray();
+        const importCost = importsResult.length > 0 ? importsResult[0].totalImportCost : 0;
+
+        // 2. Chi phí trả lương nhân viên
+        const salariesResult = await this.Salaries.aggregate([
+            {
+                $match: { month: now.getMonth() + 1, year: now.getFullYear(), status: "paid" }
+            },
+            { $group: { _id: null, totalSalaryCost: { $sum: "$net_salary" } } }
+        ]).toArray();
+        const salaryCost = salariesResult.length > 0 ? salariesResult[0].totalSalaryCost : 0;
+
+        return importCost + salaryCost;
     }
 
     // Đếm đơn hàng bị hủy trong tháng
@@ -107,19 +131,17 @@ class DashboardService {
         });
     }
 
-    // Thống kê doanh thu 7 ngày gần nhất cho biểu đồ
-    async getDailyRevenueLast7Days() {
-        const today = new Date();
-        today.setHours(23, 59, 59, 999);
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        sevenDaysAgo.setHours(0, 0, 0, 0);
+// Thống kê doanh thu các ngày trong tháng hiện tại cho biểu đồ
+    async getDailyRevenueCurrentMonth() {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
 
         const results = await this.Orders.aggregate([
             {
                 $match: {
                     status: { $in: ["completed", "delivered"] },
-                    createdAt: { $gte: sevenDaysAgo, $lte: today }
+                    createdAt: { $gte: startOfMonth, $lte: today }
                 }
             },
             {
@@ -134,21 +156,71 @@ class DashboardService {
         // Điền các ngày không có doanh thu bằng 0
         const dateMap = new Map(results.map(r => [r._id, r.total]));
         const finalData = [];
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(sevenDaysAgo);
-            d.setDate(d.getDate() + i + 1); // Bắt đầu từ ngày kế tiếp của 7 ngày trước
+        const currentDay = now.getDate();
+        for (let day = 1; day <= currentDay; day++) {
+            // FIX 1: Đặt 12h trưa để tránh việc múi giờ Việt Nam (+7) làm toISOString bị lùi về ngày hôm trước
+            const d = new Date(now.getFullYear(), now.getMonth(), day, 12, 0, 0);
             const dateString = d.toISOString().split('T')[0];
             finalData.push({
-                date: dateString,
+                date: `${day}/${now.getMonth() + 1}`, // Cắt ngắn nhãn hiển thị thành "Ngày/Tháng" để không chèn ép biểu đồ
                 total: dateMap.get(dateString) || 0
             });
         }
         return finalData;
     }
 
+    // Thống kê doanh thu theo khoảng ngày tùy chọn cho biểu đồ
+    async getDailyRevenueByRange(startDateStr, endDateStr) {
+        const startDate = new Date(startDateStr);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(endDateStr);
+        endDate.setHours(23, 59, 59, 999);
+
+        const results = await this.Orders.aggregate([
+            {
+                $match: {
+                    status: { $in: ["completed", "delivered"] },
+                    createdAt: { $gte: startDate, $lte: endDate }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                    total: { $sum: "$total_amount" }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]).toArray();
+
+        // Điền các ngày không có doanh thu bằng 0
+        const dateMap = new Map(results.map(r => [r._id, r.total]));
+        const finalData = [];
+        const current = new Date(startDate);
+        current.setHours(12, 0, 0, 0); // Tránh lỗi timezone
+        while (current <= endDate) {
+            const dateString = current.toISOString().split('T')[0];
+            finalData.push({
+                date: `${current.getDate()}/${current.getMonth() + 1}`, // Format nhãn ngắn gọn
+                total: dateMap.get(dateString) || 0
+            });
+            current.setDate(current.getDate() + 1);
+        }
+        return finalData;
+    }
+
     // Thống kê tỷ lệ các trạng thái đơn hàng
     async getOrderStatusDistribution() {
+        // FIX 2: Đồng bộ đếm trạng thái đơn hàng theo tháng hiện tại (Giống hệt Thẻ tóm tắt ở trên)
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
         return await this.Orders.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startOfMonth, $lte: endOfMonth }
+                }
+            },
             { $group: { _id: "$status", count: { $sum: 1 } } },
             { $project: { _id: 0, status: "$_id", count: "$count" } }
         ]).toArray();
@@ -279,11 +351,28 @@ class DashboardService {
                     createdAt: { $gte: startOfYear, $lte: endOfYear }
                 }
             },
+            { $unwind: "$items" }, // FIX 3: Bung mảng items ra trước để có thể đọc được giá nhập và số lượng
             {
                 $group: {
                     _id: { $month: "$createdAt" },
-                    totalImportCost: { $sum: { $multiply: ["$import_price", "$quantity"] } },
-                    totalImportQuantity: { $sum: "$quantity" }
+                    totalImportCost: { $sum: { $multiply: ["$items.import_price", "$items.quantity"] } },
+                    totalImportQuantity: { $sum: "$items.quantity" }
+                }
+            }
+        ]).toArray();
+        
+        // 3. Chi phí trả lương nhân viên
+        const salariesResult = await this.Salaries.aggregate([
+            {
+                $match: {
+                    year: y,
+                    status: "paid" // Chỉ tính những khoản lương ĐÃ THANH TOÁN vào chi phí
+                }
+            },
+            {
+                $group: {
+                    _id: "$month",
+                    totalSalaryCost: { $sum: "$net_salary" }
                 }
             }
         ]).toArray();
@@ -293,6 +382,7 @@ class DashboardService {
         for (let m = 1; m <= 12; m++) {
             const sale = salesResult.find(r => r._id === m);
             const imp = importsResult.find(r => r._id === m);
+            const sal = salariesResult.find(r => r._id === m);
             
             fullData.push({
                 month: m,
@@ -301,7 +391,8 @@ class DashboardService {
                 totalSoldQuantity: sale ? sale.totalSoldQuantity : 0,
                 totalImportCost: imp ? imp.totalImportCost : 0,
                 totalImportQuantity: imp ? imp.totalImportQuantity : 0,
-                profit: (sale ? sale.totalRevenue : 0) - (imp ? imp.totalImportCost : 0)
+                totalSalaryCost: sal ? sal.totalSalaryCost : 0,
+                profit: (sale ? sale.totalRevenue : 0) - (imp ? imp.totalImportCost : 0) - (sal ? sal.totalSalaryCost : 0)
             });
         }
         return fullData;

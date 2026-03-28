@@ -184,6 +184,11 @@ exports.login = async (req, res, next) => {
             return next(new ApiError(401, "Incorrect admin code or password"));
         }
 
+        // Kiểm tra xem dữ liệu user có mật khẩu không (tránh lỗi bcrypt)
+        if (!user.password) {
+            return next(new ApiError(500, "Tài khoản nhân viên bị lỗi dữ liệu (Thiếu mật khẩu)"));
+        }
+
         const passwordMatch = await bcrypt.compare(
             req.body.password,
             user.password
@@ -191,6 +196,12 @@ exports.login = async (req, res, next) => {
 
         if (!passwordMatch) {
             return next(new ApiError(401, "Incorrect admin code or password"));
+        }
+
+        // Kiểm tra JWT Secret
+        if (!config.jwt || !config.jwt.secret) {
+            console.error("❌ Lỗi: Chưa cấu hình JWT_SECRET");
+            return next(new ApiError(500, "Lỗi cấu hình Server (Thiếu JWT Secret)"));
         }
 
         const token = jwt.sign(
@@ -208,6 +219,7 @@ exports.login = async (req, res, next) => {
         });
 
     } catch (error) {
+        console.error("❌ Lỗi xử lý đăng nhập nhân viên:", error);
         return next(new ApiError(500, "An error occurred during login"));
     }
 };

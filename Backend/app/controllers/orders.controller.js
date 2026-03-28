@@ -66,6 +66,9 @@ exports.update = async (req, res, next) => {
         const document = await orderService.update(req.params.id, req.body);
         return res.send(document);
     } catch (error) {
+        if (error.message && error.message.includes("LỖI QUY TRÌNH")) {
+            return next(new ApiError(400, error.message));
+        }
         return next(new ApiError(500, "Error updating order"));
     }
 };

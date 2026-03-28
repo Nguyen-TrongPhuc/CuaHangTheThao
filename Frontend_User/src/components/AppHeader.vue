@@ -42,7 +42,12 @@
           </span>
           <transition name="dropdown-fade">
             <div v-if="showDropdown" class="dropdown-menu">
-              <div class="dropdown-header">Xin chào, {{ userName }}</div>
+              <div class="dropdown-header">
+                <div>Xin chào, {{ userName }}</div>
+                <div v-if="loyaltyInfo" class="loyalty-badge" :class="loyaltyInfo.rank">
+                  <Crown :size="14" style="margin-right: 4px;" /> Thành viên {{ loyaltyInfo.rankName }}
+                </div>
+              </div>
               <router-link to="/profile" class="dropdown-item"><UserCog :size="18" /> Hồ sơ cá nhân</router-link>
               <router-link to="/orders" class="dropdown-item"><Package :size="18" /> Lịch sử đơn hàng</router-link>
               <div class="dropdown-divider"></div>
@@ -64,25 +69,52 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { cartStore } from "@/utils/cart";
-import { Search, ShoppingCart, CircleUser, UserCog, Package, LogOut } from "lucide-vue-next";
+import CustomerService from "@/services/customer.service";
+import { Search, ShoppingCart, CircleUser, UserCog, Package, LogOut, Crown } from "lucide-vue-next";
 
 export default {
-  components: { Search, ShoppingCart, CircleUser, UserCog, Package, LogOut },
+  components: { Search, ShoppingCart, CircleUser, UserCog, Package, LogOut, Crown },
   setup() {
     const router = useRouter();
     const searchQuery = ref("");
     const isLoggedIn = ref(false);
     const userName = ref("");
     const showDropdown = ref(false);
+    const loyaltyInfo = ref(null);
 
-    const checkLogin = () => {
+    const getRankName = (rank) => {
+        switch(rank) {
+            case 'bronze': return 'Đồng';
+            case 'silver': return 'Bạc';
+            case 'gold': return 'Vàng';
+            case 'diamond': return 'Kim Cương';
+            default: return 'Thành viên';
+        }
+    };
+
+    const checkLogin = async () => {
       const token = localStorage.getItem("user_token");
       if (token) {
         isLoggedIn.value = true;
         userName.value = localStorage.getItem("user_name") || "User";
+        try {
+            const loyalty = await CustomerService.getLoyalty();
+            // Chỉ hiển thị huy hiệu nếu hạng khác 'normal' (tức là từ Bronze trở lên)
+            if (loyalty && loyalty.rank && loyalty.rank !== 'normal') {
+                loyaltyInfo.value = {
+                    rank: loyalty.rank,
+                    rankName: getRankName(loyalty.rank)
+                };
+            } else {
+                loyaltyInfo.value = null;
+            }
+        } catch (e) {
+            loyaltyInfo.value = null;
+        }
       } else {
         isLoggedIn.value = false;
         userName.value = "";
+        loyaltyInfo.value = null;
       }
     };
 
@@ -135,7 +167,8 @@ export default {
       userName,
       logout,
       showDropdown,
-      toggleDropdown
+      toggleDropdown,
+      loyaltyInfo
     };
   }
 };
@@ -255,9 +288,11 @@ export default {
 
 .dropdown-header {
   padding: 15px; background: #f8f9fa; border-bottom: 1px solid #eee;
-  font-weight: 700; color: #2c3e50; font-size: 0.95rem; text-align: center;
+  color: #2c3e50; font-size: 0.95rem; text-align: center;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 12px 12px 0 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
+.dropdown-header div:first-child { font-weight: 700; }
 
 .dropdown-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; text-decoration: none; color: #555; transition: all 0.2s; cursor: pointer; font-weight: 500; font-size: 0.95rem; }
 .dropdown-item:hover { background: #fff5f1; color: #ee4d2d; padding-left: 25px; }
@@ -267,6 +302,22 @@ export default {
 
 .dropdown-fade-enter-active, .dropdown-fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .dropdown-fade-enter-from, .dropdown-fade-leave-to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+
+.loyalty-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: white;
+}
+.loyalty-badge.bronze { background: linear-gradient(135deg, #cd7f32, #a0522d); box-shadow: 0 2px 5px rgba(205, 127, 50, 0.3); }
+.loyalty-badge.silver { background: linear-gradient(135deg, #bdc3c7, #7f8c8d); box-shadow: 0 2px 5px rgba(189, 195, 199, 0.3); }
+.loyalty-badge.gold { background: linear-gradient(135deg, #f1c40f, #f39c12); box-shadow: 0 2px 5px rgba(241, 196, 15, 0.3); }
+.loyalty-badge.diamond { background: linear-gradient(135deg, #00c6ff, #0072ff); box-shadow: 0 2px 5px rgba(0, 198, 255, 0.3); }
 
 @media (max-width: 768px) {
   .container { flex-direction: column; gap: 15px; }

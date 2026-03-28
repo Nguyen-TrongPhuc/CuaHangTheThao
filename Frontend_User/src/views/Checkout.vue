@@ -213,6 +213,14 @@
             </div>
           </div>
 
+          <!-- Thưởng từ ví -->
+          <div class="wallet-section" v-if="walletBalance > 0">
+            <label class="wallet-checkbox">
+              <input type="checkbox" v-model="useWallet" />
+              <span>Dùng số dư ví tích lũy: <strong>{{ formatPrice(walletBalance) }}đ</strong></span>
+            </label>
+          </div>
+
           <div class="summary-totals">
             <div class="row">
               <span>Tạm tính:</span>
@@ -229,6 +237,10 @@
             <div v-if="shippingVoucher" class="row discount">
               <span>Hỗ trợ phí ship ({{ shippingVoucher.code }}):</span>
               <span>-{{ formatPrice(shippingVoucher.amount) }}đ</span>
+            </div>
+            <div v-if="useWallet && totalWalletDiscount > 0" class="row discount">
+              <span>Trừ số dư ví:</span>
+              <span>-{{ formatPrice(totalWalletDiscount) }}đ</span>
             </div>
             <div class="row total">
               <span>Tổng cộng:</span>
@@ -321,7 +333,7 @@
 
 <script>
 import { computed, reactive, ref, onMounted, watch, nextTick } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import AppHeader from "@/components/AppHeader.vue";
 import AppFooter from "@/components/AppFooter.vue";
 import { cartStore } from "@/utils/cart";
@@ -342,6 +354,7 @@ export default {
   components: { AppHeader, AppFooter, MapPin, LocateFixed, Truck, Zap, Info, Wallet, Banknote, CreditCard, ShoppingBag, Crown, Ticket, ChevronRight, X, Gift, AlertCircle, Check, Tags, Loader2, PackageOpen, CheckCircle2 },
   setup() {
     const router = useRouter();
+    const route = useRoute();
     const form = reactive({ name: "", phone: "", address: "", note: "" });
     const isProcessing = ref(false);
     const sizes = ref([]);
@@ -362,6 +375,9 @@ export default {
     const isCalculatingShip = ref(false);
     const isChangingAddress = ref(true);
     
+    const walletBalance = ref(0);
+    const useWallet = ref(false);
+
     // State cho việc chọn địa chỉ
     const addressState = reactive({
         provinces: [],
@@ -374,7 +390,13 @@ export default {
     });
 
     // Lấy các item đã chọn từ giỏ hàng
-    const selectedItems = computed(() => cartStore.state.items.filter(item => item.selected));
+    const selectedItems = computed(() => {
+        if (route.query.direct === '1') {
+            const directItems = sessionStorage.getItem('checkout_direct');
+            if (directItems) return JSON.parse(directItems);
+        }
+        return cartStore.state.items.filter(item => item.selected);
+    });
     
     const totalAmount = computed(() => {
       return selectedItems.value.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -471,6 +493,15 @@ export default {
         return dAmount + sAmount;
     });
 
+    const totalWalletDiscount = computed(() => {
+        if (!useWallet.value) return 0;
+        const fee = (typeof shippingFee.value.shippingFee === 'number') 
+            ? shippingFee.value.shippingFee 
+            : (shippingType.value === 'express' ? shippingFee.value.expressFee : shippingFee.value.standardFee);
+        const currentTotal = totalAmount.value + (fee || 0) - totalDiscount.value;
+        return Math.min(walletBalance.value, currentTotal);
+    });
+
     // Grand total
     const grandTotal = computed(() => {
         // Nếu shippingFee từ API trả về dạng số trực tiếp (khi đã có tọa độ)
@@ -478,7 +509,7 @@ export default {
             ? shippingFee.value.shippingFee 
             : (shippingType.value === 'express' ? shippingFee.value.expressFee : shippingFee.value.standardFee);
             
-        return totalAmount.value + (fee || 0) - totalDiscount.value;
+        return totalAmount.value + (fee || 0) - totalDiscount.value - totalWalletDiscount.value;
     });
 
     // Apply voucher
@@ -666,17 +697,29 @@ export default {
             const loyalty = await CustomerService.getLoyalty();
             if (loyalty && loyalty.discountPercent > 0) {
                 const discount = loyalty.discountPercent / 100;
-                cartStore.state.items.forEach(item => {
-                     // Nếu item chưa có trường originalPrice (do thêm từ trước), gán nó bằng giá hiện tại
-                     if (!item.originalPrice) item.originalPrice = item.price;
-                     
-                     // Tính lại giá VIP
-                     item.vipDiscountPercent = loyalty.discountPercent;
-                     item.vipPrice = Math.round(item.originalPrice * (1 - discount));
-                     item.price = item.vipPrice; // Cập nhật giá bán thực tế để tính tổng tiền
-                });
-                // Lưu cập nhật vào localStorage
-                if (cartStore.save) cartStore.save();
+                if (route.query.direct === '1') {
+                    const items = JSON.parse(sessionStorage.getItem('checkout_direct') || '[]');
+                    let updated = false;
+                    items.forEach(item => {
+                         if (!item.originalPrice) item.originalPrice = item.price;
+                         item.vipDiscountPercent = loyalty.discountPercent;
+                         item.vipPrice = Math.round(item.originalPrice * (1 - discount));
+                         if (item.price !== item.vipPrice) { item.price = item.vipPrice; updated = true; }
+                    });
+                    if (updated) sessionStorage.setItem('checkout_direct', JSON.stringify(items));
+                } else {
+                    let updated = false;
+                    cartStore.state.items.forEach(item => {
+                         if (!item.originalPrice) item.originalPrice = item.price;
+                         item.vipDiscountPercent = loyalty.discountPercent;
+                         item.vipPrice = Math.round(item.originalPrice * (1 - discount));
+                         if (item.price !== item.vipPrice) {
+                             item.price = item.vipPrice; 
+                             updated = true;
+                         }
+                    });
+                    if (updated && cartStore.save) cartStore.save();
+                }
             }
         } catch (e) {
              console.log("Không thể cập nhật giá VIP (Chưa đăng nhập hoặc lỗi mạng)");
@@ -689,6 +732,7 @@ export default {
             if (user) {
                 form.name = `${user.last_name || ''} ${user.first_name || ''}`.trim();
                 form.phone = user.phone || "";
+                walletBalance.value = user.wallet_balance || 0;
                 // Nếu có địa chỉ cũ, điền vào ô đường/số nhà (vì khó phân tách ngược lại)
                 if (user.address) {
                     form.address = user.address;
@@ -758,6 +802,15 @@ export default {
             // Lưu lại tổng tiền trước khi xóa giỏ hàng (vì xóa giỏ hàng sẽ làm grandTotal thay đổi về 0 hoặc phí ship)
             const finalAmount = grandTotal.value;
 
+            const clearCheckoutItems = () => {
+                if (route.query.direct === '1') {
+                    sessionStorage.removeItem('checkout_direct');
+                } else {
+                    const itemIds = selectedItems.value.map(item => item._id);
+                    itemIds.forEach(id => cartStore.removeFromCart(id));
+                }
+            };
+
             const orderData = {
                 customer_id: customerId,
                 employee_id: null,
@@ -765,6 +818,7 @@ export default {
                 phone: form.phone,
                 address: form.address,
                 note: form.note,
+                use_wallet: useWallet.value,
                 payment_method: paymentMethod.value,
                 shipping_type: shippingType.value,
                 // Gửi đúng key mà Backend OrderService yêu cầu
@@ -797,8 +851,7 @@ export default {
             if (paymentMethod.value === 'vnpay') {
                 // Create VNPAY payment URL
                 try {
-                    // Xóa giỏ hàng trước khi chuyển hướng
-                    selectedItems.value.forEach(item => cartStore.removeFromCart(item._id));
+                    clearCheckoutItems();
                     const paymentResult = await PaymentService.createVnpayPayment(orderId);
                     if (paymentResult.paymentUrl) {
                         // Redirect to VNPAY
@@ -811,8 +864,7 @@ export default {
                 }
             } else if (paymentMethod.value === 'momo') {
                 try {
-                    // Xóa giỏ hàng trước khi chuyển hướng
-                    selectedItems.value.forEach(item => cartStore.removeFromCart(item._id));
+                    clearCheckoutItems();
                     const paymentResult = await PaymentService.createMomoPayment(orderId);
                     if (paymentResult.paymentUrl) {
                         window.location.href = paymentResult.paymentUrl;
@@ -824,8 +876,7 @@ export default {
                 }
             } else {
                 // COD hoặc phương thức khác không cần modal
-                // Xóa giỏ hàng và chuyển hướng
-                selectedItems.value.forEach(item => cartStore.removeFromCart(item._id));
+                clearCheckoutItems();
                 showToast("Đặt hàng thành công!", "success");
                 router.push("/orders");
             }
@@ -851,6 +902,9 @@ export default {
         finalShippingFee,
         totalDiscount,
         grandTotal,
+        walletBalance,
+        useWallet,
+        totalWalletDiscount,
         voucherInputCode,
         discountVoucher,
         shippingVoucher,
@@ -892,9 +946,30 @@ export default {
 .container { flex: 1; max-width: 1200px; margin: 0 auto; padding: 40px 20px; width: 100%; box-sizing: border-box; }
 .page-title { text-align: center; margin-bottom: 40px; color: #2c3e50; font-size: 2rem; font-weight: 800; text-transform: uppercase; position: relative; }
 .page-title::after { content: ''; display: block; width: 60px; height: 4px; background: #ee4d2d; margin: 10px auto 0; border-radius: 2px; }
-.checkout-content { display: flex; gap: 30px; flex-wrap: wrap; }
-.shipping-info { flex: 2; min-width: 300px; background: white; padding: 35px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f5f5f5; }
-.order-summary { flex: 1; min-width: 300px; background: white; padding: 35px; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f5f5f5; height: fit-content; }
+
+.checkout-content { 
+  display: flex; gap: 30px; align-items: flex-start; 
+  height: calc(100vh - 180px); /* Tách biệt vùng cuộn độc lập so với màn hình */
+}
+
+.shipping-info { 
+  flex: 2; min-width: 300px; background: white; padding: 35px 25px 35px 35px; 
+  border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f5f5f5; 
+  height: 100%; overflow-y: auto; 
+}
+.shipping-info::-webkit-scrollbar { width: 6px; }
+.shipping-info::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+.shipping-info::-webkit-scrollbar-thumb:hover { background: #ee4d2d; }
+
+.order-summary { 
+  flex: 1; min-width: 300px; background: white; padding: 35px 25px 35px 35px; 
+  border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.04); border: 1px solid #f5f5f5; 
+  height: 100%; overflow-y: auto; 
+}
+.order-summary::-webkit-scrollbar { width: 6px; }
+.order-summary::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+.order-summary::-webkit-scrollbar-thumb:hover { background: #ee4d2d; }
+
 h2 { margin-top: 0; margin-bottom: 25px; color: #2c3e50; font-size: 1.3rem; font-weight: 700; border-bottom: 2px solid #f0f0f0; padding-bottom: 12px; display: flex; align-items: center; gap: 10px; }
 h2 i { color: #ee4d2d; font-size: 1.4rem; }
 .form-group { margin-bottom: 15px; }
@@ -1203,6 +1278,11 @@ h2 i { color: #ee4d2d; font-size: 1.4rem; }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
   20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
+
+/* Wallet Style */
+.wallet-section { margin-top: 15px; padding: 15px; background: #e8f5e9; border-radius: 8px; border: 1px dashed #4caf50; }
+.wallet-checkbox { display: flex; align-items: center; cursor: pointer; gap: 10px; font-size: 0.95rem; color: #2e7d32; }
+.wallet-checkbox input { width: 18px; height: 18px; cursor: pointer; accent-color: #2e7d32; }
 
 .lucide-spin { animation: spin 2s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }

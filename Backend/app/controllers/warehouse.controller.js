@@ -15,6 +15,19 @@ exports.findAll = async (req, res, next) => {
     }
 };
 
+exports.findFiltered = async (req, res, next) => {
+    try {
+        const { year, month } = req.query;
+        const warehouseService = new WarehouseService(MongoDB.client);
+        const documents = await warehouseService.findByDateRange(year, month);
+        return res.send(documents);
+    } catch (error) {
+        console.error(error);
+        return next(new ApiError(500, "Error retrieving filtered warehouse items"));
+    }
+};
+
+
 exports.findOne = async (req, res, next) => {
     try {
         const warehouseService = new WarehouseService(MongoDB.client);

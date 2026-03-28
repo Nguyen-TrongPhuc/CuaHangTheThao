@@ -25,4 +25,7 @@ router.route("/sync-stock")
 router.route("/top-products-by-month")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getTopProductsByMonth);
 
+router.route("/daily-revenue-range")
+    .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getDailyRevenueRange);
+
 module.exports = router;

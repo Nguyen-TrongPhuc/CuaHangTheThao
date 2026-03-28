@@ -45,6 +45,16 @@
           <small>Admin có toàn quyền quản lý hệ thống.</small>
         </div>
 
+        <div class="form-group">
+          <label>Lương cơ bản (VNĐ):</label>
+          <input type="number" v-model.number="employee.base_salary" placeholder="VD: 5000000" />
+        </div>
+
+        <div class="form-group">
+          <label>Phụ cấp (VNĐ):</label>
+          <input type="number" v-model.number="employee.allowance" placeholder="VD: 500000" />
+        </div>
+
         <div class="form-actions">
           <button type="submit" class="btn-save">Lưu</button>
           <button type="button" @click="$router.push('/employees')" class="btn-cancel">Hủy</button>
@@ -68,6 +78,8 @@ export default {
         phone: "",
         password: "",
         role: "staff", // Mặc định là nhân viên thường
+        base_salary: 5000000,
+        allowance: 0,
       },
       showPwd: false
     };
@@ -85,7 +97,7 @@ export default {
         this.employee.password = ""; 
       } catch (error) {
         console.log(error);
-        this.$router.push({ name: "employee.manager" });
+        this.$router.push({ name: "EmployeeManager" });
       }
     },
     async saveEmployee() {

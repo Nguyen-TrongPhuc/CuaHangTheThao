@@ -1,7 +1,18 @@
 <template>
   <div class="page-container">
-    <div class="header">
-      <h1>Quản lý Kho hàng (Phiếu nhập)</h1>
+<div class="header">
+      <h1>{{ filterTitle }}</h1>
+      <div class="filter-section">
+        <select v-model.number="selectedYear" @change="onFilterChange" class="filter-select">
+          <option v-for="y in 5" :key="y" :value="currentYear - 2 + y">{{ currentYear - 2 + y }}</option>
+        </select>
+        <select v-model.number="selectedMonth" @change="onFilterChange" class="filter-select">
+          <option v-for="m in 12" :key="m" :value="m">Th{{ m }}</option>
+        </select>
+        <button class="btn-all" @click="toggleViewAll">
+          {{ viewAll ? 'Hiện tháng' : 'Tất cả' }}
+        </button>
+      </div>
       <button class="btn-add" @click="$router.push('/warehouse/import')">+ Nhập hàng mới</button>
     </div>
 
@@ -110,10 +121,39 @@ export default {
     return { 
         receipts: [],
         showModal: false,
-        selectedReceipt: null
+        selectedReceipt: null,
+        currentYear: new Date().getFullYear(),
+        currentMonth: new Date().getMonth() + 1,
+        selectedYear: new Date().getFullYear(),
+        selectedMonth: new Date().getMonth() + 1,
+        viewAll: false
     }; 
   },
+  computed: {
+    filterTitle() {
+      if (this.viewAll) return 'Tất cả phiếu nhập';
+      return `Phiếu nhập tháng ${this.selectedMonth.toString().padStart(2, '0')}/${this.selectedYear}`;
+    }
+  },
   methods: {
+    async loadReceipts() {
+      try {
+        if (this.viewAll) {
+          this.receipts = await WarehouseService.getAll('all');
+        } else {
+          this.receipts = await WarehouseService.getAll(this.selectedYear.toString(), this.selectedMonth.toString());
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    onFilterChange() {
+      this.loadReceipts();
+    },
+    toggleViewAll() {
+      this.viewAll = !this.viewAll;
+      this.loadReceipts();
+    },
     viewDetail(receipt) {
         this.selectedReceipt = receipt;
         this.showModal = true;
@@ -124,16 +164,36 @@ export default {
     }
   },
   async mounted() {
-    try {
-      this.receipts = await WarehouseService.getAll();
-    } catch (error) {
-      console.error(error);
-    }
+    await this.loadReceipts();
   }
 };
+
 </script>
 
 <style scoped>
+.filter-section {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+.btn-all {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-all:hover {
+  background: #5a6268;
+}
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .admin-table { width: 100%; border-collapse: collapse; background: white; }
 .admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
@@ -147,12 +207,12 @@ export default {
 
 /* Modal Styles */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-.modal-content { background: white; border-radius: 8px; width: 500px; max-width: 90%; box-shadow: 0 4px 15px rgba(0,0,0,0.2); animation: slideIn 0.3s; }
+.modal-content { background: white; border-radius: 8px; width: 700px; max-width: 90%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.2); animation: slideIn 0.3s; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; }
 .modal-header h3 { margin: 0; color: #2c3e50; }
 .close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
 .close-btn:hover { color: #333; }
-.modal-body { padding: 20px; }
+.modal-body { padding: 20px; overflow-y: auto; flex: 1; }
 .detail-row { display: flex; margin-bottom: 12px; }
 .detail-row label { width: 120px; font-weight: bold; color: #555; flex-shrink: 0; }
 .detail-row span { color: #333; flex: 1; }

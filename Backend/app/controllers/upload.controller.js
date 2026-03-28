@@ -1,23 +1,18 @@
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
-const config = require('../config');
+const path = require('path');
 const ApiError = require('../api-error');
 
-// Cấu hình Cloudinary với thông tin từ file config
-cloudinary.config({
-  cloud_name: config.cloudinary.cloud_name,
-  api_key: config.cloudinary.api_key,
-  api_secret: config.cloudinary.api_secret,
-});
-
-// Cấu hình nơi lưu trữ (Storage)
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'sportstore', // Tên thư mục trên Cloudinary
-    allowed_formats: ['jpg', 'png', 'jpeg'],
+// Cấu hình nơi lưu trữ ảnh cục bộ
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // __dirname là Backend/app/controllers. Cần lùi 2 cấp để ra Backend/public/uploads
+    cb(null, path.join(__dirname, '../../public/uploads'));
   },
+  filename: function (req, file, cb) {
+    // Đổi tên file để không bị trùng lặp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
 });
 
 const upload = multer({ storage: storage });
@@ -27,8 +22,11 @@ exports.uploader = upload.single('image');
 
 exports.uploadImage = (req, res, next) => {
   if (!req.file) {
-    return next(new ApiError(400, 'No file uploaded!'));
+    return next(new ApiError(400, 'Không có file nào được tải lên!'));
   }
-  // Trả về đường dẫn ảnh online
-  res.json({ url: req.file.path });
+  
+  // Trả về đường dẫn ảnh cục bộ để Frontend hiển thị
+  // port 3003 là cổng của Backend server
+  const imageUrl = `http://localhost:3003/uploads/${req.file.filename}`;
+  res.json({ url: imageUrl });
 };
