@@ -18,6 +18,7 @@ const warehouseRouter = require("./app/routes/warehouse.route");
 const paymentRouter = require("./app/routes/payment.route");
 const vouchersRouter = require("./app/routes/vouchers.route");
 const salariesRouter = require("./app/routes/salaries.route");
+const shiftsRouter = require("./app/routes/shifts.route");
 
 const fs = require("fs");
 const path = require("path");
@@ -63,6 +64,7 @@ app.use("/api/warehouse", warehouseRouter);
 app.use("/api/payment", paymentRouter);
 app.use("/api/vouchers", vouchersRouter);
 app.use("/api/salaries", salariesRouter);
+app.use("/api/shifts", shiftsRouter);
 
 app.use((req, res, next) => {
   return next(new ApiError(404, "Resource not found"));

@@ -64,9 +64,9 @@
              
              <div class="action-right">
                 <button v-if="['vnpay', 'momo'].includes(order.payment_method) && order.payment_status === 'unpaid' && order.status === 'pending'" class="btn-pay-now" @click="retryPayment(order)">Thanh toán ngay</button>
-                <button v-if="order.status === 'pending'" class="btn-cancel" @click="cancelOrder(order)">Hủy đơn</button>
+                <button v-if="order.status === 'pending'" class="btn-cancel" @click="confirmCancel(order)">Hủy đơn</button>
                 <button v-if="order.status === 'delivered'" class="btn-return" @click="openReturnModal(order)">Trả hàng</button>
-                <button v-if="order.status === 'delivered'" class="btn-confirm-received" @click="confirmReceived(order)">Đã nhận hàng</button>
+                <button v-if="order.status === 'delivered'" class="btn-confirm-received" @click="confirmReceive(order)">Đã nhận hàng</button>
                 <span v-if="order.status === 'return_requested'" class="text-warning">Đang chờ duyệt trả hàng...</span>
                 <span v-if="order.status === 'return_accepted'" class="text-info">Đã đồng ý trả hàng. Vui lòng gửi hàng về shop.</span>
              </div>
@@ -96,6 +96,19 @@
       @close="showReviewModal = false"
       @submit="handleReviewSubmit"
     />
+
+    <!-- Action Confirm Modal -->
+    <div v-if="confirmAction.show" class="modal-overlay" @click.self="closeConfirmModal">
+      <div class="confirm-dialog">
+        <div class="confirm-icon"><AlertCircle :size="48" :color="confirmAction.type === 'cancel' ? '#e74c3c' : '#27ae60'" /></div>
+        <h3>{{ confirmAction.title }}</h3>
+        <p>{{ confirmAction.message }}</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel-modal" @click="closeConfirmModal">Hủy bỏ</button>
+          <button :class="confirmAction.type === 'cancel' ? 'btn-confirm-danger' : 'btn-confirm-success'" @click="executeAction">Xác nhận</button>
+        </div>
+      </div>
+    </div>
     <AppFooter />
   </div>
 </template>
@@ -125,7 +138,14 @@ export default {
       selectedOrder: null,
       showReviewModal: false,
       selectedProductForReview: null,
-      selectedOrderForReview: null
+      selectedOrderForReview: null,
+      confirmAction: {
+        show: false,
+        type: '', // 'receive' or 'cancel'
+        order: null,
+        title: '',
+        message: ''
+      }
     };
   },
   methods: {
@@ -229,8 +249,33 @@ export default {
         };
         return statuses[status] || status || 'Chưa thanh toán';
     },
-    async confirmReceived(order) {
-      if (confirm("Bạn xác nhận đã nhận được hàng và muốn hoàn thành đơn hàng này?")) {
+    confirmReceive(order) {
+      this.confirmAction = {
+        show: true,
+        type: 'receive',
+        order: order,
+        title: 'Xác nhận nhận hàng',
+        message: 'Bạn xác nhận đã nhận được hàng và muốn hoàn thành đơn hàng này?'
+      };
+    },
+    confirmCancel(order) {
+      this.confirmAction = {
+        show: true,
+        type: 'cancel',
+        order: order,
+        title: 'Xác nhận hủy đơn',
+        message: 'Bạn có chắc chắn muốn hủy đơn hàng này không?'
+      };
+    },
+    closeConfirmModal() {
+      this.confirmAction.show = false;
+      this.confirmAction.order = null;
+    },
+    async executeAction() {
+      const order = this.confirmAction.order;
+      if (!order) return;
+
+      if (this.confirmAction.type === 'receive') {
         try {
           await OrderService.update(order._id, { status: 'completed' });
           order.status = 'completed';
@@ -238,10 +283,7 @@ export default {
         } catch (error) {
           showToast("Có lỗi xảy ra, vui lòng thử lại", "error");
         }
-      }
-    },
-    async cancelOrder(order) {
-      if (confirm("Bạn có chắc muốn hủy đơn hàng này?")) {
+      } else if (this.confirmAction.type === 'cancel') {
         try {
           await OrderService.update(order._id, { status: 'cancelled' });
           order.status = 'cancelled';
@@ -252,6 +294,7 @@ export default {
           this.fetchOrders(); // Tải lại danh sách để cập nhật trạng thái mới nhất từ server
         }
       }
+      this.closeConfirmModal();
     },
     async retryPayment(order) {
       try {
@@ -313,7 +356,8 @@ export default {
             if (this.selectedOrderForReview && this.selectedProductForReview) {
                 const order = this.orders.find(o => o._id === this.selectedOrderForReview._id);
                 if (order) {
-                    const item = order.items.find(i => i._id === this.selectedProductForReview._id);
+                    const reviewProductId = this.selectedProductForReview.product_id || this.selectedProductForReview._id;
+                    const item = order.items.find(i => (i.product_id || i._id) === reviewProductId);
                     if (item) item.is_reviewed = true;
                 }
             }
@@ -420,4 +464,20 @@ export default {
 .payment-status.paid { background: #e8f5e9; color: #388e3c; }
 .payment-status.pending { background: #e3f2fd; color: #1976d2; }
 .payment-status.failed { background: #ffebee; color: #d32f2f; }
+
+/* Confirm Modal */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+.confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+@keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+.confirm-icon { margin-bottom: 15px; display: flex; justify-content: center; }
+.confirm-dialog h3 { margin-top: 0; color: #2c3e50; font-size: 1.3rem; }
+.confirm-dialog p { color: #666; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem;}
+.confirm-actions { display: flex; justify-content: center; gap: 15px; }
+.confirm-actions button { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
+.btn-cancel-modal { background: #f1f3f5; color: #495057; border: 1px solid #ddd; }
+.btn-cancel-modal:hover { background: #e2e6ea; }
+.btn-confirm-danger { background: #e74c3c; color: white; }
+.btn-confirm-danger:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);}
+.btn-confirm-success { background: #27ae60; color: white; }
+.btn-confirm-success:hover { background: #219150; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);}
 </style>

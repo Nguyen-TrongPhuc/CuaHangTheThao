@@ -16,6 +16,9 @@ import WarehouseManager from '../views/WarehouseManager.vue';
 import ContactManager from '../views/ContactManager.vue';
 import PayrollManager from '../views/PayrollManager.vue';
 import MyPayslips from '../views/MyPayslips.vue';
+import ShiftManager from '../views/ShiftManager.vue';
+import MyShifts from '../views/MyShifts.vue';
+import ShiftCalendar from '../views/ShiftCalendar.vue';
 
 const routes = [
   {
@@ -50,6 +53,9 @@ const routes = [
   { path: '/contacts', name: 'ContactManager', component: ContactManager },
   { path: '/payroll', name: 'PayrollManager', component: PayrollManager },
   { path: '/my-payslips', name: 'MyPayslips', component: MyPayslips },
+  { path: '/shifts', name: 'ShiftManager', component: ShiftManager },
+  { path: '/my-shifts', name: 'MyShifts', component: MyShifts },
+  { path: '/shift-calendar', name: 'ShiftCalendar', component: ShiftCalendar },
 ];
 
 const router = createRouter({

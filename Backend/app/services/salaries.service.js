@@ -5,6 +5,7 @@ class SalariesService {
         this.Salaries = client.db().collection("salaries");
         this.Employees = client.db().collection("employees");
         this.Orders = client.db().collection("orders");
+        this.Shifts = client.db().collection("shifts");
     }
 
     // ==========================================
@@ -36,6 +37,35 @@ class SalariesService {
             updatedAt: { $gte: prevMonthStartDate, $lte: endDate },
             employee_id: { $ne: null }
         }).toArray();
+
+        // 3.2. QUÉT CA TRỰC (SHIFTS): Đếm tổng số ca được xếp TRỪ đi các ca Vắng mặt
+        const validShifts = await this.Shifts.aggregate([
+            {
+                $match: {
+                    status: { $in: ["scheduled", "attended"] }, // Xem như đi làm nếu được xếp lịch mà không bị đánh vắng
+                    date: { $gte: normalStartDate.toISOString().split('T')[0], $lte: endDate.toISOString().split('T')[0] }
+                }
+            },
+            {
+                $group: {
+                    _id: "$employee_id",
+                    working_days: { $sum: 1 }
+                }
+            }
+        ]).toArray();
+
+        // 3.3. QUÉT CA TRỰC BỊ VẮNG MẶT (ABSENT) ĐỂ PHẠT
+        const absentShifts = await this.Shifts.aggregate([
+            {
+                $match: {
+                    status: "absent",
+                    date: { $gte: normalStartDate.toISOString().split('T')[0], $lte: endDate.toISOString().split('T')[0] }
+                }
+            },
+            {
+                $group: { _id: "$employee_id", absent_count: { $sum: 1 } }
+            }
+        ]).toArray();
 
         const payrolls = [];
 
@@ -98,22 +128,48 @@ class SalariesService {
 
             // Tính toán tiền thưởng từ hoa hồng
             const calculatedCommission = revenue * commissionRate;
-            const autoDeduction = returnedRevenue * commissionRate; // Tiền truy thu
+
+            // Tìm số ca vắng mặt để phạt (Mặc định phạt 100.000đ/ca vắng mặt không phép)
+            const absent_count = absentShifts.find(s => String(s._id) === String(emp._id))?.absent_count || 0;
+            const absent_penalty = absent_count * 100000;
+
+            const autoDeduction = (returnedRevenue * commissionRate) + absent_penalty; // Tiền truy thu đơn hàng + Tiền phạt vắng
 
             // Mức lương cơ bản mặc định nếu chưa được Admin thiết lập
             const baseSalary = emp.base_salary || 5000000; 
             const allowance = emp.allowance || 0;
+
+            // TÍNH LƯƠNG THEO CHẤM CÔNG
+            // 1. CỐ ĐỊNH ngày công chuẩn là 26 để đơn giá 1 ngày lương luôn cố định
+            const standard_days = 26;
+
+            // 2. Đếm số công thực tế dựa trên số ca trực (Bỏ qua ca vắng mặt)
+            const auto_working_days = validShifts.find(s => String(s._id) === String(emp._id))?.working_days || 0;
+
+            // Luôn ưu tiên tính lại số công tự động từ lịch trực mỗi khi bấm "Tính lương"
+            const working_days = auto_working_days;
+
+            // Lương cơ bản thực tế = (Lương gốc / Ngày chuẩn) * Ngày làm thực tế
+            const actual_base_salary = Math.round((baseSalary / standard_days) * working_days);
+
+            // TÍNH LƯƠNG TĂNG CA (OT)
+            const ot_hours = existingSalary ? (existingSalary.ot_hours || 0) : 0;
+            const ot_rate = 1.5; // 150%
+            const ot_salary = Math.round((baseSalary / standard_days / 8) * ot_rate * ot_hours);
             
             const manualBonus = existingSalary ? (existingSalary.bonus || 0) : 0;
-            // Nếu chưa có phạt tay, mặc định lấy tiền truy thu làm tiền phạt
-            const manualDeduction = existingSalary ? (existingSalary.deduction || 0) : autoDeduction;
+            // Tự động ghi đè phạt hệ thống, trừ khi Admin nhập tay mức phạt nặng hơn
+            const manualDeduction = (existingSalary && existingSalary.deduction > autoDeduction) ? existingSalary.deduction : autoDeduction;
             const status = existingSalary ? existingSalary.status : "unpaid";
             const payment_date = existingSalary ? existingSalary.payment_date : null;
             
             // Tạo câu ghi chú động
             let noteText = `Lương T${m}/${y}. Hoa hồng ${(commissionRate*100).toFixed(1)}% từ ${revenue.toLocaleString()}đ (${orderCount} đơn).${carryOverNote}`;
             if (returnedCount > 0) {
-                noteText += ` TRUY THU: -${autoDeduction.toLocaleString()}đ do ${returnedCount} đơn bị khách trả hàng.`;
+                noteText += ` TRUY THU: -${(returnedRevenue * commissionRate).toLocaleString()}đ do ${returnedCount} đơn bị khách trả hàng.`;
+            }
+            if (absent_count > 0) {
+                noteText += ` PHẠT VẮNG: -${absent_penalty.toLocaleString()}đ (${absent_count} ca).`;
             }
 
             const payrollInfo = {
@@ -123,13 +179,18 @@ class SalariesService {
                 month: m,
                 year: y,
                 base_salary: baseSalary,
+                standard_days: standard_days,
+                working_days: working_days,
+                actual_base_salary: actual_base_salary,
+                ot_hours: ot_hours,
+                ot_salary: ot_salary,
                 allowance: allowance,
                 commission_revenue: revenue,
                 commission_amount: calculatedCommission, // Lưu riêng tiền hoa hồng tự động
                 order_count: orderCount,
                 bonus: manualBonus, // Giữ nguyên tiền thưởng tay của bạn
                 deduction: manualDeduction, // Giữ nguyên tiền phạt tay của bạn
-                net_salary: baseSalary + allowance + calculatedCommission + manualBonus - manualDeduction, // Thực lãnh mới
+                net_salary: actual_base_salary + ot_salary + allowance + calculatedCommission + manualBonus - manualDeduction, // Thực lãnh mới
                 status: status,
                 payment_date: payment_date,
                 note: noteText,
@@ -160,14 +221,24 @@ class SalariesService {
 
         const updateData = { ...payload, updatedAt: new Date() };
         
-        // Tính lại thực lãnh nếu Admin sửa tay Thưởng/Phạt
-        const base_salary = updateData.base_salary !== undefined ? Number(updateData.base_salary) : salary.base_salary;
-        const allowance = updateData.allowance !== undefined ? Number(updateData.allowance) : salary.allowance;
+        // Khi sửa tay, không cho phép thay đổi ngày công. Nó được tính tự động.
+        // Giữ nguyên lương cơ bản thực tế và ngày công đã được tính từ `generatePayroll`.
+        delete updateData.working_days;
+        const actual_base_salary = salary.actual_base_salary || 0;
+        const allowance = salary.allowance || 0;
+
+        // Chỉ tính lại các khoản do Admin nhập tay
+        const ot_hours = updateData.ot_hours !== undefined ? Number(updateData.ot_hours) : (salary.ot_hours || 0);
+        const ot_rate = 1.5;
+        const ot_salary = Math.round((salary.base_salary / (salary.standard_days || 26) / 8) * ot_rate * ot_hours);
+        
         const commission_amount = salary.commission_amount || 0; // Lấy hoa hồng tự động hiện tại
         const bonus = updateData.bonus !== undefined ? Number(updateData.bonus) : salary.bonus;
         const deduction = updateData.deduction !== undefined ? Number(updateData.deduction) : salary.deduction;
         
-        updateData.net_salary = base_salary + allowance + commission_amount + bonus - deduction;
+        updateData.ot_hours = ot_hours;
+        updateData.ot_salary = ot_salary;
+        updateData.net_salary = actual_base_salary + ot_salary + allowance + commission_amount + bonus - deduction;
 
         return await this.Salaries.findOneAndUpdate(filter, { $set: updateData }, { returnDocument: "after" });
     }

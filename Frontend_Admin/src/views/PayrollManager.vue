@@ -22,6 +22,8 @@
           <tr>
             <th>Nhân viên</th>
             <th>Chức vụ</th>
+            <th>Số công</th>
+            <th>Giờ OT</th>
             <th>Lương CB + PC</th>
             <th>Hoa hồng (1%)</th>
             <th>Thưởng / Phạt</th>
@@ -39,7 +41,16 @@
             <td>
                 <span :class="['badge-role', salary.employee_role]">{{ salary.employee_role === 'admin' ? 'Admin' : 'Staff' }}</span>
             </td>
-            <td>{{ formatPrice(salary.base_salary + salary.allowance) }}</td>
+            <td>
+                <span>{{ salary.working_days || 0 }} / {{ salary.standard_days || 26 }}</span>
+            </td>
+            <td>
+                <div v-if="editingId === salary._id">
+                    <input type="number" v-model.number="editData.ot_hours" step="0.5" class="small-input" title="Số giờ tăng ca" />
+                </div>
+                <span v-else>{{ salary.ot_hours || 0 }} giờ</span>
+            </td>
+            <td>{{ formatPrice((salary.actual_base_salary || salary.base_salary) + salary.allowance) }}</td>
             <td style="color: #27ae60; font-weight: bold;">+{{ formatPrice(salary.commission_amount) }}</td>
             <td>
                 <div v-if="editingId === salary._id">
@@ -47,9 +58,12 @@
                     <input type="number" v-model.number="editData.deduction" placeholder="Phạt" class="small-input mt-1" />
                 </div>
                 <div v-else>
-                    <span v-if="salary.bonus > 0" class="text-success">+{{ formatPrice(salary.bonus) }}<br></span>
+                    <span v-if="salary.ot_salary > 0" class="text-success">+{{ formatPrice(salary.ot_salary) }} (OT)<br></span>
+                    <span v-if="salary.bonus > 0" class="text-success">
+                        +{{ formatPrice(salary.bonus) }} (Thưởng)
+                    </span>
                     <span v-if="salary.deduction > 0" class="text-danger">-{{ formatPrice(salary.deduction) }}</span>
-                    <span v-if="salary.bonus === 0 && salary.deduction === 0">0đ</span>
+                    <span v-if="salary.bonus === 0 && salary.deduction === 0 && salary.ot_salary === 0">0đ</span>
                 </div>
             </td>
             <td class="net-salary">{{ formatPrice(salary.net_salary) }}</td>
@@ -91,6 +105,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Warning Modal -->
+    <div v-if="warningModal.show" class="modal-overlay" @click.self="warningModal.show = false">
+      <div class="confirm-dialog warning-dialog">
+        <div class="confirm-icon"><i class="fa-solid fa-circle-exclamation" style="color: #f39c12;"></i></div>
+        <h3>CẢNH BÁO KẾ TOÁN</h3>
+        <p v-html="warningModal.message"></p>
+        <div class="confirm-actions">
+          <button class="btn-cancel-modal" @click="warningModal.show = false">Hủy bỏ</button>
+          <button class="btn-confirm-warning" @click="proceedEarlyPay">Vẫn thanh toán</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -107,8 +134,13 @@ export default {
       selectedYear: now.getFullYear(),
       isGenerating: false,
       editingId: null,
-      editData: { bonus: 0, deduction: 0 },
-      confirmPayId: null
+      editData: { bonus: 0, deduction: 0, working_days: 26, ot_hours: 0 },
+      confirmPayId: null,
+      warningModal: {
+        show: false,
+        salaryId: null,
+        message: ''
+      }
     };
   },
   methods: {
@@ -145,7 +177,11 @@ export default {
     },
     startEdit(salary) {
         this.editingId = salary._id;
-        this.editData = { bonus: salary.bonus, deduction: salary.deduction };
+        this.editData = { 
+            bonus: salary.bonus || 0, 
+            deduction: salary.deduction || 0, 
+            ot_hours: salary.ot_hours || 0
+        };
     },
     async saveEdit(id) {
         try {
@@ -161,11 +197,18 @@ export default {
         const salary = this.salaries.find(s => s._id === id);
         const now = new Date();
         if (salary && salary.month === (now.getMonth() + 1) && salary.year === now.getFullYear()) {
-             if (!confirm(`⚠️ CẢNH BÁO KẾ TOÁN:\n\nTháng ${salary.month} chưa kết thúc! Nếu bạn thanh toán bây giờ, bảng lương tháng này sẽ bị khóa.\nTuy nhiên, hoa hồng của các đơn hàng phát sinh từ ngày hôm nay đến cuối tháng sẽ được hệ thống TỰ ĐỘNG CỘNG DỒN vào tháng sau.\n\nBạn có chắc chắn muốn chốt lương sớm?`)) {
-                 return;
-             }
+             this.warningModal = {
+                show: true,
+                salaryId: id,
+                message: `Tháng ${salary.month} chưa kết thúc! Nếu bạn thanh toán bây giờ, bảng lương tháng này sẽ bị khóa.<br><br>Tuy nhiên, hoa hồng của các đơn hàng phát sinh từ ngày hôm nay đến cuối tháng sẽ được hệ thống TỰ ĐỘNG CỘNG DỒN vào tháng sau.<br><br>Bạn có chắc chắn muốn chốt lương sớm?`
+             };
+             return;
         }
         this.confirmPayId = id;
+    },
+    proceedEarlyPay() {
+        this.confirmPayId = this.warningModal.salaryId;
+        this.warningModal.show = false;
     },
     async executeMarkAsPaid() {
         if (!this.confirmPayId) return;
@@ -234,4 +277,7 @@ th { background: #f8f9fa; font-weight: 600; color: #2c3e50; }
 .btn-cancel-modal:hover { background: #e2e6ea; }
 .btn-confirm-pay { background: #27ae60; color: white; }
 .btn-confirm-pay:hover { background: #219150; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);}
+.warning-dialog .confirm-icon { font-size: 3.5rem; margin-bottom: 10px; }
+.btn-confirm-warning { background: #f39c12; color: white; }
+.btn-confirm-warning:hover { background: #e67e22; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);}
 </style>

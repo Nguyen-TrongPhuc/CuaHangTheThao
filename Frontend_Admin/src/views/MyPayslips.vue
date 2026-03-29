@@ -9,6 +9,7 @@
         <thead>
           <tr>
             <th>Kỳ lương</th>
+            <th>Chấm công</th>
             <th>Lương CB + Phụ cấp</th>
             <th>Hoa hồng</th>
             <th>Thưởng / Phạt</th>
@@ -20,15 +21,17 @@
         <tbody>
           <tr v-for="slip in payslips" :key="slip._id">
             <td><strong>Tháng {{ slip.month }}/{{ slip.year }}</strong></td>
-            <td>{{ formatPrice(slip.base_salary + slip.allowance) }}</td>
+            <td>{{ slip.working_days !== undefined ? slip.working_days : 26 }} / {{ slip.standard_days || 26 }} ngày</td>
+            <td>{{ formatPrice((slip.actual_base_salary || slip.base_salary) + slip.allowance) }}</td>
             <td>
                 <span class="text-success font-bold">+{{ formatPrice(slip.commission_amount) }}</span><br>
                 <small class="text-gray">({{ slip.order_count }} đơn hàng)</small>
             </td>
             <td>
+                <span v-if="slip.ot_salary > 0" class="text-success">+{{ formatPrice(slip.ot_salary) }} (OT)<br></span>
                 <span v-if="slip.bonus > 0" class="text-success">+{{ formatPrice(slip.bonus) }}<br></span>
                 <span v-if="slip.deduction > 0" class="text-danger">-{{ formatPrice(slip.deduction) }}</span>
-                <span v-if="slip.bonus === 0 && slip.deduction === 0">0đ</span>
+                <span v-if="slip.bonus === 0 && slip.deduction === 0 && slip.ot_salary === 0">0đ</span>
             </td>
             <td class="net-salary">{{ formatPrice(slip.net_salary) }}</td>
             <td>

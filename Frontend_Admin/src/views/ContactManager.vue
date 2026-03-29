@@ -82,7 +82,7 @@
             </div>
             <div class="chat-actions">
               <button 
-                @click="deleteConversation"
+                @click="showDeleteConfirm = true"
                 class="btn-action danger"
                 title="Xóa hội thoại"
               >
@@ -179,6 +179,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Confirm Delete Modal -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+      <div class="confirm-dialog">
+        <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Xác nhận xóa</h3>
+        <p>Bạn có chắc chắn muốn xóa toàn bộ hội thoại này? Hành động này không thể hoàn tác.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel-modal" @click="showDeleteConfirm = false">Hủy</button>
+          <button class="btn-confirm-delete" @click="executeDeleteConversation">Xóa</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -199,6 +212,7 @@ export default {
     const filterStatus = ref('');
     const searchQuery = ref('');
     const messageThread = ref(null);
+    const showDeleteConfirm = ref(false);
     
     const showProductModal = ref(false);
     const selectedProduct = ref(null);
@@ -497,7 +511,7 @@ export default {
       filteredConversations,
       selectConversation,
       sendReply,
-      deleteConversation,
+      executeDeleteConversation,
       latestMessageReplied,
       messageThread,
       formatDateTime,
@@ -514,7 +528,8 @@ export default {
       viewProductDetails,
       closeProductModal,
       getCategoryName,
-      getDisplayStock
+      getDisplayStock,
+      showDeleteConfirm
     };
   }
 };
@@ -1055,4 +1070,17 @@ export default {
 .info-item { color: #555; }
 .info-item strong { color: #333; }
 .modal-desc { font-size: 14px; color: #666; line-height: 1.5; text-align: left; max-height: 100px; overflow-y: auto; }
+
+/* Confirm Modal */
+.confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+@keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+.confirm-icon { font-size: 3.5rem; color: #e74c3c; margin-bottom: 15px; }
+.confirm-dialog h3 { margin-top: 0; color: #2c3e50; font-size: 1.5rem; }
+.confirm-dialog p { color: #666; margin-bottom: 25px; line-height: 1.5; font-size: 1.05rem;}
+.confirm-actions { display: flex; justify-content: center; gap: 15px; }
+.confirm-actions button { padding: 12px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; }
+.btn-cancel-modal { background: #f1f3f5; color: #495057; border: 1px solid #ddd; }
+.btn-cancel-modal:hover { background: #e2e6ea; }
+.btn-confirm-delete { background: #e74c3c; color: white; }
+.btn-confirm-delete:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);}
 </style>

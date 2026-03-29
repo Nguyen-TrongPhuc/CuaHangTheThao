@@ -58,9 +58,12 @@
           <div class="menu-group-items" v-show="openMenus.system">
             <template v-if="isAdmin">
               <router-link to="/employees" class="nav-item">Quản lý Nhân viên</router-link>
+              <router-link to="/shifts" class="nav-item">Phân công Ca trực</router-link>
+              <router-link to="/shift-calendar" class="nav-item">Lịch trực (Tuần)</router-link>
               <router-link to="/payroll" class="nav-item">Bảng lương</router-link>
             </template>
             <template v-else>
+              <router-link to="/my-shifts" class="nav-item">Ca trực của tôi</router-link>
               <router-link to="/my-payslips" class="nav-item">Lương của tôi</router-link>
             </template>
             <router-link to="/contacts" class="nav-item">

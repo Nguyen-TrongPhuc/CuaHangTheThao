@@ -50,8 +50,7 @@
 <script>
 import { ref, onMounted } from 'vue';
 import ShippingService from '@/services/shipping.service';
-// Giả sử bạn có một hàm showToast tương tự bên User
-// import { showToast } from '@/utils/toast'; 
+import { showToast } from '@/utils/toast'; 
 
 export default {
   name: 'ShopConfig',
@@ -77,7 +76,7 @@ export default {
         }
       } catch (error) {
         console.error('Lỗi tải thông tin shop:', error);
-        alert('Không thể tải thông tin cửa hàng.');
+        showToast('Không thể tải thông tin cửa hàng.', 'error');
       } finally {
         isLoading.value = false;
       }
@@ -85,16 +84,16 @@ export default {
 
     const handleSave = async () => {
       if (!shop.value.address || !shop.value.lat || !shop.value.lng) {
-        alert('Vui lòng điền đầy đủ địa chỉ và tọa độ.');
+        showToast('Vui lòng điền đầy đủ địa chỉ và tọa độ.', 'warning');
         return;
       }
       try {
         isSaving.value = true;
         await ShippingService.updateShopInfo(shop.value);
-        alert('Cập nhật thông tin cửa hàng thành công!');
+        showToast('Cập nhật thông tin cửa hàng thành công!', 'success');
       } catch (error) {
         console.error('Lỗi cập nhật thông tin shop:', error);
-        alert('Cập nhật thất bại. Vui lòng thử lại.');
+        showToast('Cập nhật thất bại. Vui lòng thử lại.', 'error');
       } finally {
         isSaving.value = false;
       }

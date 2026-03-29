@@ -46,7 +46,7 @@
         </div>
 
         <div class="form-group">
-          <label>Lương cơ bản (VNĐ):</label>
+          <label>Lương cơ bản (Chuẩn 26 ngày công):</label>
           <input type="number" v-model.number="employee.base_salary" placeholder="VD: 5000000" />
         </div>
 

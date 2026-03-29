@@ -80,7 +80,7 @@
             <button class="btn-view" @click="viewOrderDetails(order)" title="Xem chi tiết">
               <i class="fa-solid fa-eye"></i>
             </button>
-            <button class="btn-del" @click="remove(order._id)">Xóa</button>
+            <button class="btn-del" @click="confirmRemove(order._id)">Xóa</button>
           </td>
         </tr>
       </tbody>
@@ -106,8 +106,10 @@
               <h4>Thanh toán</h4>
               <p><strong>Phương thức:</strong> {{ getPaymentMethodName(selectedOrder.payment_method) }}</p>
               <p><strong>Trạng thái TT:</strong> {{ getPaymentStatusName(selectedOrder.payment_status) }}</p>
-              <p><strong>Tạm tính:</strong> {{ formatPrice(selectedOrder.subtotal || selectedOrder.total_amount - (selectedOrder.shipping_fee || 0)) }}đ</p>
+              <p><strong>Tạm tính:</strong> {{ formatPrice(selectedOrder.subtotal || (selectedOrder.total_amount - (selectedOrder.shipping_fee || 0) + (selectedOrder.discount_amount || 0) + (selectedOrder.wallet_discount || 0))) }}đ</p>
               <p><strong>Phí vận chuyển:</strong> {{ formatPrice(selectedOrder.shipping_fee || 0) }}đ</p>
+              <p v-if="selectedOrder.discount_amount > 0"><strong>Voucher giảm:</strong> -{{ formatPrice(selectedOrder.discount_amount) }}đ</p>
+              <p v-if="selectedOrder.wallet_discount > 0"><strong>Ví tích lũy:</strong> -{{ formatPrice(selectedOrder.wallet_discount) }}đ</p>
               <p><strong>Tổng cộng:</strong> <span class="total">{{ formatPrice(selectedOrder.total_amount) }}đ</span></p>
             </div>
           </div>
@@ -137,6 +139,19 @@
         </div>
       </div>
     </div>
+
+    <!-- Confirm Delete Modal -->
+    <div v-if="deleteConfirmId" class="modal-overlay" @click.self="deleteConfirmId = null">
+      <div class="confirm-dialog">
+        <div class="confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3>Xác nhận xóa</h3>
+        <p>Bạn có chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel-modal" @click="deleteConfirmId = null">Hủy</button>
+          <button class="btn-confirm-delete" @click="executeDelete">Xóa</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -150,7 +165,8 @@ export default {
       orders: [],
       showModal: false,
       selectedOrder: null,
-      filterPaymentStatus: ""
+      filterPaymentStatus: "",
+      deleteConfirmId: null
     }; 
   },
   computed: {
@@ -204,14 +220,17 @@ export default {
             event.target.value = originalStatus; // Phục hồi giao diện hiển thị cũ nếu có lỗi mạng
         }
     },
-    async remove(id) {
-      if (confirm("Bạn có chắc muốn xóa đơn hàng này?")) {
+    confirmRemove(id) {
+        this.deleteConfirmId = id;
+    },
+    async executeDelete() {
+        if (!this.deleteConfirmId) return;
         try {
-          await OrderService.delete(id);
+          await OrderService.delete(this.deleteConfirmId);
           await this.loadData();
           showToast("Xóa thành công!", "success");
         } catch (e) { showToast("Xóa thất bại!", "error"); }
-      }
+        finally { this.deleteConfirmId = null; }
     },
     formatPrice(value) {
         return new Intl.NumberFormat('vi-VN').format(value || 0);
@@ -332,4 +351,17 @@ export default {
 
 .toolbar { margin-bottom: 20px; }
 .filter-select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; min-width: 250px; font-size: 1rem; }
+
+/* Confirm Modal */
+.confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+@keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+.confirm-icon { font-size: 3.5rem; color: #e74c3c; margin-bottom: 15px; }
+.confirm-dialog h3 { margin-top: 0; color: #2c3e50; font-size: 1.5rem; }
+.confirm-dialog p { color: #666; margin-bottom: 25px; line-height: 1.5; font-size: 1.05rem;}
+.confirm-actions { display: flex; justify-content: center; gap: 15px; }
+.confirm-actions button { padding: 12px 25px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1rem; }
+.btn-cancel-modal { background: #f1f3f5; color: #495057; border: 1px solid #ddd; }
+.btn-cancel-modal:hover { background: #e2e6ea; }
+.btn-confirm-delete { background: #e74c3c; color: white; }
+.btn-confirm-delete:hover { background: #c0392b; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(231, 76, 60, 0.3);}
 </style>
