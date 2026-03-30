@@ -37,7 +37,12 @@
             <input v-model="addressState.street" @input="updateFullAddress" type="text" placeholder="Số nhà, tên đường..." required />
         </div>
 
-        <button type="submit" class="btn-register">Đăng ký</button>
+        <div class="form-actions">
+          <button type="button" class="btn-back" @click="goBack">
+            Quay lại
+          </button>
+          <button type="submit" class="btn-register">Đăng ký</button>
+        </div>
       </form>
       <p class="login-link">
         Đã có tài khoản? <router-link to="/login">Đăng nhập</router-link>
@@ -121,6 +126,15 @@ export default {
         form.address = parts.join(", ");
     };
 
+    const goBack = () => {
+      const backUrl = window.history.state?.back;
+      if (backUrl && !backUrl.includes('/login') && !backUrl.includes('/forgot-password')) {
+        router.back();
+      } else {
+        router.push("/");
+      }
+    };
+
     const handleRegister = async () => {
       try {
         // Validation đã có ở backend, có thể thêm ở đây nếu muốn
@@ -138,7 +152,7 @@ export default {
 
     return {
         form, showPwd, addressState,
-        fetchDistricts, fetchWards, updateFullAddress, handleRegister
+        fetchDistricts, fetchWards, updateFullAddress, handleRegister, goBack
     };
   }
 };
@@ -169,6 +183,12 @@ select option { background: #333; color: white; }
 
 button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; margin-top: 10px; transition: 0.3s; }
 button:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); }
+
+.form-actions { display: flex; gap: 15px; margin-top: 10px; }
+.form-actions button { margin-top: 0; }
+.btn-back { flex: 1; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: none; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-back:hover { background: rgba(255, 255, 255, 0.2); box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1); }
+.btn-register { flex: 2; }
 
 .login-link { text-align: center; margin-top: 20px; font-size: 0.9rem; color: rgba(255,255,255,0.7); }
 .login-link a { color: #00c6ff; text-decoration: none; font-weight: bold; }

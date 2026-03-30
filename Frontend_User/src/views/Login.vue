@@ -10,7 +10,12 @@
               <i :class="showPwd ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
             </span>
           </div>
-        <button type="submit" class="btn-login">Đăng nhập</button>
+        <div class="form-actions">
+          <button type="button" class="btn-back" @click="goBack">
+            Quay lại
+          </button>
+          <button type="submit" class="btn-login">Đăng nhập</button>
+        </div>
         <div class="forgot-password">
             <router-link to="/forgot-password">Quên mật khẩu?</router-link>
         </div>
@@ -57,6 +62,14 @@ export default {
       } catch (error) {
         showToast(error.response?.data?.message || "Email hoặc mật khẩu không đúng!", "error");
       }
+    },
+    goBack() {
+      const backUrl = window.history.state?.back;
+      if (backUrl && !backUrl.includes('/register') && !backUrl.includes('/forgot-password')) {
+        this.$router.back();
+      } else {
+        this.$router.push("/");
+      }
     }
   }
 };
@@ -83,8 +96,14 @@ input:focus { border-color: #00c6ff; background: rgba(255, 255, 255, 0.1); outli
 .input-with-icon .toggle-pass { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: rgba(255,255,255,0.7); z-index: 2; }
 .input-with-icon .toggle-pass:hover { color: rgba(255,255,255,1); }
 
-button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; transition: 0.3s; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3); font-size: 16px; }
+button { width: 100%; padding: 12px; background: linear-gradient(to right, #00c6ff, #0072ff); color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: bold; margin-top: 10px; transition: 0.3s; }
 button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 114, 255, 0.5); }
+
+.form-actions { display: flex; gap: 15px; margin-top: 10px; }
+.form-actions button { margin-top: 0; }
+.btn-back { flex: 1; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: none; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
+.btn-back:hover { background: rgba(255, 255, 255, 0.2); box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1); }
+.btn-login { flex: 2; font-size: 16px; }
 
 .forgot-password { text-align: right; margin-top: 10px; font-size: 0.9rem; }
 .forgot-password a { color: rgba(255,255,255,0.8); text-decoration: none; transition: 0.3s; }

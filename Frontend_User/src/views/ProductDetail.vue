@@ -714,11 +714,23 @@ export default {
       return true;
     },
     addToCart() {
+      if (!localStorage.getItem("user_token")) {
+        showToast("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.", "warning");
+        this.$router.push("/login");
+        return;
+      }
+      
       if (this.processAddToCart()) {
         showToast(`Đã thêm ${this.quantity} sản phẩm vào giỏ hàng!`, "success");
       }
     },
     buyNow() {
+      if (!localStorage.getItem("user_token")) {
+        showToast("Vui lòng đăng nhập để tiến hành mua hàng.", "warning");
+        this.$router.push("/login");
+        return;
+      }
+
       // Validate trước khi checkout
       if (this.hasVariants) {
           if (!this.selectedVariant || this.selectedVariant.stock === 0 || this.quantity <= 0) {

@@ -124,10 +124,10 @@ import ReviewModal from "@/components/ReviewModal.vue";
 import ReviewsService from "@/services/reviews.service";
 import PaymentService from "@/services/payment.service";
 import { showToast } from "@/utils/toast";
-import { Check } from "lucide-vue-next";
+import { Check, AlertCircle } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter, ReturnRequestModal, ReviewModal, Check },
+  components: { AppHeader, AppFooter, ReturnRequestModal, ReviewModal, Check, AlertCircle },
   data() {
     return {
       orders: [],
