@@ -35,7 +35,7 @@
 
           <div class="item-quantity">
             <button @click="updateQuantity(item, -1)">-</button>
-            <span>{{ item.quantity }}</span>
+            <input type="number" v-model.number="item.quantity" @change="validateQuantity(item)" min="1" />
             <button @click="updateQuantity(item, 1)">+</button>
           </div>
 
@@ -50,14 +50,14 @@
       </div>
 
       <div class="cart-summary">
-        <h3>Tổng cộng</h3>
+        <h3 class="summary-title">TỔNG CỘNG</h3>
         <div class="summary-row">
           <span>Tạm tính:</span>
           <span>{{ formatPrice(totalAmount) }}đ</span>
         </div>
         <div class="summary-row total">
           <span>Thành tiền:</span>
-          <span>{{ formatPrice(totalAmount) }}đ</span>
+          <span class="final-price">{{ formatPrice(totalAmount) }}đ</span>
         </div>
         <button class="btn-checkout" @click="handleCheckout">Mua Ngay</button>
       </div>
@@ -154,6 +154,17 @@ export default {
     formatPrice(value) {
       return new Intl.NumberFormat('vi-VN').format(value);
     },
+    validateQuantity(item) {
+      const maxStock = item.variant?.stock !== undefined ? item.variant.stock : (item.stock || 999);
+      if (item.quantity < 1 || isNaN(item.quantity)) {
+        item.quantity = 1;
+      } else if (item.quantity > maxStock) {
+        item.quantity = maxStock;
+        showToast(`Số lượng tối đa chỉ còn ${maxStock} sản phẩm!`, "warning");
+      }
+      if (this.cart.save) this.cart.save();
+      else localStorage.setItem("cart_items", JSON.stringify(this.cart.state.items));
+    },
     updateQuantity(item, change) {
       const newQuantity = item.quantity + change;
       // Lấy tồn kho từ variant (nếu có) hoặc từ item gốc (nếu backend trả về cấu trúc đó)
@@ -221,16 +232,19 @@ export default {
 
 .item-quantity { display: flex; align-items: center; margin: 0 15px; border: 1px solid #ddd; border-radius: 5px; }
 .item-quantity button { background: none; border: none; padding: 5px 10px; cursor: pointer; font-size: 1.2rem; }
-.item-quantity span { padding: 0 10px; }
+.item-quantity input { width: 40px; text-align: center; border: none; outline: none; font-size: 1rem; font-weight: 500; color: #333; -moz-appearance: textfield; }
+.item-quantity input::-webkit-outer-spin-button, .item-quantity input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .item-total { font-weight: bold; color: #302b63; margin-right: 15px; min-width: 80px; text-align: right; }
 .btn-remove { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 1.1rem; }
 
+.summary-title { font-size: 1.4rem; font-weight: 800; color: #2c3e50; margin: 0 0 20px 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; letter-spacing: 0.5px; }
 .summary-row { display: flex; justify-content: space-between; margin-bottom: 15px; color: #2c3e50; }
-.summary-row.total { font-weight: bold; font-size: 1.2rem; color: #302b63; border-top: 1px solid #eee; padding-top: 15px; }
+.summary-row.total { font-weight: bold; font-size: 1.2rem; color: #2c3e50; border-top: 1px dashed #ccc; padding-top: 20px; margin-top: 10px; align-items: center; }
+.final-price { font-size: 1.8rem; color: #ee4d2d; font-weight: 900; }
 
-.btn-checkout { width: 100%; padding: 12px; background: linear-gradient(135deg, #0f0c29, #302b63); color: white; border: none; border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-.btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(48, 43, 99, 0.3); }
+.btn-checkout { width: 100%; padding: 15px; background: linear-gradient(135deg, #ee4d2d, #ff7337); color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase; margin-top: 10px; letter-spacing: 1px; }
+.btn-checkout:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(238, 77, 45, 0.3); background: linear-gradient(135deg, #d73211, #ee4d2d); }
 
 .empty-cart { text-align: center; padding: 50px; color: #7f8c8d; }
 .empty-cart i { font-size: 4rem; margin-bottom: 20px; color: #bdc3c7; }

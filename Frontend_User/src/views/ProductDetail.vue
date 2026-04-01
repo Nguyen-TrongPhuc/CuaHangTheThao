@@ -662,13 +662,32 @@ export default {
           ? Math.round(originalPrice * (1 - this.discountPercent / 100)) 
           : originalPrice;
 
+      // Kiểm tra số lượng sản phẩm này đã có sẵn trong giỏ hàng
+      let currentCartQty = 0;
+      if (this.hasVariants) {
+          const existingItem = cartStore.state.items.find(i => 
+              i._id === this.product._id && 
+              i.variant && 
+              String(i.variant.size_id) === String(this.selectedVariant.size_id) && 
+              String(i.variant.color_id) === String(this.selectedVariant.color_id)
+          );
+          if (existingItem) currentCartQty = existingItem.quantity;
+      } else {
+          const existingItem = cartStore.state.items.find(i => i._id === this.product._id);
+          if (existingItem) currentCartQty = existingItem.quantity;
+      }
+
+      const currentStock = this.hasVariants ? this.selectedVariant.stock : this.product.stock;
+      const availableToAdd = currentStock - currentCartQty;
+
       if (this.hasVariants) {
           if (!this.selectedVariant || this.selectedVariant.stock === 0 || this.quantity <= 0) {
             showToast("Vui lòng chọn biến thể và số lượng hợp lệ.", "warning");
             return false;
           }
-          if (this.quantity > this.selectedVariant.stock) {
-            showToast(`Số lượng mua (${this.quantity}) vượt quá tồn kho (${this.selectedVariant.stock}).`, "warning");
+          if (this.quantity > availableToAdd) {
+            if (availableToAdd > 0) showToast(`Bạn đã có ${currentCartQty} sản phẩm trong giỏ. Chỉ có thể thêm tối đa ${availableToAdd} sản phẩm nữa.`, "warning");
+            else showToast(`Bạn đã thêm tối đa số lượng tồn kho vào giỏ hàng.`, "warning");
             return false;
           }
       } else {
@@ -676,8 +695,9 @@ export default {
               showToast("Sản phẩm đã hết hàng.", "warning");
               return false;
           }
-          if (this.quantity > this.product.stock) {
-              showToast(`Số lượng mua (${this.quantity}) vượt quá tồn kho (${this.product.stock}).`, "warning");
+          if (this.quantity > availableToAdd) {
+              if (availableToAdd > 0) showToast(`Bạn đã có ${currentCartQty} sản phẩm trong giỏ. Chỉ có thể thêm tối đa ${availableToAdd} sản phẩm nữa.`, "warning");
+              else showToast(`Bạn đã thêm tối đa số lượng tồn kho vào giỏ hàng.`, "warning");
               return false;
           }
       }

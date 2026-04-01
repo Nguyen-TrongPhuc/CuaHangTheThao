@@ -2,7 +2,10 @@
   <div class="page-container">
     <div class="header">
       <h1>Quản lý Sản phẩm</h1>
-      <button class="btn-add" @click="showAddForm">+ Thêm sản phẩm</button>
+      <div class="header-actions" style="display: flex; gap: 10px;">
+        <button class="btn-export" @click="handleExport" style="background: #217346; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s;"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+        <button class="btn-add" @click="showAddForm">+ Thêm sản phẩm</button>
+      </div>
     </div>
 
     <div class="filters">
@@ -23,6 +26,7 @@
         <tr>
           <th class="col-name">Tên sản phẩm</th>
           <th class="col-price">Giá hiển thị</th>
+          <th class="col-import-price">Giá vốn (BQ)</th>
           <th class="col-category">Danh mục</th>
           <th class="col-supplier">Nhà cung cấp</th>
           <th class="col-variants">Biến thể (Size - Màu - Kho)</th>
@@ -36,6 +40,7 @@
          
           <td>{{ p.name }}</td>
           <td>{{ p.price.toLocaleString() }} đ</td>
+          <td style="color: #27ae60; font-weight: 500;">{{ (p.import_price || 0).toLocaleString() }} đ</td>
           <td>{{ getCategoryName(p.category_id) }}</td>
           <td>{{ getSupplierName(p.supplier_id) }}</td>
           <td>
@@ -44,10 +49,10 @@
                     <span v-if="v.size_id" style="font-weight: bold; color: #2980b9;">{{ getSizeName(v.size_id) }}</span>
                     <span v-if="v.size_id && v.color_id"> - </span>
                     <span v-if="v.color_id" style="font-weight: bold; color: #e67e22;">{{ getColorName(v.color_id) }}</span>
-                    : {{ v.stock }} cái
+                    : {{ v.stock }} cái <span style="color:#27ae60">(Vốn: {{ (v.import_price || 0).toLocaleString() }}đ)</span>
                 </div>
             </template>
-            <div v-else style="color: #555; font-style: italic;">Sản phẩm đơn giản (Kho: {{ p.stock }})</div>
+            <div v-else style="color: #555; font-style: italic;">Sản phẩm cơ bản (Kho: {{ p.stock }})</div>
           </td>
            <td>
             <img :src="(p.images && p.images[0] && p.images[0].url) || p.image || 'https://via.placeholder.com/50'" alt="Ảnh" class="product-thumbnail" />
@@ -72,10 +77,15 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Giá hiển thị (VNĐ) <span class="required">*</span></label>
+                    <label>Giá bán (VNĐ) <span class="required">*</span></label>
                     <input v-model="form.price" type="number" placeholder="Giá chung" required class="input-field" />
                 </div>
                 
+                <div class="form-group">
+                    <label>Giá vốn bình quân (VNĐ)</label>
+                    <input v-model="form.import_price" type="number" class="input-field" disabled style="background: #f5f5f5;" title="Tự động tính khi Nhập kho" />
+                </div>
+
                 <div class="form-group">
                     <label>Tồn kho (Quản lý qua Nhập kho)</label>
                     <input v-model="form.stock" type="number" placeholder="0" class="input-field" disabled style="background: #f5f5f5;" />
@@ -137,6 +147,7 @@
                         <div style="flex: 1;">Kích thước</div>
                         <div style="flex: 1;">Màu sắc</div>
                         <div style="width: 80px;">Tồn kho</div>
+                        <div style="width: 100px;">Giá vốn BQ</div>
                         <div style="width: 120px;">Giá bán riêng</div>
                         <div style="width: 40px;"></div>
                     </div>
@@ -153,6 +164,7 @@
                         </select>
 
                         <input type="number" v-model="variant.stock" placeholder="Kho" class="input-field" style="width: 80px; background: #f5f5f5;" disabled title="Số lượng được quản lý tự động qua Nhập kho">
+                        <input type="number" v-model="variant.import_price" placeholder="Vốn" class="input-field" style="width: 100px; background: #f5f5f5;" disabled title="Tự động tính khi nhập kho">
                         <input type="number" v-model="variant.price" placeholder="Giá riêng" class="input-field" style="width: 120px;">
                         
                         <button type="button" @click="removeVariant(index)" class="btn-del-variant"><i class="fa-solid fa-trash"></i></button>
@@ -193,6 +205,7 @@ import SizesService from "@/services/sizes.service";
 import ColorsService from "@/services/colors.service";
 import SuppliersService from "@/services/suppliers.service";
 import { showToast } from "@/utils/toast";
+import { exportInventoryToExcel } from "@/utils/excel";
 
 export default {
   data() {
@@ -206,7 +219,7 @@ export default {
       isFormVisible: false,
       editingId: null,
       // image field kept for compatibility; new images array supports multiple image URLs with optional color association
-      form: { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] },
+      form: { name: "", price: 0, import_price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] },
       selectedCategory: "",
       selectedSport: "",
       searchText: "",
@@ -254,7 +267,7 @@ export default {
     },
     showAddForm() {
       this.editingId = null;
-      this.form = { name: "", price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] };
+      this.form = { name: "", price: 0, import_price: 0, stock: 0, description: "", category_id: "", sport_id: "", supplier_id: null, image: "", images: [], variants: [] };
       // Không tự động thêm variant để hỗ trợ sản phẩm đơn giản
       this.isFormVisible = true;
     },
@@ -272,7 +285,7 @@ export default {
       this.isFormVisible = true;
     },
     addVariant() {
-        this.form.variants.push({ size_id: "", color_id: "", stock: 0, price: this.form.price });
+        this.form.variants.push({ size_id: "", color_id: "", stock: 0, import_price: 0, price: this.form.price });
     },
     removeVariant(index) {
         this.form.variants.splice(index, 1);
@@ -286,9 +299,9 @@ export default {
     async save() {
       try {
         if (this.editingId) {
-            // Loại bỏ _id, stock, sold để tránh ghi đè dữ liệu kho/bán hàng khi đang có giao dịch
+            // Loại bỏ _id, stock, sold, import_price để tránh ghi đè dữ liệu kho/vốn bằng tay
             // eslint-disable-next-line no-unused-vars
-            const { _id, stock, sold, ...data } = this.form; 
+            const { _id, stock, sold, import_price, ...data } = this.form; 
             await ProductService.update(this.editingId, data);
         }
         else await ProductService.create(this.form);
@@ -318,6 +331,13 @@ export default {
       } finally {
         this.deleteConfirmId = null;
       }
+    },
+    handleExport() {
+      if (this.filteredProducts.length === 0) {
+        showToast("Không có dữ liệu để xuất!", "error");
+        return;
+      }
+      exportInventoryToExcel(this.filteredProducts, this.sizes, this.colors);
     }
   },
   mounted() { this.loadData(); },
@@ -342,6 +362,7 @@ export default {
 .product-thumbnail { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; }
 .btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; }
 .btn-add:hover { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
+.btn-export:hover { background: #1e6b3e !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 .btn-del { color: #e74c3c; margin-left: 10px; cursor: pointer; border: none; background: none; }
 .btn-edit { color: #3498db; cursor: pointer; border: none; background: none; margin-right: 5px; }
 
@@ -381,6 +402,7 @@ export default {
 /* Table Column Widths */
 .admin-table th.col-name { width: 18%; word-break: break-word; }
 .admin-table th.col-price { width: 10%; }
+.admin-table th.col-import-price { width: 10%; }
 .admin-table th.col-category { width: 12%; }
 .admin-table th.col-supplier { width: 12%; }
 .admin-table th.col-variants { width: 30%; } /* Mở rộng cột biến thể */

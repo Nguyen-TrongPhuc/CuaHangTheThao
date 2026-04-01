@@ -28,4 +28,7 @@ router.route("/top-products-by-month")
 router.route("/daily-revenue-range")
     .get([auth.verifyToken, auth.isEmployeeOrAdmin], dashboard.getDailyRevenueRange);
 
+router.route("/cashflow")
+    .get([auth.verifyToken, auth.isAdmin], dashboard.getDailyCashflow);
+
 module.exports = router;

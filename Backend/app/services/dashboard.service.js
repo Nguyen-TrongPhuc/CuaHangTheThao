@@ -595,6 +595,100 @@ class DashboardService {
         }
         return { updatedCount };
     }
+
+    // 6. Sổ Quỹ (Cashflow): Xem chi tiết dòng tiền (Thu/Chi) trong 1 ngày cụ thể
+    async getDailyCashflowDetail(dateString) {
+        const targetDate = new Date(dateString);
+        const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
+        const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+
+        // 1. Nguồn Doanh thu (Từ Đơn hàng hoàn thành/đã thanh toán)
+        const revenues = await this.Orders.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { status: { $in: ["completed", "delivered"] } },
+                        { payment_status: "paid" }
+                    ],
+                    createdAt: { $gte: startOfDay, $lte: endOfDay }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    type: "revenue",
+                    source: "Bán hàng",
+                    description: { $concat: ["Đơn hàng #", { $substr: [{ $toString: "$_id" }, 18, 6] }, " - Khách: ", { $ifNull: ["$name", "Khách lẻ"] }] },
+                    amount: { $ifNull: ["$total_amount", 0] },
+                    time: "$createdAt"
+                }
+            }
+        ]).toArray();
+
+        // 2. Nguồn Chi phí Nhập hàng (Từ Phiếu nhập kho)
+        const importCosts = await this.Warehouse.aggregate([
+            {
+                $match: {
+                    createdAt: { $gte: startOfDay, $lte: endOfDay }
+                }
+            },
+            {
+                $addFields: {
+                    calculated_amount: {
+                        $reduce: {
+                            input: { $ifNull: ["$items", []] },
+                            initialValue: 0,
+                            in: { $add: ["$$value", { $multiply: [{ $ifNull: ["$$this.import_price", 0] }, { $ifNull: ["$$this.quantity", 0] }] }] }
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    type: "cost",
+                    source: "Nhập hàng",
+                    description: { $concat: ["Phiếu nhập kho #", { $substr: [{ $toString: "$_id" }, 18, 6] }, " - NCC: ", { $ifNull: ["$supplier_name", "Không rõ"] }] },
+                    amount: { $ifNull: ["$total_amount", "$calculated_amount"] },
+                    time: "$createdAt"
+                }
+            }
+        ]).toArray();
+
+        // 3. Nguồn Chi phí Lương (Từ Bảng lương nếu có thanh toán trong ngày)
+        const salaryCosts = await this.Salaries.aggregate([
+            {
+                $match: {
+                    status: "paid",
+                    payment_date: { $gte: startOfDay, $lte: endOfDay }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    type: "cost",
+                    source: "Trả lương",
+                    description: { $concat: ["Lương T", { $toString: "$month" }, "/", { $toString: "$year" }, " - NV: ", "$employee_name"] },
+                    amount: { $ifNull: ["$net_salary", 0] },
+                    time: "$payment_date"
+                }
+            }
+        ]).toArray();
+
+        // Gộp chung và sắp xếp theo thời gian mới nhất lên đầu
+        const cashflow = [...revenues, ...importCosts, ...salaryCosts].sort((a, b) => b.time - a.time);
+
+        const totalRevenue = revenues.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+        const totalCost = importCosts.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) + salaryCosts.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+        return {
+            date: dateString,
+            totalRevenue,
+            totalCost,
+            profit: totalRevenue - totalCost,
+            transactions: cashflow
+        };
+    }
 }
 
 module.exports = DashboardService;

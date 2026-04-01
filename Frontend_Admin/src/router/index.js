@@ -19,6 +19,8 @@ import MyPayslips from '../views/MyPayslips.vue';
 import ShiftManager from '../views/ShiftManager.vue';
 import MyShifts from '../views/MyShifts.vue';
 import ShiftCalendar from '../views/ShiftCalendar.vue';
+import Cashbook from "@/views/Cashbook.vue";
+
 
 const routes = [
   {
@@ -56,6 +58,9 @@ const routes = [
   { path: '/shifts', name: 'ShiftManager', component: ShiftManager },
   { path: '/my-shifts', name: 'MyShifts', component: MyShifts },
   { path: '/shift-calendar', name: 'ShiftCalendar', component: ShiftCalendar },
+  { path: '/cashbook', name: 'cashbook', component: Cashbook },
+
+
 ];
 
 const router = createRouter({

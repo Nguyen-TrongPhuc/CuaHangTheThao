@@ -2,6 +2,9 @@
   <div class="page-container">
     <div class="header">
       <h1>Quản lý Đơn hàng</h1>
+      <button class="btn-export" @click="handleExport" style="background: #217346; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s;">
+        <i class="fa-solid fa-file-excel"></i> Xuất Excel
+      </button>
     </div>
 
     <div class="toolbar">
@@ -12,6 +15,8 @@
         <option value="pending">Chờ thanh toán (COD)</option>
         <option value="failed">Thất bại</option>
       </select>
+      <input type="date" v-model="filterStartDate" class="filter-date" title="Từ ngày" />
+      <input type="date" v-model="filterEndDate" class="filter-date" title="Đến ngày" />
     </div>
 
     <table class="admin-table">
@@ -91,7 +96,10 @@
       <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3>Chi tiết đơn hàng</h3>
-          <button class="btn-close" @click="closeModal">&times;</button>
+          <div class="modal-actions" style="display: flex; align-items: center; gap: 15px;">
+            <button class="btn-export-modal" @click="exportSingleOrder(selectedOrder)"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+            <button class="btn-close" @click="closeModal">&times;</button>
+          </div>
         </div>
         <div class="modal-body" v-if="selectedOrder">
           <div class="order-detail-grid">
@@ -158,6 +166,7 @@
 <script>
 import OrderService from "@/services/orders.service";
 import { showToast } from "@/utils/toast";
+import { exportOrdersToExcel } from "@/utils/excel";
 
 export default {
   data() { 
@@ -166,13 +175,30 @@ export default {
       showModal: false,
       selectedOrder: null,
       filterPaymentStatus: "",
+      filterStartDate: "",
+      filterEndDate: "",
       deleteConfirmId: null
     }; 
   },
   computed: {
     filteredOrders() {
-      if (!this.filterPaymentStatus) return this.orders;
-      return this.orders.filter(order => order.payment_status === this.filterPaymentStatus);
+      let result = this.orders;
+      
+      if (this.filterPaymentStatus) {
+        result = result.filter(order => order.payment_status === this.filterPaymentStatus);
+      }
+      
+      if (this.filterStartDate) {
+        const start = new Date(this.filterStartDate).setHours(0, 0, 0, 0);
+        result = result.filter(order => new Date(order.createdAt).getTime() >= start);
+      }
+      
+      if (this.filterEndDate) {
+        const end = new Date(this.filterEndDate).setHours(23, 59, 59, 999);
+        result = result.filter(order => new Date(order.createdAt).getTime() <= end);
+      }
+      
+      return result;
     }
   },
   methods: {
@@ -280,6 +306,17 @@ export default {
             showToast("Lỗi cập nhật trạng thái thanh toán", "error");
             event.target.value = originalPaymentStatus; // Phục hồi giao diện hiển thị cũ nếu có lỗi mạng
         }
+    },
+    handleExport() {
+      if (this.filteredOrders.length === 0) {
+        showToast("Không có dữ liệu để xuất!", "error");
+        return;
+      }
+      exportOrdersToExcel(this.filteredOrders);
+    },
+    exportSingleOrder(order) {
+      if (!order) return;
+      exportOrdersToExcel([order]);
     }
   },
   mounted() { this.loadData(); }
@@ -288,8 +325,9 @@ export default {
 
 <style scoped>
 .page-container { padding: 20px; }
-.header { margin-bottom: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 .header h1 { margin: 0; color: #2c3e50; }
+.btn-export:hover { background: #1e6b3e !important; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 
 .admin-table { width: 100%; border-collapse: collapse; background: white; }
 .admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; vertical-align: top; }
@@ -335,6 +373,8 @@ export default {
 .modal-content { background: white; border-radius: 8px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #eee; }
 .modal-header h3 { margin: 0; }
+.btn-export-modal { background: #217346; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+.btn-export-modal:hover { background: #1e6b3e; }
 .btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; }
 .modal-body { padding: 20px; }
 
@@ -351,6 +391,7 @@ export default {
 
 .toolbar { margin-bottom: 20px; }
 .filter-select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; min-width: 250px; font-size: 1rem; }
+.filter-date { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; margin-left: 10px; cursor: pointer; }
 
 /* Confirm Modal */
 .confirm-dialog { background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }

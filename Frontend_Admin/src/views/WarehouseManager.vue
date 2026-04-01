@@ -13,7 +13,12 @@
           {{ viewAll ? 'Hiện tháng' : 'Tất cả' }}
         </button>
       </div>
-      <button class="btn-add" @click="$router.push('/warehouse/import')">+ Nhập hàng mới</button>
+      <div class="header-actions" style="display: flex; gap: 10px;">
+        <button class="btn-export" @click="handleExportWarehouse" style="background: #217346; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s;">
+          <i class="fa-solid fa-file-excel"></i> Xuất Excel
+        </button>
+        <button class="btn-add" @click="$router.push('/warehouse/import')">+ Nhập hàng mới</button>
+      </div>
     </div>
 
     <table class="admin-table">
@@ -49,7 +54,10 @@
       <div class="modal-content">
         <div class="modal-header">
             <h3>Chi tiết phiếu nhập #{{ selectedReceipt._id?.slice(-6).toUpperCase() }}</h3>
-            <button class="close-btn" @click="closeModal">&times;</button>
+            <div class="modal-actions" style="display: flex; align-items: center; gap: 15px;">
+              <button class="btn-export-modal" @click="exportSingleReceipt(selectedReceipt)"><i class="fa-solid fa-file-excel"></i> Xuất Excel</button>
+              <button class="close-btn" @click="closeModal">&times;</button>
+            </div>
         </div>
         <div class="modal-body" v-if="selectedReceipt">
             <div class="detail-row">
@@ -115,6 +123,8 @@
 
 <script>
 import WarehouseService from "@/services/warehouse.service";
+import { exportWarehouseToExcel } from "@/utils/excel";
+import { showToast } from "@/utils/toast";
 
 export default {
   data() { 
@@ -161,6 +171,17 @@ export default {
     closeModal() {
         this.showModal = false;
         this.selectedReceipt = null;
+    },
+    handleExportWarehouse() {
+      if (!this.receipts || this.receipts.length === 0) {
+        showToast("Không có dữ liệu phiếu nhập để xuất!", "error");
+        return;
+      }
+      exportWarehouseToExcel(this.receipts);
+    },
+    exportSingleReceipt(receipt) {
+      if (!receipt) return;
+      exportWarehouseToExcel([receipt]);
     }
   },
   async mounted() {
@@ -199,6 +220,7 @@ export default {
 .admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
 .btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; text-decoration: none; font-size: 14px; }
 .btn-add:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn-export:hover { background: #1e6b3e !important; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
 
 .product-info { display: flex; flex-direction: column; }
 .variant-text { color: #666; font-size: 0.85em; }
@@ -210,6 +232,8 @@ export default {
 .modal-content { background: white; border-radius: 8px; width: 700px; max-width: 90%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.2); animation: slideIn 0.3s; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; }
 .modal-header h3 { margin: 0; color: #2c3e50; }
+.btn-export-modal { background: #217346; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
+.btn-export-modal:hover { background: #1e6b3e; }
 .close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
 .close-btn:hover { color: #333; }
 .modal-body { padding: 20px; overflow-y: auto; flex: 1; }

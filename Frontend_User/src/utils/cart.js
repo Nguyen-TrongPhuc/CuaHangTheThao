@@ -36,6 +36,10 @@ export const cartStore = {
             } else {
                 existingItem.quantity += quantity; // Cộng dồn nếu là Thêm vào giỏ
             }
+            // Đảm bảo số lượng cộng dồn trong giỏ không bao giờ vượt quá tồn kho
+            if (existingItem.stock !== undefined && existingItem.quantity > existingItem.stock) {
+                existingItem.quantity = existingItem.stock;
+            }
             if (isSelected) existingItem.selected = true;
         } else {
             // determine image to store: prefer color-specific or first from images array
@@ -88,5 +92,5 @@ export const cartStore = {
     },
 
     totalAmount: computed(() => state.items.reduce((total, item) => total + (item.price * item.quantity), 0)),
-    totalItems: computed(() => state.items.reduce((total, item) => total + item.quantity, 0))
+    totalItems: computed(() => state.items.length) // Đếm số loại sản phẩm thay vì tổng số lượng vật lý
 };

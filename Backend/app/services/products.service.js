@@ -14,6 +14,7 @@ class ProductsService {
             name: payload.name,
             description: payload.description || "",
             price: Number(payload.price),
+            import_price: 0, // Khởi tạo giá vốn mặc định
             // stock: Tổng tồn kho sẽ được tính toán hoặc hiển thị từ variants, ở đây lưu tạm 0 hoặc tổng
             stock: 0, 
             sold: 0, // Thêm trường số lượng đã bán, mặc định là 0
@@ -35,6 +36,7 @@ class ProductsService {
                 size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
                 color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
                 stock: 0, // Chỉ cập nhật tồn kho thông qua phiếu nhập kho
+                import_price: 0, // Khởi tạo giá vốn mặc định cho biến thể
                 price: Number(v.price) || Number(payload.price) // Nếu không có giá riêng thì lấy giá chung
             })) : [],
 
@@ -244,14 +246,20 @@ class ProductsService {
             }
         });
 
-        // Lấy sản phẩm cũ để giữ nguyên tồn kho
+        // Lấy sản phẩm cũ để giữ nguyên tồn kho và giá vốn
         const oldProduct = await this.Products.findOne(filter);
+
+        // BẢO VỆ GIÁ VỐN SẢN PHẨM GỐC: Chỉ cập nhật từ phiếu nhập, không cho sửa tay
+        if (oldProduct) {
+            updateData.import_price = oldProduct.import_price || 0;
+        }
 
         // Xử lý variants khi update
         if (updateData.variants && Array.isArray(updateData.variants)) {
             updateData.variants = updateData.variants.map(v => {
-                // Giữ nguyên tồn kho cũ của biến thể từ Database
+                // Giữ nguyên tồn kho và giá vốn cũ của biến thể từ Database
                 let currentStock = 0;
+                let currentImportPrice = 0;
                 if (oldProduct && oldProduct.variants) {
                     const oldVariant = oldProduct.variants.find(ov => 
                         String(ov.size_id) === String(v.size_id) && 
@@ -259,6 +267,7 @@ class ProductsService {
                     );
                     if (oldVariant) {
                         currentStock = oldVariant.stock;
+                        currentImportPrice = oldVariant.import_price || 0;
                     }
                 }
 
@@ -266,6 +275,7 @@ class ProductsService {
                     size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
                     color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
                     stock: currentStock, // Bỏ qua giá trị gửi lên, lấy từ DB
+                    import_price: currentImportPrice, // Giữ nguyên giá vốn
                     price: Number(v.price) || Number(updateData.price || 0)
                 };
             });

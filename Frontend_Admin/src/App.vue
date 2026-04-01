@@ -61,6 +61,7 @@
               <router-link to="/shifts" class="nav-item">Phân công Ca trực</router-link>
               <router-link to="/shift-calendar" class="nav-item">Lịch trực (Tuần)</router-link>
               <router-link to="/payroll" class="nav-item">Bảng lương</router-link>
+              <router-link to="/cashbook" class="nav-item">Sổ quỹ dòng tiền</router-link>
             </template>
             <template v-else>
               <router-link to="/my-shifts" class="nav-item">Ca trực của tôi</router-link>

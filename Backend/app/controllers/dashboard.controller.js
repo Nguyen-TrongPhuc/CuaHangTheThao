@@ -113,3 +113,16 @@ exports.getDailyRevenueRange = async (req, res, next) => {
         return next(new ApiError(500, "Error retrieving daily revenue range"));
     }
 };
+
+exports.getDailyCashflow = async (req, res, next) => {
+    try {
+        const date = req.query.date || new Date().toISOString().split('T')[0];
+        const dashboardService = new DashboardService(MongoDB.client);
+        
+        const data = await dashboardService.getDailyCashflowDetail(date);
+        return res.send(data);
+    } catch (error) {
+        console.error("Lỗi getDailyCashflow:", error);
+        return next(new ApiError(500, "Lỗi khi lấy dữ liệu sổ quỹ"));
+    }
+};
