@@ -17,4 +17,7 @@ router.route("/product/:id")
 router.route("/:id/reply")
     .put([auth.verifyToken, auth.isEmployeeOrAdmin], reviews.reply);
 
+router.route("/:id")
+    .delete([auth.verifyToken, auth.isEmployeeOrAdmin], reviews.delete);
+
 module.exports = router;

@@ -27,6 +27,7 @@
               <span v-if="pendingOrdersCount > 0 && !isOrderPage" class="unread-badge">{{ pendingOrdersCount }}</span>
             </router-link>
             <router-link to="/customers" class="nav-item">Khách hàng</router-link>
+            <router-link to="/reviews" class="nav-item">Đánh giá sản phẩm</router-link>
             <router-link to="/vouchers" class="nav-item">Khuyến mãi (Voucher)</router-link>
           </div>
         </div>

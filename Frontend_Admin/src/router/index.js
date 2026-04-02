@@ -20,6 +20,7 @@ import ShiftManager from '../views/ShiftManager.vue';
 import MyShifts from '../views/MyShifts.vue';
 import ShiftCalendar from '../views/ShiftCalendar.vue';
 import Cashbook from "@/views/Cashbook.vue";
+import ReviewManager from '../views/ReviewManager.vue';
 
 
 const routes = [
@@ -41,6 +42,7 @@ const routes = [
   },
   { path: '/products', name: 'ProductManager', component: ProductManager },
   { path: '/orders', name: 'OrderManager', component: OrderManager },
+  { path: '/reviews', name: 'ReviewManager', component: ReviewManager },
   { path: '/customers', name: 'CustomerManager', component: CustomerManager },
   { path: '/categories', name: 'CategoryManager', component: CategoryManager },
   { path: '/sports', name: 'SportManager', component: SportManager },

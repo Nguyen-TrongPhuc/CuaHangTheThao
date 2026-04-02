@@ -58,7 +58,8 @@
                 <option value="newest">Mới nhất</option>
                 <option value="price-asc">Giá: Thấp đến Cao</option>
                 <option value="price-desc">Giá: Cao đến Thấp</option>
-                <option value="best-seller">Bán chạy nhất</option>
+                <option value="bestseller">Bán chạy nhất</option>
+                <option value="rating">Đánh giá cao</option>
               </select>
             </div>
           </div>
@@ -172,6 +173,13 @@ export default {
         this.selectedCategory = newQuery.category || "";
         this.selectedSport = newQuery.sport || "";
         
+        // Bắt tham số sort từ URL truyền sang
+        if (newQuery.sort) {
+            this.sortBy = newQuery.sort === 'best-seller' ? 'bestseller' : newQuery.sort;
+        } else {
+            this.sortBy = "newest";
+        }
+
         // Nếu chưa có dữ liệu thì fetch, nếu có rồi thì chỉ apply filter
         if (this.allProducts.length === 0) {
             this.fetchProducts();
@@ -236,9 +244,17 @@ export default {
             case 'price-desc':
                 sorted.sort((a, b) => b.price - a.price);
                 break;
-            case 'best-seller':
+                case 'bestseller':
                 sorted.sort((a, b) => (b.sold || 0) - (a.sold || 0));
                 break;
+                case 'rating':
+                    sorted.sort((a, b) => {
+                        const ratingA = a.averageRating || 0;
+                        const ratingB = b.averageRating || 0;
+                        // Ưu tiên điểm số trước, nếu điểm bằng nhau thì ưu tiên số lượt đánh giá
+                        return ratingB - ratingA || (b.reviewCount || 0) - (a.reviewCount || 0);
+                    });
+                    break;
             case 'newest':
             default:
                 sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));

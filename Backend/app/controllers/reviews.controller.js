@@ -58,3 +58,16 @@ exports.reply = async (req, res, next) => {
         return next(new ApiError(500, "An error occurred while replying"));
     }
 };
+
+exports.delete = async (req, res, next) => {
+    try {
+        const reviewsService = new ReviewsService(MongoDB.client);
+        const document = await reviewsService.delete(req.params.id);
+        if (!document) {
+            return next(new ApiError(404, "Review not found"));
+        }
+        return res.send({ message: "Review was deleted successfully" });
+    } catch (error) {
+        return next(new ApiError(500, `Could not delete review ${req.params.id}`));
+    }
+};

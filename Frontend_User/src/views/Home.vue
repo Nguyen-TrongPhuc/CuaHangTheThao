@@ -34,7 +34,7 @@
       <section class="section-container new-arrivals" id="shop-now">
         <div class="section-header">
           <h2 class="section-title">Sản phẩm Mới nhất</h2>
-          <router-link to="/products" class="view-all-link" style="display:flex;align-items:center;gap:5px;">
+          <router-link :to="{ path: '/products', query: { sort: 'newest' } }" class="view-all-link" style="display:flex;align-items:center;gap:5px;">
             Xem tất cả <ArrowRight :size="16" />
           </router-link>
         </div>
@@ -65,9 +65,14 @@
 
       <!-- 3. Sản phẩm Gợi ý (Personalized Recommendations) -->
       <section class="section-container recommendations-section">
-        <div class="section-header center">
-          <h2 class="section-title">Sản phẩm Đánh giá cao</h2>
-          <p class="section-subtitle">Những sản phẩm được khách hàng yêu thích và đánh giá tốt nhất</p>
+        <div class="section-header">
+          <div>
+            <h2 class="section-title" style="margin-bottom: 5px; text-align: left;">Sản phẩm Đánh giá cao</h2>
+            <p class="section-subtitle" style="margin-bottom: 0;">Những sản phẩm được khách hàng yêu thích và đánh giá tốt nhất</p>
+          </div>
+          <router-link :to="{ path: '/products', query: { sort: 'rating' } }" class="view-all-link" style="display:flex;align-items:center;gap:5px;">
+            Xem tất cả <ArrowRight :size="16" />
+          </router-link>
         </div>
         <div class="product-grid">
           <div v-for="product in topRatedProducts" :key="product._id" class="product-card" @click="goToProductDetail(product._id)">
@@ -103,7 +108,12 @@
 
       <!-- 4. Sản phẩm Bán chạy/Khuyến mãi -->
       <section class="section-container best-sellers">
-        <h2 class="section-title">Sản phẩm Bán chạy</h2>
+        <div class="section-header">
+          <h2 class="section-title" style="margin-bottom: 0;">Sản phẩm Bán chạy</h2>
+          <router-link :to="{ path: '/products', query: { sort: 'bestseller' } }" class="view-all-link" style="display:flex;align-items:center;gap:5px;">
+            Xem tất cả <ArrowRight :size="16" />
+          </router-link>
+        </div>
         <div class="product-grid">
           <div v-for="product in bestSellers" :key="product._id" class="product-card" @click="goToProductDetail(product._id)">
             <div class="image-container">
@@ -169,30 +179,25 @@ export default {
         const response = await ProductService.getAll();
         this.allProducts = Array.isArray(response) ? response : [];
 
-        // 1. New Arrivals: Chỉ lấy sản phẩm được tạo trong vòng 30 ngày gần đây
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-        this.newArrivals = this.allProducts.filter(p => {
-            return p.createdAt && new Date(p.createdAt) >= thirtyDaysAgo;
-        }).slice(0, 8);
+        // 1. New Arrivals: Backend đã tự sắp xếp mới nhất -> cũ nhất (createdAt: -1).
+        // Ta chỉ việc cắt lấy 8 sản phẩm đầu tiên mà không cần quan tâm ngày tạo.
+        this.newArrivals = this.allProducts.slice(0, 8);
 
         // 2. Top Rated: Lấy 4 sản phẩm có ĐIỂM THẬT CAO NHẤT
         const productsWithReviews = this.allProducts
             .filter(p => p.averageRating > 0)
             .sort((a, b) => b.averageRating - a.averageRating || (b.reviewCount || 0) - (a.reviewCount || 0));
             
-        if (productsWithReviews.length >= 4) {
-            this.topRatedProducts = productsWithReviews.slice(0, 4);
+        if (productsWithReviews.length >= 8) {
+            this.topRatedProducts = productsWithReviews.slice(0, 8);
         } else {
-            // Nếu chưa có ai đánh giá (hoặc không đủ 4), tự thêm ngẫu nhiên cho đầy 4 khung của giao diện
+            // Nếu chưa có ai đánh giá (hoặc không đủ 8), tự thêm ngẫu nhiên cho đầy 8 khung của giao diện
             const others = this.allProducts.filter(p => p.averageRating === 0).sort(() => 0.5 - Math.random());
-            this.topRatedProducts = [...productsWithReviews, ...others].slice(0, 4);
+            this.topRatedProducts = [...productsWithReviews, ...others].slice(0, 8);
         }
 
-        // 3. Best Sellers: Sắp xếp giảm dần VÀ CHỈ LẤY sản phẩm có lượt bán > 0
+        // 3. Best Sellers: Sắp xếp giảm dần lượt bán (Lấy luôn cả những sản phẩm chưa bán được cho đủ 8 cái)
         this.bestSellers = [...this.allProducts]
-            .filter(p => (p.sold || 0) > 0)
             .sort((a, b) => (b.sold || 0) - (a.sold || 0))
             .slice(0, 8);
 
@@ -466,12 +471,32 @@ export default {
 
 /* Product Grid */
 .product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  display: flex;
+  overflow-x: auto;
   gap: 30px;
+  padding-bottom: 20px; /* Khoảng trống cho thanh cuộn và bóng đổ (shadow) */
+  scroll-snap-type: x mandatory; /* Giúp vuốt mượt mà, tự động hút vào thẻ */
+  -webkit-overflow-scrolling: touch;
+}
+
+.product-grid::-webkit-scrollbar {
+  height: 6px;
+}
+.product-grid::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+.product-grid::-webkit-scrollbar-thumb {
+  background: #dcdde1;
+  border-radius: 4px;
+}
+.product-grid::-webkit-scrollbar-thumb:hover {
+  background: #ee4d2d;
 }
 
 .product-card {
+  flex: 0 0 260px; /* Cố định chiều rộng mỗi thẻ là 260px */
+  scroll-snap-align: start;
   background: white;
   border-radius: 12px;
   overflow: hidden;

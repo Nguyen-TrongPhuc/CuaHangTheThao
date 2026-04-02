@@ -91,6 +91,12 @@ class ReviewsService {
             { returnDocument: "after" }
         );
     }
+
+    async delete(id) {
+        return await this.Reviews.findOneAndDelete({ 
+            _id: ObjectId.isValid(id) ? new ObjectId(id) : null 
+        });
+    }
 }
 
 module.exports = ReviewsService;
