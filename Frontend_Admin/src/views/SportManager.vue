@@ -2,7 +2,14 @@
   <div class="page-container">
     <div class="header">
       <h1>Quản lý Môn thể thao</h1>
-      <button class="btn-add" @click="showAddForm">+ Thêm môn thể thao</button>
+      <div class="header-actions">
+        <div class="search-box">
+          <i class="fa-solid fa-search search-icon"></i>
+          <input type="text" v-model="searchQuery" placeholder="Tìm kiếm môn thể thao..." />
+          <i v-if="searchQuery" class="fa-solid fa-times clear-icon" @click="searchQuery = ''" title="Xóa tìm kiếm"></i>
+        </div>
+        <button class="btn-add" @click="showAddForm">+ Thêm môn thể thao</button>
+      </div>
     </div>
 
     <table class="admin-table">
@@ -14,8 +21,16 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-if="sports.length === 0"><td colspan="3" style="text-align: center;">Chưa có dữ liệu</td></tr>
-        <tr v-for="item in sports" :key="item._id">
+        <tr v-if="isFetching"><td colspan="3" style="text-align: center; padding: 30px;">Đang tải dữ liệu... <i class="fa-solid fa-spinner fa-spin"></i></td></tr>
+        <tr v-else-if="filteredSports.length === 0">
+          <td colspan="3" style="text-align: center; padding: 50px 20px;">
+            <div class="empty-search">
+              <i class="fa-solid fa-magnifying-glass-minus"></i>
+              <p>Không tìm thấy môn thể thao nào phù hợp với <strong>"{{ searchQuery }}"</strong></p>
+            </div>
+          </td>
+        </tr>
+        <tr v-else v-for="item in filteredSports" :key="item._id">
           <td><strong>{{ item.name }}</strong></td>
           <td>{{ item.description }}</td>
           <td>
@@ -77,12 +92,31 @@ export default {
       editingId: null,
       deleteConfirmId: null,
       form: { name: "", description: "" },
-      isLoading: false // Thêm trạng thái đang tải
+      isLoading: false, // Trạng thái đang lưu form
+      isFetching: false, // Trạng thái đang load danh sách
+      searchQuery: "" // Từ khóa tìm kiếm
     };
+  },
+  computed: {
+    filteredSports() {
+      if (!this.searchQuery) return this.sports;
+      const query = this.searchQuery.toLowerCase();
+      return this.sports.filter(s => 
+        s.name.toLowerCase().includes(query) || 
+        (s.description && s.description.toLowerCase().includes(query))
+      );
+    }
   },
   methods: {
     async loadData() {
-      this.sports = await SportService.getAll();
+      this.isFetching = true;
+      try {
+        this.sports = await SportService.getAll();
+      } catch (error) {
+        showToast("Lỗi khi tải danh sách môn thể thao", "error");
+      } finally {
+        this.isFetching = false;
+      }
     },
     showAddForm() {
       this.editingId = null;
@@ -136,6 +170,18 @@ export default {
 
 <style scoped>
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.header-actions { display: flex; gap: 15px; align-items: center; }
+.search-box { position: relative; }
+.search-box .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #95a5a6; font-size: 14px; }
+.search-box .clear-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #95a5a6; font-size: 14px; cursor: pointer; transition: 0.2s; }
+.search-box .clear-icon:hover { color: #e74c3c; }
+.search-box input { padding: 10px 35px 10px 38px; border: 1px solid #e0e0e0; border-radius: 20px; outline: none; width: 260px; font-size: 14px; background: #f8f9fa; transition: all 0.3s ease; }
+.search-box input:focus { border-color: #4776E6; background: #fff; box-shadow: 0 0 0 3px rgba(71, 118, 230, 0.1); width: 320px; } /* Hiệu ứng phình to input khi focus */
+
+.empty-search { display: flex; flex-direction: column; align-items: center; color: #7f8c8d; }
+.empty-search i { font-size: 3.5rem; color: #bdc3c7; margin-bottom: 15px; }
+.empty-search p { margin: 0; font-size: 1.1rem; }
+
 .admin-table { width: 100%; border-collapse: collapse; background: white; }
 .admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
 .btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; }
