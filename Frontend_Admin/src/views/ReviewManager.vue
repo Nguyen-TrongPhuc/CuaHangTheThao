@@ -46,7 +46,7 @@
           <td>
              <div class="product-info" style="display: flex; align-items: center; gap: 10px;">
                 <img :src="review.product?.image || (review.product?.images?.length ? review.product.images[0].url : 'https://placehold.co/40')" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px; border: 1px solid #eee;" />
-                <span style="font-size: 0.9em; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" :title="review.product?.name">{{ review.product?.name || 'Sản phẩm đã bị xóa' }}</span>
+                <span style="font-size: 0.9em; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" :title="review.product?.name">{{ review.product?.name || 'Sản phẩm đã bị xóa' }}</span>
              </div>
           </td>
           <td style="color: #f1c40f;">
