@@ -31,20 +31,39 @@
         <div class="profile-content">
           <!-- TAB THÔNG TIN -->
           <div v-if="activeTab === 'info'">
-            <h2 class="section-title">Thông tin cá nhân</h2>
+            <h2 class="section-title">
+              <User :size="28" style="margin-right: 10px; color: #ee4d2d;" /> Hồ sơ của tôi
+            </h2>
             
-            <!-- VIP Loyalty Section -->
-            <div v-if="loyaltyInfo" class="vip-section">
-              <h3 style="display:flex;align-items:center;gap:8px;"><Star :size="20" color="#f1c40f" /> Khách hàng thân thiết</h3>
-              <div class="vip-card">
-                <div class="vip-rank" :class="loyaltyInfo.customerRank">
-                  <span class="rank-label">{{ getRankLabel(loyaltyInfo.customerRank) }}</span>
-                  <div class="progress-bar">
-                    <div class="progress-fill" :style="'width: ' + getProgressPercent(loyaltyInfo.totalSpent) + '%'"></div>
+            <!-- Dòng Thống Kê (VIP & Wallet) -->
+            <div class="stats-row">
+              <!-- VIP Loyalty Section -->
+              <div v-if="loyaltyInfo" class="vip-section">
+                <h3 style="display:flex;align-items:center;gap:8px;"><Star :size="20" color="#f1c40f" /> Khách hàng thân thiết</h3>
+                <div class="vip-card">
+                  <div class="vip-rank" :class="loyaltyInfo.customerRank">
+                    <span class="rank-label">{{ getRankLabel(loyaltyInfo.customerRank) }}</span>
+                    <div class="progress-bar">
+                      <div class="progress-fill" :style="'width: ' + getProgressPercent(loyaltyInfo.totalSpent) + '%'"></div>
+                    </div>
+                    <div class="vip-stats">
+                      <span>Tổng chi: {{ formatMoney(loyaltyInfo.totalSpent) }}</span>
+                      <span>Giảm giá: {{ loyaltyInfo.discountPercent }}%</span>
+                    </div>
                   </div>
-                  <div class="vip-stats">
-                    <span>Tổng chi: {{ formatMoney(loyaltyInfo.totalSpent) }}</span>
-                    <span>Giảm giá: {{ loyaltyInfo.discountPercent }}%</span>
+                </div>
+              </div>
+
+              <!-- Wallet Section -->
+              <div class="wallet-section">
+                <h3 style="display:flex;align-items:center;gap:8px;color:#2c3e50;"><Wallet :size="20" color="#ee4d2d" /> Ví điện tử</h3>
+                <div class="wallet-card">
+                  <div class="wallet-icon">
+                    <Wallet :size="24" />
+                  </div>
+                  <div class="wallet-details">
+                    <span class="wallet-label">Số dư ví thưởng hiện tại:</span>
+                    <span class="wallet-balance">{{ formatMoney(user.wallet_balance || 0) }}</span>
                   </div>
                 </div>
               </div>
@@ -62,14 +81,15 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label>Email</label>
-                <input v-model="user.email" type="email" required />
-              </div>
-
-              <div class="form-group">
-                <label>Số điện thoại</label>
-                <input v-model="user.phone" type="text" required />
+              <div class="form-row">
+                <div class="form-group half">
+                  <label>Email</label>
+                  <input v-model="user.email" type="email" required />
+                </div>
+                <div class="form-group half">
+                  <label>Số điện thoại</label>
+                  <input v-model="user.phone" type="text" required />
+                </div>
               </div>
 
               <div class="form-group">
@@ -103,7 +123,9 @@
 
           <!-- TAB ĐỔI MẬT KHẨU -->
           <div v-if="activeTab === 'password'">
-            <h2 class="section-title">Đổi mật khẩu</h2>
+            <h2 class="section-title">
+              <Lock :size="28" style="margin-right: 10px; color: #ee4d2d;" /> Đổi mật khẩu
+            </h2>
             <form @submit.prevent="changePassword">
               <div class="form-group">
                 <div class="label-wrapper">
@@ -147,10 +169,10 @@ import AppFooter from "@/components/AppFooter.vue";
 import CustomerService from "@/services/customer.service";
 import UploadService from "@/services/upload.service";
 import { showToast } from "@/utils/toast";
-import { Camera, User, Lock, Star, Eye, EyeOff } from "lucide-vue-next";
+import { Camera, User, Lock, Star, Eye, EyeOff, Wallet } from "lucide-vue-next";
 
 export default {
-  components: { AppHeader, AppFooter, Camera, User, Lock, Star, Eye, EyeOff },
+  components: { AppHeader, AppFooter, Camera, User, Lock, Star, Eye, EyeOff, Wallet },
   data() {
     return {
       activeTab: 'info',
@@ -321,9 +343,9 @@ export default {
 </script>
 
 <style scoped>
-.page-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
-.container { flex: 1; padding: 40px 10%; background-color: #f9f9f9; display: flex; justify-content: center; }
-.profile-card { display: flex; background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); width: 100%; max-width: 900px; overflow: hidden; }
+.profile-page-wrapper { display: flex; flex-direction: column; min-height: 100vh; background-color: #f9f9f9; }
+.profile-container { flex: 1; padding: 40px 20px; display: flex; justify-content: center; align-items: flex-start; width: 100%; box-sizing: border-box; }
+.profile-card { display: flex; background: white; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); width: 100%; max-width: 1100px; overflow: hidden; margin: 0 auto; }
 .profile-sidebar { width: 250px; background: #f8f9fa; padding: 30px 20px; text-align: center; border-right: 1px solid #eee; }
 .profile-sidebar h3 { color: #2c3e50; font-weight: 700; margin-bottom: 5px; }
 .avatar-large { width: 80px; height: 80px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; margin: 0 auto 15px; overflow: hidden; position: relative; cursor: pointer; }
@@ -336,7 +358,8 @@ export default {
 .menu-list button.active { background: linear-gradient(135deg, #0f0c29, #302b63); color: white; }
 .menu-list button { display: flex; align-items: center; }
 .profile-content { flex: 1; padding: 40px; }
-.section-title { margin-bottom: 25px; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+.section-title { margin-bottom: 30px; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px; display: flex; align-items: center; font-size: 1.5rem; font-weight: 800; text-transform: uppercase; position: relative; }
+.section-title::after { content: ''; position: absolute; left: 0; bottom: -2px; width: 60px; height: 4px; background: linear-gradient(90deg, #ee4d2d, #ff7337); border-radius: 2px; }
 .form-row { display: flex; gap: 20px; }
 .half { flex: 1; }
 .form-group { margin-bottom: 20px; }
@@ -348,14 +371,16 @@ export default {
 .form-group input { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
 .input-group { display: flex; gap: 10px; }
 .form-group select { width: 100%; padding: 10px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; background: white; }
-.address-selection { display: flex; gap: 10px; margin-bottom: 10px; }
+.address-selection { display: flex; gap: 15px; margin-bottom: 10px; }
+.address-selection select { flex: 1; min-width: 0; }
 .street-input { margin-top: 10px; }
 .current-address { background: #f0f0f0; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.95rem; color: #333; }
 .text-muted { font-size: 0.85rem; color: #888; margin-bottom: 10px; display: block; }
 
-.vip-section { margin-bottom: 30px; }
-.vip-section h3 { color: #2c3e50; font-weight: 600; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; }
-.vip-card { background: linear-gradient(135deg, #f8f9ff, #e8f4fd); border: 1px solid #d1e7ff; border-radius: 12px; padding: 20px; }
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; align-items: stretch; }
+.vip-section, .wallet-section { display: flex; flex-direction: column; }
+.vip-section h3, .wallet-section h3 { color: #2c3e50; font-weight: 600; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; }
+.vip-card { flex: 1; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #f8f9ff, #e8f4fd); border: 1px solid #d1e7ff; border-radius: 12px; padding: 20px; }
 .vip-rank { text-align: center; }
 .vip-rank.normal { color: #6c757d; }
 .vip-rank.silver { color: #6b7280; }
@@ -365,8 +390,17 @@ export default {
 .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #8b5cf6); transition: width 0.5s ease; }
 .vip-stats { font-size: 0.9em; color: #4b5563; display: flex; justify-content: space-between; }
 
+/* Wallet Styles */
+.wallet-card { flex: 1; display: flex; align-items: center; background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); padding: 15px 20px; border-radius: 12px; color: #fff; box-shadow: 0 4px 15px rgba(253, 160, 133, 0.3); transition: transform 0.3s ease; }
+.wallet-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(253, 160, 133, 0.4); }
+.wallet-icon { font-size: 24px; margin-right: 15px; background: rgba(255, 255, 255, 0.2); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); }
+.wallet-details { display: flex; flex-direction: column; }
+.wallet-label { font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+.wallet-balance { font-size: 1.5rem; font-weight: 800; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+
 .btn-save { padding: 12px 30px; background: linear-gradient(135deg, #0f0c29, #302b63); color: white; border: none; border-radius: 25px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
 .btn-save:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(48, 43, 99, 0.3); }
 @media (max-width: 768px) { .profile-card { flex-direction: column; } .profile-sidebar { width: 100%; border-right: none; border-bottom: 1px solid #eee; } }
+@media (max-width: 900px) { .stats-row { grid-template-columns: 1fr; } }
 .form-group .toggle-pass { position: absolute; right: 15px; top: 50%; transform: translateY(50%); cursor: pointer; }
 </style>

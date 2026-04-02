@@ -175,6 +175,7 @@ exports.login = async (req, res, next) => {
         );
 
         const { password, ...userWithoutPassword } = user;
+        userWithoutPassword.wallet_balance = userWithoutPassword.wallet_balance || 0;
 
         return res.send({
             message: "Login successful",
@@ -198,6 +199,7 @@ exports.getProfile = async (req, res, next) => {
             return next(new ApiError(404, "Customer not found"));
         }
         const { password, ...userWithoutPassword } = document;
+        userWithoutPassword.wallet_balance = userWithoutPassword.wallet_balance || 0;
         return res.send(userWithoutPassword);
     } catch (error) {
         return next(new ApiError(500, "Error retrieving profile"));
@@ -445,4 +447,3 @@ exports.updateLoyalty = async (req, res, next) => {
         return next(new ApiError(500, `Error updating loyalty for customer ${req.params.id}`));
     }
 };
-

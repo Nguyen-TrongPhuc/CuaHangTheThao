@@ -373,10 +373,24 @@ class OrderService {
             const order = await this.Orders.findOne(filter);
             // Chỉ hoàn kho nếu đơn hàng tồn tại và trạng thái trước đó KHÔNG phải là cancelled hoặc returned
             if (order && order.status !== 'cancelled' && order.status !== 'returned') {
-                // Hoàn lại tiền vào ví nếu đơn hàng bị hủy hoặc trả lại
-                if (order.wallet_discount > 0 && order.customer_id) {
-                    await this.client.db().collection("customers").updateOne({ _id: new ObjectId(order.customer_id) }, { $inc: { wallet_balance: order.wallet_discount } });
+                
+                // --- BẮT ĐẦU: LOGIC HOÀN TIỀN VÀO VÍ ĐIỆN TỬ (STORE CREDIT) ---
+                let refundAmount = 0;
+                
+                // 1. Hoàn lại số dư ví khách đã dùng để giảm giá trước đó
+                if (order.wallet_discount > 0) {
+                    refundAmount += order.wallet_discount;
                 }
+                // 2. Nếu đơn hàng ĐÃ THANH TOÁN (VNPAY/MoMo/COD đã thu), hoàn toàn bộ tiền mặt vào ví
+                if (order.payment_status === 'paid') {
+                    refundAmount += order.total_amount;
+                }
+                // 3. Thực hiện cộng tiền tự động vào ví khách hàng
+                if (refundAmount > 0 && order.customer_id) {
+                    await this.client.db().collection("customers").updateOne({ _id: new ObjectId(order.customer_id) }, { $inc: { wallet_balance: refundAmount } });
+                    console.log(`💰 [STORE CREDIT] Đã hoàn ${refundAmount}đ vào ví cho khách hàng ${order.customer_id} (Hủy/Trả đơn ${order._id})`);
+                }
+                // --- KẾT THÚC: LOGIC HOÀN TIỀN ---
                 
                 for (const item of order.items) {
                     if (item.variant_size_id || item.variant_color_id) {
