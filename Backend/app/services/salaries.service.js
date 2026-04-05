@@ -206,6 +206,16 @@ class SalariesService {
             
             payrolls.push(result);
         }
+
+        // Tự động dọn dẹp: Xóa các phiếu lương CHƯA THANH TOÁN của nhân viên đã bị xóa khỏi hệ thống
+        const currentEmployeeIds = employees.map(emp => emp._id);
+        await this.Salaries.deleteMany({
+            month: m,
+            year: y,
+            status: "unpaid", // Chỉ xóa những phiếu chưa chốt để không mất lịch sử cũ
+            employee_id: { $nin: currentEmployeeIds }
+        });
+
         return payrolls;
     }
 

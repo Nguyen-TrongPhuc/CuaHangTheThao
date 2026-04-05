@@ -106,6 +106,9 @@ exports.delete = async (req, res, next) => {
         return res.send({ message: "Category was deleted successfully" });
 
     } catch (error) {
+        if (error.message && error.message.includes("Không thể xóa")) {
+            return next(new ApiError(400, error.message));
+        }
         return next(
             new ApiError(500, `Could not delete category with id=${req.params.id}`)
         );

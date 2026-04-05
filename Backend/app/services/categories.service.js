@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 class CategoriesService {
     constructor(client) {
         this.Categories = client.db().collection("categories");
+        this.Products = client.db().collection("products");
     }
 
     // Lọc dữ liệu hợp lệ
@@ -65,9 +66,15 @@ class CategoriesService {
 
     // Xóa 1
     async delete(id) {
-        const result = await this.Categories.findOneAndDelete({
-            _id: ObjectId.isValid(id) ? new ObjectId(String(id)) : null,
-        });
+        const objectId = ObjectId.isValid(id) ? new ObjectId(String(id)) : null;
+
+        // Kiểm tra ràng buộc dữ liệu
+        const productsCount = await this.Products.countDocuments({ category_id: objectId });
+        if (productsCount > 0) {
+            throw new Error(`Không thể xóa Danh mục này vì đang có ${productsCount} sản phẩm trực thuộc. Vui lòng chuyển sản phẩm sang danh mục khác trước.`);
+        }
+
+        const result = await this.Categories.findOneAndDelete({ _id: objectId });
 
         return result;
     }

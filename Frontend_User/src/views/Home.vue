@@ -153,8 +153,6 @@ import ProductService from "@/services/products.service";
 import CategoryService from "@/services/categories.service";
 import SportService from "@/services/sports.service";
 import CustomerService from "@/services/customer.service";
-import ReviewsService from "@/services/reviews.service";
-import { showToast } from "@/utils/toast";
 import { ArrowRight, Flame, Footprints, Shirt, Dribbble, Target, ShoppingBag, Wind, Layers, Star } from "lucide-vue-next";
 
 export default {

@@ -3,6 +3,8 @@ const { ObjectId } = require("mongodb");
 class SuppliersService {
     constructor(client) {
         this.Suppliers = client.db().collection("suppliers");
+        this.Products = client.db().collection("products");
+        this.Warehouse = client.db().collection("warehouse");
     }
 
     async create(payload) {
@@ -32,7 +34,19 @@ class SuppliersService {
     }
 
     async delete(id) {
-        return await this.Suppliers.deleteOne({ _id: ObjectId.isValid(id) ? new ObjectId(id) : null });
+        const objectId = ObjectId.isValid(id) ? new ObjectId(id) : null;
+
+        const productsCount = await this.Products.countDocuments({ supplier_id: objectId });
+        if (productsCount > 0) {
+            throw new Error(`Không thể xóa Nhà cung cấp này vì đang có ${productsCount} sản phẩm trực thuộc.`);
+        }
+
+        const warehouseCount = await this.Warehouse.countDocuments({ $or: [{ supplier_id: objectId }, { supplier_id: String(objectId) }] });
+        if (warehouseCount > 0) {
+            throw new Error(`Không thể xóa Nhà cung cấp này vì đã có ${warehouseCount} phiếu nhập kho liên quan.`);
+        }
+
+        return await this.Suppliers.deleteOne({ _id: objectId });
     }
 }
 

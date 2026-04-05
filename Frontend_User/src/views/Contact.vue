@@ -22,6 +22,18 @@
                 </div>
             </div>
 
+            <!-- Giao diện yêu cầu đăng nhập -->
+            <div v-if="!isLoggedIn" class="login-prompt-overlay">
+                <Lock :size="64" color="#bdc3c7" style="margin-bottom: 20px" />
+                <h2>Vui lòng đăng nhập</h2>
+                <p>Bạn cần đăng nhập để có thể trò chuyện và nhận hỗ trợ từ cửa hàng.</p>
+                <div class="prompt-actions">
+                    <router-link to="/login" class="btn-prompt primary">Đăng nhập ngay</router-link>
+                    <router-link to="/register" class="btn-prompt secondary">Tạo tài khoản</router-link>
+                </div>
+            </div>
+
+            <template v-else>
             <!-- Messages Flow -->
             <div class="messages-flow" ref="messagesContainer">
                 <div v-if="isLoadingMessages" class="loading-state">
@@ -99,6 +111,7 @@
                     </button>
                 </form>
         </div>
+            </template>
       </div>
     </div>
     </div>
@@ -116,13 +129,13 @@ import AppFooter from '@/components/AppFooter.vue';
 import ContactService from '@/services/contact.service';
 import { showToast } from '@/utils/toast';
 import { cartStore } from "@/utils/cart";
-import { Loader2, Star, ShoppingCart, Check, CheckCheck, X, Send } from "lucide-vue-next";
+import { Loader2, Star, ShoppingCart, Check, CheckCheck, X, Send, Lock } from "lucide-vue-next";
 
 export default {
   components: {
     AppHeader,
     AppFooter,
-    Loader2, Star, ShoppingCart, Check, CheckCheck, X, Send
+    Loader2, Star, ShoppingCart, Check, CheckCheck, X, Send, Lock
   },
   setup() {
     const route = useRoute();
@@ -138,6 +151,7 @@ export default {
     });
 
     // State
+    const isLoggedIn = ref(false);
     const userMessages = ref([]);
     const isLoadingMessages = ref(false);
     const isSubmitting = ref(false);
@@ -158,6 +172,14 @@ export default {
 
     // Load user's messages
     const loadMessages = async (isBackground = false) => {
+      // BẢO MẬT: Chỉ load lịch sử chat khi người dùng thực sự đang đăng nhập
+      const token = localStorage.getItem('user_token');
+      if (!token) {
+        userMessages.value = [];
+        if (!isBackground) isLoadingMessages.value = false;
+        return;
+      }
+
       if (!isBackground) isLoadingMessages.value = true;
       try {
         const response = await ContactService.getAll();
@@ -195,7 +217,8 @@ export default {
     // Submit quick message
     const submitQuickMessage = async () => {
       if (!formData.value.message.trim() && !attachedProduct.value) return;
-      if (!formData.value.name || !formData.value.email) {
+      const token = localStorage.getItem('user_token');
+      if (!token || !formData.value.name || !formData.value.email) {
         showToast('Vui lòng đăng nhập để gửi tin nhắn', 'warning');
         return;
       }
@@ -317,6 +340,9 @@ export default {
     };
 
     onMounted(() => {
+      isLoggedIn.value = !!localStorage.getItem('user_token');
+      if (!isLoggedIn.value) return; // Dừng lại, không tải API nếu chưa đăng nhập
+
       loadUserData();
       loadMessages();
       
@@ -343,6 +369,7 @@ export default {
     return {
       formData,
       userMessages,
+      isLoggedIn,
       isLoadingMessages,
       attachedProduct,
       isSubmitting,
@@ -511,6 +538,17 @@ export default {
 }
 .btn-icon-send:hover:not(:disabled) { transform: scale(1.15) rotate(10deg); }
 .btn-icon-send:disabled { color: #ccc; cursor: not-allowed; transform: none; }
+
+/* Login Prompt Styles */
+.login-prompt-overlay { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fafbfc; padding: 40px 20px; text-align: center; }
+.login-prompt-overlay h2 { font-size: 24px; color: #2c3e50; margin-bottom: 10px; font-weight: bold; }
+.login-prompt-overlay p { color: #666; margin-bottom: 25px; font-size: 15px; }
+.prompt-actions { display: flex; gap: 15px; }
+.btn-prompt { padding: 10px 25px; border-radius: 25px; font-weight: 600; text-decoration: none; transition: all 0.3s; font-size: 15px; }
+.btn-prompt.primary { background: linear-gradient(135deg, #ff7337, #ee4d2d); color: white; box-shadow: 0 4px 15px rgba(238, 77, 45, 0.3); }
+.btn-prompt.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(238, 77, 45, 0.4); }
+.btn-prompt.secondary { background: white; color: #2c3e50; border: 1px solid #ddd; }
+.btn-prompt.secondary:hover { background: #f5f5f5; border-color: #ccc; }
 
 .lucide-spin { animation: spin 2s linear infinite; }
 @keyframes spin { 100% { transform: rotate(360deg); } }

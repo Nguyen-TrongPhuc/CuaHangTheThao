@@ -1,7 +1,7 @@
 <template>
   <div class="forgot-container">
     <div class="forgot-box">
-      <h2>🔐 Khôi phục mật khẩu</h2>
+      <h2>Khôi phục mật khẩu</h2>
       
       <!-- Progress Indicator -->
       <div class="progress-indicator">
@@ -23,38 +23,38 @@
       
       <!-- Bước 1: Nhập Email -->
       <form v-if="step === 1" @submit.prevent="sendOtp">
-        <p class="instruction">📧 Nhập email đã đăng ký để nhận mã xác thực OTP.</p>
+        <p class="instruction">Nhập email đã đăng ký để nhận mã xác thực OTP.</p>
         <input type="email" v-model="email" required placeholder="Nhập địa chỉ Email" />
         <button type="submit" class="btn-submit" :disabled="isLoading">
-            {{ isLoading ? '⏳ Đang gửi...' : '📤 Gửi mã OTP' }}
+            {{ isLoading ? 'Đang gửi...' : 'Gửi mã OTP' }}
         </button>
       </form>
 
       <!-- Bước 2: Nhập OTP và xác thực -->
       <form v-if="step === 2" @submit.prevent="verifyOtp">
-        <p class="instruction">✅ Mã OTP đã được gửi đến <strong>{{ email }}</strong></p>
+        <p class="instruction">Mã OTP đã được gửi đến <strong>{{ email }}</strong></p>
         
         <div class="input-group">
-          <label>🔑 Mã OTP (6 chữ số):</label>
+          <label>Mã OTP (6 chữ số):</label>
           <input type="text" v-model="otp" required placeholder="000000" maxlength="6" @input="otp = otp.replace(/[^0-9]/g, '')" />
           <small class="help-text">Mã OTP hết hạn sau 5 phút</small>
         </div>
         
         <button type="submit" class="btn-submit" :disabled="isLoading || !otp">
-            {{ isLoading ? '⏳ Đang xác thực...' : '✅ Xác thực OTP' }}
+            {{ isLoading ? 'Đang xác thực...' : 'Xác thực OTP' }}
         </button>
         
         <div class="resend-link">
-          <a href="#" @click.prevent="step = 1">↩️ Gửi lại mã / Nhập lại email</a>
+          <a href="#" @click.prevent="step = 1">Gửi lại mã / Nhập lại email</a>
         </div>
       </form>
 
       <!-- Bước 3: Nhập mật khẩu mới -->
       <form v-if="step === 3" @submit.prevent="resetPassword">
-        <p class="instruction">🔐 Tạo mật khẩu mới cho tài khoản <strong>{{ email }}</strong></p>
+        <p class="instruction">Tạo mật khẩu mới cho tài khoản <strong>{{ email }}</strong></p>
         
         <div class="input-group password-wrapper">
-          <label>🔒 Mật khẩu mới:</label>
+          <label>Mật khẩu mới:</label>
           <input
             :type="showNewPwd ? 'text' : 'password'"
             v-model="newPassword"
@@ -66,7 +66,7 @@
         </div>
 
         <div class="input-group password-wrapper">
-          <label>🔒 Nhập lại mật khẩu:</label>
+          <label>Nhập lại mật khẩu:</label>
           <input
             :type="showConfirmPwd ? 'text' : 'password'"
             v-model="confirmPassword"
@@ -78,11 +78,11 @@
         </div>
 
         <button type="submit" class="btn-submit" :disabled="isLoading">
-            {{ isLoading ? '⏳ Đang xử lý...' : '💾 Lưu mật khẩu mới' }}
+            {{ isLoading ? 'Đang xử lý...' : 'Lưu mật khẩu mới' }}
         </button>
         
         <div class="resend-link">
-          <a href="#" @click.prevent="step = 2">↩️ Quay lại nhập lại OTP</a>
+          <a href="#" @click.prevent="step = 2">Quay lại nhập lại OTP</a>
         </div>
       </form>
 
@@ -124,7 +124,7 @@ export default {
       try {
         console.log("📧 Gửi OTP tới:", this.email);
         await AuthService.forgotPassword({ email: this.email });
-        showToast("✅ Mã OTP đã được gửi đến email của bạn.", "success");
+        showToast("Mã OTP đã được gửi đến email của bạn.", "success");
         console.log("✅ Chuyển sang bước 2 (xác thực OTP)");
         this.step = 2;
         this.otp = "";
@@ -143,7 +143,7 @@ export default {
       console.log("OTP nhập vào:", this.otp);
       
       if (!this.otp || this.otp.length !== 6) {
-        showToast("⚠️ Vui lòng nhập đúng 6 chữ số OTP.", "warning");
+        showToast("Vui lòng nhập đúng 6 chữ số OTP.", "warning");
         return;
       }
 
@@ -157,7 +157,7 @@ export default {
         });
         
         console.log("✅ OTP chính xác! Response:", response);
-        showToast("✅ OTP chính xác! Vui lòng tạo mật khẩu mới.", "success");
+        showToast("OTP chính xác! Vui lòng tạo mật khẩu mới.", "success");
         this.otpVerified = true;
         this.step = 3;  // ✅ Chuyển sang bước 3 (đổi mật khẩu)
       } catch (error) {
@@ -176,25 +176,25 @@ export default {
       
       // ✅ Kiểm tra OTP đã xác thực
       if (!this.otpVerified) {
-        showToast("❌ Bạn phải xác thực OTP trước!", "error");
+        showToast("Bạn phải xác thực OTP trước!", "error");
         this.step = 2;
         return;
       }
       
       if (!this.newPassword || !this.confirmPassword) {
-        showToast("⚠️ Vui lòng nhập đầy đủ mật khẩu mới.", "warning");
+        showToast("Vui lòng nhập đầy đủ mật khẩu mới.", "warning");
         return;
       }
 
       if (this.newPassword !== this.confirmPassword) {
-        showToast("❌ Mật khẩu xác nhận không khớp!", "error");
+        showToast("Mật khẩu xác nhận không khớp!", "error");
         return;
       }
 
       // Validate mật khẩu mạnh
       const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
       if (!passwordRegex.test(this.newPassword)) {
-        showToast("⚠️ Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.", "warning");
+        showToast("Mật khẩu mới phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt.", "warning");
         return;
       }
 
@@ -206,7 +206,7 @@ export default {
             otp: this.otp,
             newPassword: this.newPassword
         });
-        showToast("✅ Đổi mật khẩu thành công! Vui lòng đăng nhập.", "success");
+        showToast("Đổi mật khẩu thành công! Vui lòng đăng nhập.", "success");
         console.log("✅ Chuyển hướng sang trang login");
         this.$router.push("/login");
       } catch (error) {

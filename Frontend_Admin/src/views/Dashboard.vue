@@ -257,7 +257,6 @@
                 <tr>
                   <th>Hình ảnh</th>
                   <th>Tên sản phẩm</th>
-                  <th>Giá bán</th>
                   <th>Tồn kho / Chi tiết</th>
                 </tr>
               </thead>
@@ -265,7 +264,6 @@
                 <tr v-for="p in lowStockProducts" :key="p._id">
                   <td><img :src="p.image || 'https://placehold.co/40'" class="thumb-img" /></td>
                   <td>{{ p.name }}</td>
-                  <td>{{ formatPrice(p.price) }}</td>
                   <td>
                     <div v-if="p.lowStockVariants && p.lowStockVariants.length > 0">
                       <span v-for="(v, idx) in p.lowStockVariants" :key="idx" class="variant-badge">

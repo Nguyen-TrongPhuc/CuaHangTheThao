@@ -47,5 +47,10 @@ exports.delete = async (req, res, next) => {
         const document = await service.delete(req.params.id);
         if (!document) return next(new ApiError(404, "Sport not found"));
         return res.send({ message: "Deleted successfully" });
-    } catch (error) { return next(new ApiError(500, "Could not delete sport")); }
+    } catch (error) { 
+        if (error.message && error.message.includes("Không thể xóa")) {
+            return next(new ApiError(400, error.message));
+        }
+        return next(new ApiError(500, "Could not delete sport")); 
+    }
 };

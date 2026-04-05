@@ -2,7 +2,7 @@
   <div class="category-page">
     <div class="header">
       <h1>Quản lý Nhà cung cấp</h1>
-      <button class="btn-add" @click="openModal()">+ Thêm Nhà cung cấp</button>
+      <button v-if="userRole === 'admin'" class="btn-add" @click="openModal()">+ Thêm Nhà cung cấp</button>
     </div>
 
     <div v-if="isLoading" class="loading">Đang tải dữ liệu...</div>
@@ -14,19 +14,19 @@
           <th>Email</th>
           <th>Số điện thoại</th>
           <th>Địa chỉ</th>
-          <th>Thao tác</th>
+          <th v-if="userRole === 'admin'">Thao tác</th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="suppliers.length === 0">
-          <td colspan="5" style="text-align: center;">Không có dữ liệu</td>
+          <td :colspan="userRole === 'admin' ? 5 : 4" style="text-align: center;">Không có dữ liệu</td>
         </tr>
         <tr v-for="supplier in suppliers" :key="supplier._id">
           <td><strong>{{ supplier.name }}</strong></td>
           <td>{{ supplier.email }}</td>
           <td>{{ supplier.phone }}</td>
           <td>{{ supplier.address }}</td>
-          <td>
+          <td v-if="userRole === 'admin'">
             <button class="btn-edit" @click="openModal(supplier)">Sửa</button>
             <button class="btn-del" @click="deleteSupplier(supplier._id)">Xóa</button>
           </td>
@@ -105,6 +105,7 @@ import { showToast } from "@/utils/toast";
 export default {
   data() {
     return {
+      userRole: localStorage.getItem("user_role") || "staff",
       suppliers: [],
       isLoading: false,
       showModal: false,

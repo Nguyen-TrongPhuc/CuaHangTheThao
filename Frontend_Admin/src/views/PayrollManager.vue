@@ -1,23 +1,23 @@
 <template>
-  <div class="payroll-manager">
+  <div class="page-container">
     <div class="header">
-      <h2>Quản lý Bảng lương</h2>
+      <h1>Quản lý Bảng lương</h1>
       <div class="actions">
-        <select v-model="selectedMonth" @change="fetchSalaries">
+        <select v-model="selectedMonth" @change="fetchSalaries" class="filter-select">
             <option v-for="m in 12" :key="m" :value="m">Tháng {{ m }}</option>
         </select>
-        <select v-model="selectedYear" @change="fetchSalaries">
-            <option v-for="y in [2023, 2024, 2025]" :key="y" :value="y">Năm {{ y }}</option>
+        <select v-model="selectedYear" @change="fetchSalaries" class="filter-select">
+            <option v-for="y in years" :key="y" :value="y">Năm {{ y }}</option>
         </select>
-        <button class="btn-generate" @click="generatePayroll" :disabled="isGenerating">
+        <button class="btn-add" @click="generatePayroll" :disabled="isGenerating">
             <i class="fa-solid fa-calculator"></i>
             {{ isGenerating ? 'Đang tính...' : 'Tính lương tháng này' }}
         </button>
       </div>
     </div>
 
-    <div class="table-container">
-      <table v-if="salaries.length > 0">
+    <div>
+      <table class="admin-table" v-if="salaries.length > 0">
         <thead>
           <tr>
             <th>Nhân viên</th>
@@ -128,10 +128,16 @@ import { showToast } from "@/utils/toast";
 export default {
   data() {
     const now = new Date();
+    const currentYear = now.getFullYear();
+    const availableYears = [];
+    for (let i = 2023; i <= currentYear + 2; i++) {
+      availableYears.push(i);
+    }
     return {
       salaries: [],
       selectedMonth: now.getMonth() + 1,
       selectedYear: now.getFullYear(),
+      years: availableYears,
       isGenerating: false,
       editingId: null,
       editData: { bonus: 0, deduction: 0, working_days: 26, ot_hours: 0 },
@@ -230,18 +236,19 @@ export default {
 </script>
 
 <style scoped>
-.payroll-manager { padding: 20px; background: #f8f9fa; min-height: 100vh; }
+.page-container { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.actions { display: flex; gap: 10px; }
-.actions select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
-.btn-generate { background: #2c3e50; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-.btn-generate:hover { background: #34495e; }
-.btn-generate:disabled { background: #95a5a6; cursor: not-allowed; }
+.header h1 { margin: 0; color: #2c3e50; font-size: 24px; }
+.actions { display: flex; gap: 10px; align-items: center; }
+.filter-select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; outline: none; background: white; }
 
-.table-container { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; }
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
-th { background: #f8f9fa; font-weight: 600; color: #2c3e50; }
+.btn-add { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s; display: flex; align-items: center; gap: 8px; font-weight: bold; }
+.btn-add:hover:not(:disabled) { background: linear-gradient(135deg, #8E54E9, #4776E6); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
+.btn-add:disabled { background: #95a5a6; cursor: not-allowed; box-shadow: none; transform: none; }
+
+.admin-table { width: 100%; border-collapse: collapse; background: white; }
+.admin-table th, .admin-table td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+.admin-table th { background: #f8f9fa; font-weight: 600; color: #2c3e50; }
 .net-salary { font-weight: bold; color: #e74c3c; font-size: 1.1rem; }
 
 .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
@@ -252,12 +259,16 @@ th { background: #f8f9fa; font-weight: 600; color: #2c3e50; }
 .badge-role.admin { background: #ffcccc; color: #e74c3c; }
 .badge-role.staff { background: #d4e6f1; color: #16a085; }
 
-.action-btns { display: flex; gap: 8px; }
-.action-btns button { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; color: white; }
-.btn-edit { background: #3498db; }
-.btn-pay { background: #27ae60; }
-.btn-save { background: #27ae60; }
-.btn-cancel { background: #e74c3c; }
+.action-btns { display: flex; gap: 12px; align-items: center; justify-content: center; }
+.action-btns button { background: none; border: none; cursor: pointer; font-size: 1.1rem; transition: 0.2s; padding: 0; }
+.btn-edit { color: #3498db; }
+.btn-edit:hover { color: #2980b9; transform: scale(1.1); }
+.btn-pay { color: #27ae60; }
+.btn-pay:hover { color: #219150; transform: scale(1.1); }
+.btn-save { color: #27ae60; }
+.btn-save:hover { color: #219150; transform: scale(1.1); }
+.btn-cancel { color: #e74c3c; }
+.btn-cancel:hover { color: #c0392b; transform: scale(1.1); }
 .small-input { width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; }
 .mt-1 { margin-top: 5px; }
 .text-success { color: #27ae60; }

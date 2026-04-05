@@ -205,6 +205,8 @@ export default {
       localStorage.removeItem("admin_token");
       localStorage.removeItem("user_role");
       localStorage.removeItem("user_name");
+      localStorage.removeItem("admin_id");
+      localStorage.removeItem("admin_email");
       this.$router.push("/login");
     }
   },

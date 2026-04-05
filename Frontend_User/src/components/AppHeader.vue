@@ -32,7 +32,7 @@
         <!-- Cart -->
         <router-link to="/cart" class="cart-btn">
           <ShoppingCart :size="24" />
-          <span class="cart-count" v-if="cartTotal > 0">{{ cartTotal }}</span>
+          <span class="cart-count" v-if="isLoggedIn && cartTotal > 0">{{ cartTotal }}</span>
         </router-link>
 
         <!-- User Auth -->
@@ -131,6 +131,9 @@ export default {
       localStorage.removeItem("user_name");
       localStorage.removeItem("user_avatar");
       localStorage.removeItem("user_role");
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("user_email");
+      localStorage.removeItem("contact_email"); // Xóa email dùng để tra cứu liên hệ
       isLoggedIn.value = false;
       showDropdown.value = false;
       router.push("/login");

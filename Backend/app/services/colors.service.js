@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 class ColorsService {
     constructor(client) {
         this.Colors = client.db().collection("colors");
+        this.Products = client.db().collection("products");
     }
 
     async create(payload) {
@@ -34,7 +35,14 @@ class ColorsService {
     }
 
     async delete(id) {
-        const result = await this.Colors.findOneAndDelete({ _id: ObjectId.isValid(id) ? new ObjectId(id) : null });
+        const objectId = ObjectId.isValid(id) ? new ObjectId(id) : null;
+        
+        const productsCount = await this.Products.countDocuments({ "variants.color_id": objectId });
+        if (productsCount > 0) {
+            throw new Error(`Không thể xóa Màu sắc này vì đang có ${productsCount} biến thể sản phẩm đang sử dụng.`);
+        }
+
+        const result = await this.Colors.findOneAndDelete({ _id: objectId });
         return result;
     }
 }

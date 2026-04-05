@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 class SportsService {
     constructor(client) {
         this.Sports = client.db().collection("sports");
+        this.Products = client.db().collection("products");
     }
 
     async create(payload) {
@@ -34,7 +35,14 @@ class SportsService {
     }
 
     async delete(id) {
-        const result = await this.Sports.findOneAndDelete({ _id: ObjectId.isValid(id) ? new ObjectId(id) : null });
+        const objectId = ObjectId.isValid(id) ? new ObjectId(id) : null;
+        
+        const productsCount = await this.Products.countDocuments({ sport_id: objectId });
+        if (productsCount > 0) {
+            throw new Error(`Không thể xóa Môn thể thao này vì đang có ${productsCount} sản phẩm liên quan.`);
+        }
+
+        const result = await this.Sports.findOneAndDelete({ _id: objectId });
         return result;
     }
 }

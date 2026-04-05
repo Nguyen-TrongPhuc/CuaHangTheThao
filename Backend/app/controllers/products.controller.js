@@ -27,18 +27,34 @@ exports.findAll = async (req, res, next) => {
 
     try {
         const productsService = new ProductsService(MongoDB.client);
-        const { name, category_id, sport_id } = req.query;
+        const { name, category_id, sport_id, min_price, max_price } = req.query;
+        
+        // Tạo bộ lọc kết hợp (Combined Filter)
+        const filter = {};
 
         if (name) {
-            documents = await productsService.findByName(name);
-        } else if (category_id) {
-            documents = await productsService.findByCategory(category_id);
-        } else if (sport_id) {
-            documents = await productsService.findBySport(sport_id);
-        } else {
-            documents = await productsService.find({});
+            filter.name = { $regex: new RegExp(name), $options: "i" };
+        }
+        if (category_id) {
+            const { ObjectId } = require("mongodb");
+            if (ObjectId.isValid(category_id)) filter.category_id = new ObjectId(category_id);
+        }
+        if (sport_id) {
+            const { ObjectId } = require("mongodb");
+            if (ObjectId.isValid(sport_id)) filter.sport_id = new ObjectId(sport_id);
+        }
+        
+        // Lọc theo khoảng giá (Price Range)
+        if (min_price !== undefined || max_price !== undefined) {
+            filter.price = {};
+            if (min_price !== undefined) filter.price.$gte = Number(min_price);
+            if (max_price !== undefined) filter.price.$lte = Number(max_price);
         }
 
+        // Gọi hàm find với bộ lọc tổng hợp và truyền thêm customerId để tính giá VIP (nếu khách đã đăng nhập)
+        const customerId = req.user ? req.user.userId : null;
+        documents = await productsService.find(filter, customerId);
+        
     } catch (error) {
         console.error("Lỗi findAll products:", error);
         return next(

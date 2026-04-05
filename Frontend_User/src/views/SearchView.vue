@@ -6,11 +6,6 @@
       <div class="product-page-layout">
         <!-- SIDEBAR FILTER -->
         <aside class="sidebar-filter">
-          <div class="filter-group search-internal">
-            <h3 style="display:flex;align-items:center;gap:5px;"><Search :size="18" /> Tìm kiếm</h3>
-            <input v-model="localSearch" placeholder="Nhập tên sản phẩm..." @input="applyFilters" />
-          </div>
-
           <div class="filter-group">
             <h3>Danh mục</h3>
             <div class="filter-options">

@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 class SizesService {
     constructor(client) {
         this.Sizes = client.db().collection("sizes");
+        this.Products = client.db().collection("products");
     }
 
     async create(payload) {
@@ -34,7 +35,14 @@ class SizesService {
     }
 
     async delete(id) {
-        const result = await this.Sizes.findOneAndDelete({ _id: ObjectId.isValid(id) ? new ObjectId(id) : null });
+        const objectId = ObjectId.isValid(id) ? new ObjectId(id) : null;
+        
+        const productsCount = await this.Products.countDocuments({ "variants.size_id": objectId });
+        if (productsCount > 0) {
+            throw new Error(`Không thể xóa Kích thước này vì đang có ${productsCount} biến thể sản phẩm đang sử dụng.`);
+        }
+
+        const result = await this.Sizes.findOneAndDelete({ _id: objectId });
         return result;
     }
 }

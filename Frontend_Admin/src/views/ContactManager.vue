@@ -355,7 +355,7 @@ export default {
       }
     };
 
-    const deleteConversation = async () => {
+    const executeDeleteConversation = async () => {
       if (confirm('Bạn chắc chắn muốn xóa toàn bộ hội thoại này?')) {
         try {
           // Delete all messages in conversation

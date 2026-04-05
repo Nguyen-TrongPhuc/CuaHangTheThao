@@ -97,70 +97,70 @@
       <div v-else class="empty-state">
         <i class="fa-solid fa-ticket"></i>
         <p>Chưa có voucher nào</p>
-        <button v-if="userRole === 'admin'" class="btn btn-primary" @click="showCreateModal = true">Tạo voucher đầu tiên</button>
+        <button v-if="userRole === 'admin'" class="btn-add" @click="showCreateModal = true" style="margin: 0 auto; display: inline-block;">Tạo voucher đầu tiên</button>
       </div>
     </div>
 
     <!-- Create/Edit Modal -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="closeModal">
-      <div class="modal-content">
-        <h2>{{ editingVoucher ? 'Chỉnh sửa' : 'Tạo mới' }} Voucher</h2>
-        <form @submit.prevent="saveVoucher" class="modal-form">
-          <div class="form-group">
-            <label>Mã voucher <span class="required">*</span></label>
-            <input v-model="form.code" required maxlength="20" placeholder="VD: SALE50" />
-          </div>
-          <div class="form-group">
-            <label>Loại giảm giá <span class="required">*</span></label>
-            <select v-model="form.discount_type" required>
-              <option value="fixed">Giảm cố định (VNĐ)</option>
-              <option value="percent">Phần trăm (%)</option>
-              <option value="shipping">Giảm phí vận chuyển</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Giá trị giảm <span class="required">*</span></label>
-            <input v-model.number="form.discount_value" type="number" required min="0" max="10000000" 
-              :placeholder="form.discount_type === 'percent' ? '0-100' : (form.discount_type === 'shipping' ? 'Nhập số tiền tối đa (VD: 1000000)' : 'Số tiền VNĐ')" />
-            <small v-if="form.discount_type === 'shipping'" style="color: #666; display: block; margin-top: 5px;">
-              * Nhập số tiền lớn (VD: 100.000đ) để miễn phí vận chuyển hoàn toàn.
-            </small>
-          </div>
-          <div class="form-group">
-            <label>Đơn hàng tối thiểu</label>
-            <input v-model.number="form.min_order_value" type="number" min="0" placeholder="0đ = Không yêu cầu" />
-          </div>
-          <div class="form-group">
-            <label>Số lần sử dụng tối đa</label>
-            <input v-model.number="form.max_usage" type="number" min="1" placeholder="∞ (Không giới hạn)" />
-          </div>
-          <div class="form-row">
+      <div class="form-container" style="max-width: 700px;">
+        <h2>{{ editingVoucher ? 'Cập nhật' : 'Thêm mới' }} Voucher</h2>
+        <form @submit.prevent="saveVoucher">
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Mã voucher <span class="required">*</span></label>
+              <input v-model="form.code" required maxlength="20" placeholder="VD: SALE50" class="input-field" />
+            </div>
+            <div class="form-group">
+              <label>Loại giảm giá <span class="required">*</span></label>
+              <select v-model="form.discount_type" required class="input-field">
+                <option value="fixed">Giảm cố định (VNĐ)</option>
+                <option value="percent">Phần trăm (%)</option>
+                <option value="shipping">Giảm phí vận chuyển</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Giá trị giảm <span class="required">*</span></label>
+              <input v-model.number="form.discount_value" type="number" required min="0" max="10000000" 
+                :placeholder="form.discount_type === 'percent' ? '0-100' : (form.discount_type === 'shipping' ? 'Nhập số tiền tối đa (VD: 1000000)' : 'Số tiền VNĐ')" class="input-field" />
+              <small v-if="form.discount_type === 'shipping'" style="color: #666; display: block; margin-top: 5px;">
+                * Nhập số tiền lớn (VD: 100.000đ) để miễn phí vận chuyển hoàn toàn.
+              </small>
+            </div>
+            <div class="form-group">
+              <label>Đơn hàng tối thiểu</label>
+              <input v-model.number="form.min_order_value" type="number" min="0" placeholder="0đ = Không yêu cầu" class="input-field" />
+            </div>
+            <div class="form-group">
+              <label>Số lần sử dụng tối đa</label>
+              <input v-model.number="form.max_usage" type="number" min="1" placeholder="∞ (Không giới hạn)" class="input-field" />
+            </div>
             <div class="form-group">
               <label>Bắt đầu</label>
-              <input v-model="form.start_date" type="datetime-local" />
+              <input v-model="form.start_date" type="datetime-local" class="input-field" />
             </div>
             <div class="form-group">
               <label>Hết hạn</label>
-              <input v-model="form.end_date" type="datetime-local" />
+              <input v-model="form.end_date" type="datetime-local" class="input-field" />
+            </div>
+            <div class="form-group full-width">
+              <label>Trạng thái</label>
+              <select v-model="form.is_active" class="input-field">
+                <option :value="true">Hoạt động</option>
+                <option :value="false">Tắt</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label>Mô tả</label>
+              <textarea v-model="form.description" rows="3" placeholder="Mô tả voucher (tùy chọn)" class="input-field"></textarea>
             </div>
           </div>
-          <div class="form-group">
-            <label>Trạng thái</label>
-            <select v-model="form.is_active">
-              <option :value="true">Hoạt động</option>
-              <option :value="false">Tắt</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Mô tả</label>
-            <textarea v-model="form.description" rows="3" placeholder="Mô tả voucher (tùy chọn)"></textarea>
-          </div>
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" @click="closeModal">Hủy</button>
-            <button type="submit" class="btn btn-primary" :disabled="isSaving">
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" @click="closeModal">Hủy</button>
+            <button type="submit" class="btn-save" :disabled="isSaving">
               <i class="fa-solid fa-save" v-if="!isSaving"></i>
               <i class="fa-solid fa-spinner fa-spin" v-else></i>
-              {{ editingVoucher ? 'Cập nhật' : 'Tạo mới' }}
+              {{ editingVoucher ? 'Cập nhật' : 'Lưu' }}
             </button>
           </div>
         </form>
@@ -383,20 +383,24 @@ export default {
 .empty-state i { font-size: 4rem; opacity: 0.5; margin-bottom: 20px; display: block; }
 .empty-state p { font-size: 18px; margin-bottom: 20px; }
 
-.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modal-content { background: white; width: 90%; max-width: 600px; max-height: 90vh; border-radius: 12px; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3); animation: modalSlideIn 0.3s ease; }
-@keyframes modalSlideIn { from { opacity: 0; transform: translateY(-30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.modal-content h2 { margin: 0 0 25px 0; padding: 20px 25px 0; color: #2c3e50; border-bottom: 1px solid #eee; }
-.modal-form { padding: 0 25px 25px; }
-.form-group { margin-bottom: 20px; }
-.form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #495057; }
-.required { color: #dc3545; }
-.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; box-sizing: border-box; transition: border-color 0.2s; }
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.modal-actions { display: flex; gap: 12px; justify-content: flex-end; padding-top: 20px; border-top: 1px solid #eee; margin-top: 20px; }
-.btn-secondary { background: #6c757d; color: white; }
-.btn-secondary:hover { background: #5a6268; }
+/* Custom Modal Styles (Đồng bộ) */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(2px); }
+.form-container { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: modalFadeIn 0.3s ease; }
+@keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+.form-container h2 { margin-top: 0; margin-bottom: 25px; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.form-group { display: flex; flex-direction: column; margin-bottom: 0; }
+.form-group.full-width { grid-column: 1 / -1; }
+.form-group label { margin-bottom: 8px; font-weight: 600; color: #444; }
+.required { color: #e74c3c; margin-left: 3px; }
+.input-field { width: 100%; padding: 12px 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; transition: all 0.3s ease; }
+.input-field:focus { border-color: #4776E6; outline: none; box-shadow: 0 0 0 3px rgba(71, 118, 230, 0.1); }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px; padding-top: 20px; border-top: 1px solid #eee; }
+.btn-cancel { background: #f1f3f5; color: #495057; border: 1px solid #ddd; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;}
+.btn-cancel:hover { background: #e2e6ea; }
+.btn-save { background: linear-gradient(135deg, #4776E6, #8E54E9); color: white; padding: 10px 25px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+.btn-save:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(71, 118, 230, 0.3); }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 @media (max-width: 768px) {
   .header { flex-direction: column; align-items: flex-start; gap: 10px; }
   .stats-row { grid-template-columns: 1fr; }
