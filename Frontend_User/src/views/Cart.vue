@@ -232,7 +232,7 @@ export default {
 
 .item-quantity { display: flex; align-items: center; margin: 0 15px; border: 1px solid #ddd; border-radius: 5px; }
 .item-quantity button { background: none; border: none; padding: 5px 10px; cursor: pointer; font-size: 1.2rem; }
-.item-quantity input { width: 40px; text-align: center; border: none; outline: none; font-size: 1rem; font-weight: 500; color: #333; -moz-appearance: textfield; }
+.item-quantity input { width: 40px; text-align: center; border: none; outline: none; font-size: 1rem; font-weight: 500; color: #333; -moz-appearance: textfield;appearance: textfield; }
 .item-quantity input::-webkit-outer-spin-button, .item-quantity input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 .item-total { font-weight: bold; color: #302b63; margin-right: 15px; min-width: 80px; text-align: right; }

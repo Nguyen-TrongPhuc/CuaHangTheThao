@@ -377,6 +377,15 @@ exports.getShippingFee = async (req, res, next) => {
             effectiveProvince = extractProvinceFromAddress(address, config.shipping.zones);
         }
 
+        // KHẮC PHỤC: Nếu vẫn chưa có Tỉnh/Thành nhưng có tọa độ GPS -> Dịch ngược tọa độ ra Tỉnh
+        if (!effectiveProvince && customerLat && customerLng) {
+            const locationInfo = await reverseGeocode(customerLat, customerLng);
+            if (locationInfo && locationInfo.city) {
+                effectiveProvince = locationInfo.city;
+                console.log(`📍 Đã dịch ngược tọa độ ra Tỉnh/Thành phố: ${effectiveProvince}`);
+            }
+        }
+
         // =====================================================
         // KIỂM TRA SỬ DỤNG TÍNH PHÍ THEO MIỀN
         // =====================================================
