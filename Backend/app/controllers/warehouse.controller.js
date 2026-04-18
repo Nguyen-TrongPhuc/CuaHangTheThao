@@ -44,6 +44,12 @@ exports.findOne = async (req, res, next) => {
 exports.create = async (req, res, next) => {
     try {
         console.log("Warehouse Import Payload:", req.body);
+        
+        // Tự động thêm ID nhân viên lập phiếu từ Token bảo mật
+        if (req.user && req.user.userId) {
+            req.body.employee_id = req.user.userId;
+        }
+
         const warehouseService = new WarehouseService(MongoDB.client);
         const document = await warehouseService.create(req.body);
         return res.send(document);

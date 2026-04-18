@@ -93,7 +93,7 @@ exports.vnpayCallback = async (req, res, next) => {
             await orderService.update(orderId, {
                 payment_status: 'paid',
                 transaction_id: vnpParams.vnp_TransactionNo,
-                vnpay_info: {
+                payment_info: {
                     bankCode: vnpParams.vnp_BankCode,
                     bankTranNo: vnpParams.vnp_BankTranNo,
                     cardType: vnpParams.vnp_CardType,
@@ -108,7 +108,7 @@ exports.vnpayCallback = async (req, res, next) => {
             // Payment failed - update status
             await orderService.update(orderId, {
                 payment_status: 'failed',
-                vnpay_info: {
+                payment_info: {
                     responseCode: vnpParams.vnp_ResponseCode,
                     responseMessage: vnpayUtil.getStatusMessage(vnpParams.vnp_ResponseCode)
                 }
@@ -640,14 +640,14 @@ exports.momoCallback = async (req, res, next) => {
             await orderService.update(realOrderId, {
                 payment_status: 'paid',
                 transaction_id: transId,
-                momo_info: req.body
+                payment_info: req.body
             });
             console.log(`Order ${realOrderId} paid successfully via MoMo`);
         } else {
             // Payment Failed
             await orderService.update(realOrderId, {
                 payment_status: 'failed',
-                momo_info: req.body
+                payment_info: req.body
             });
             console.log(`Order ${realOrderId} payment failed via MoMo: ${message}`);
         }

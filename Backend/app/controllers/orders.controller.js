@@ -63,6 +63,12 @@ exports.findOne = async (req, res, next) => {
 exports.update = async (req, res, next) => {
     try {
         const orderService = new OrderService(MongoDB.client);
+        
+        // Tự động ghi nhận nhân viên xử lý/duyệt đơn hàng từ Token
+        if (req.user && (req.user.role === 'staff' || req.user.role === 'admin')) {
+            req.body.employee_id = req.user.userId;
+        }
+
         const document = await orderService.update(req.params.id, req.body);
         return res.send(document);
     } catch (error) {

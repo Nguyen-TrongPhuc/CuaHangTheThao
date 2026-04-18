@@ -4,6 +4,7 @@ class WarehouseService {
     constructor(client) {
         this.Warehouse = client.db().collection("warehouse"); // Bảng lưu lịch sử nhập hàng (ImportTickets)
         this.Products = client.db().collection("products");   // Bảng sản phẩm để cập nhật stock
+        this.Employees = client.db().collection("employees"); // Bảng nhân viên để lấy tên người lập phiếu
     }
 
     async findAll() {
@@ -145,9 +146,18 @@ class WarehouseService {
             }
         }
 
+        // Truy xuất tên nhân viên lập phiếu để lưu vào DB
+        let staff_name = "Không xác định";
+        if (payload.employee_id && ObjectId.isValid(payload.employee_id)) {
+            const employee = await this.Employees.findOne({ _id: new ObjectId(payload.employee_id) });
+            if (employee) staff_name = employee.full_name;
+        }
+
         // BƯỚC 2: Lưu toàn bộ phiếu nhập (1 document duy nhất chứa mảng items)
         const receipt = {
             ...payload,
+            employee_id: payload.employee_id ? new ObjectId(payload.employee_id) : null,
+            staff_name: staff_name,
             createdAt: new Date()
         };
         

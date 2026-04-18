@@ -8,6 +8,9 @@ exports.create = async (req, res, next) => {
     }
 
     try {
+        // Lấy ID khách hàng từ token (nếu người dùng đã đăng nhập)
+        req.body.customer_id = req.user ? req.user.userId : null;
+
         const contactService = new ContactService(MongoDB.client);
         const result = await contactService.create(req.body);
         return res.status(201).json(result);
@@ -15,6 +18,26 @@ exports.create = async (req, res, next) => {
         return next(
             new ApiError(500, `Lỗi khi tạo liên hệ: ${error.message}`)
         );
+    }
+};
+
+exports.reply = async (req, res, next) => {
+    if (!req.body.reply_message) {
+        return next(new ApiError(400, "Vui lòng cung cấp nội dung trả lời"));
+    }
+
+    try {
+        const contactService = new ContactService(MongoDB.client);
+        // Lấy ID nhân viên từ token
+        const employeeId = req.user ? req.user.userId : null;
+        
+        const result = await contactService.reply(req.params.id, req.body.reply_message, employeeId);
+        if (!result) {
+            return next(new ApiError(404, "Không tìm thấy liên hệ"));
+        }
+        return res.status(200).json(result);
+    } catch (error) {
+        return next(new ApiError(500, `Lỗi khi trả lời liên hệ: ${error.message}`));
     }
 };
 

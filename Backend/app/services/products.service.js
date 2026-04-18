@@ -33,6 +33,7 @@ class ProductsService {
             
             // Mảng biến thể: [{ size_id, color_id, stock, price }]
             variants: Array.isArray(payload.variants) ? payload.variants.map(v => ({
+                _id: v._id ? new ObjectId(v._id) : new ObjectId(),
                 size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
                 color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
                 stock: 0, // Chỉ cập nhật tồn kho thông qua phiếu nhập kho
@@ -260,18 +261,24 @@ class ProductsService {
                 // Giữ nguyên tồn kho và giá vốn cũ của biến thể từ Database
                 let currentStock = 0;
                 let currentImportPrice = 0;
+                let currentId = v._id ? new ObjectId(v._id) : new ObjectId();
+
                 if (oldProduct && oldProduct.variants) {
-                    const oldVariant = oldProduct.variants.find(ov => 
-                        String(ov.size_id) === String(v.size_id) && 
-                        String(ov.color_id) === String(v.color_id)
-                    );
+                    const oldVariant = oldProduct.variants.find(ov => {
+                        if (v._id && ov._id) return String(ov._id) === String(v._id);
+                        return String(ov.size_id) === String(v.size_id) && 
+                               String(ov.color_id) === String(v.color_id);
+                    });
+
                     if (oldVariant) {
                         currentStock = oldVariant.stock;
                         currentImportPrice = oldVariant.import_price || 0;
+                        if (oldVariant._id) currentId = oldVariant._id;
                     }
                 }
 
                 return {
+                    _id: currentId,
                     size_id: (v.size_id && ObjectId.isValid(v.size_id)) ? new ObjectId(v.size_id) : null,
                     color_id: (v.color_id && ObjectId.isValid(v.color_id)) ? new ObjectId(v.color_id) : null,
                     stock: currentStock, // Bỏ qua giá trị gửi lên, lấy từ DB

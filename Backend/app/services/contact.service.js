@@ -7,6 +7,7 @@ class ContactService {
 
     async create(payload) {
         const contact = {
+            customer_id: payload.customer_id ? new ObjectId(payload.customer_id) : null,
             name: payload.name,
             email: payload.email,
             phone: payload.phone || null,
@@ -15,7 +16,8 @@ class ContactService {
             status: "unread", // unread, read, replied
             created_at: new Date(),
             replied_at: null,
-            reply_message: null
+            reply_message: null,
+            replied_by_employee_id: null
         };
         const result = await this.Contacts.insertOne(contact);
         return { _id: result.insertedId, ...contact };
@@ -58,13 +60,14 @@ class ContactService {
         return result;
     }
 
-    async reply(id, replyMessage) {
+    async reply(id, replyMessage, employeeId) {
         const filter = { _id: ObjectId.isValid(id) ? new ObjectId(id) : null };
         const update = { 
             $set: { 
                 status: "replied", 
                 reply_message: replyMessage, 
-                replied_at: new Date() 
+                replied_at: new Date(),
+                replied_by_employee_id: employeeId ? new ObjectId(employeeId) : null
             } 
         };
         const result = await this.Contacts.findOneAndUpdate(filter, update, { returnDocument: "after" });

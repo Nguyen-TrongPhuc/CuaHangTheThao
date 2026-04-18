@@ -100,12 +100,14 @@ class OrderService {
                 product_image: item.image || item.product_image,
                 quantity: item.quantity,
                 unit_price: item.unit_price || item.price,
-                variant_size_id: item.variant_size_id ? new ObjectId(item.variant_size_id) : (item.variant?.size_id ? new ObjectId(item.variant.size_id) : null),
-                variant_color_id: item.variant_color_id ? new ObjectId(item.variant_color_id) : (item.variant?.color_id ? new ObjectId(item.variant.color_id) : null),
+                variant_id: (item.variant_id || item.variant?._id) ? new ObjectId(item.variant_id || item.variant._id) : null,
+                // Lưu tạm size/color để dự phòng nếu Frontend cũ chưa kịp update variant_id
+                _temp_size_id: item.variant_size_id || item.variant?.size_id,
+                _temp_color_id: item.variant_color_id || item.variant?.color_id
             })),
             // Payment transaction info (for online payments)
             transaction_id: payload.transaction_id || null,
-            vnpay_info: payload.vnpay_info || null,
+            payment_info: payload.payment_info || null,
             createdAt: new Date(),
             updatedAt: new Date()
         };
@@ -130,15 +132,26 @@ class OrderService {
             if (!item.product_image) item.product_image = product.images?.[0]?.url || product.image;
 
             // Nếu là sản phẩm có biến thể
-            if (item.variant_size_id || item.variant_color_id) {
-                const variant = product.variants.find(v => 
-                    (v.size_id ? v.size_id.toString() === item.variant_size_id?.toString() : true) &&
-                    (v.color_id ? v.color_id.toString() === item.variant_color_id?.toString() : true)
-                );
+            if (item.variant_id || item._temp_size_id || item._temp_color_id) {
+                const variant = product.variants.find(v => {
+                    if (item.variant_id && v._id) return v._id.toString() === item.variant_id.toString();
+                    return (v.size_id ? v.size_id.toString() === item._temp_size_id?.toString() : true) &&
+                           (v.color_id ? v.color_id.toString() === item._temp_color_id?.toString() : true);
+                });
 
                 if (!variant) {
                     throw new Error(`Biến thể sản phẩm ${item.product_name} không hợp lệ.`);
                 }
+                
+                if (variant._id) {
+                    item.variant_id = new ObjectId(variant._id);
+                } else {
+                    item.variant_id = null; // Bỏ ID rác do undefined tạo ra
+                    item._fallback_size_id = variant.size_id; // Lưu tạm để query
+                    item._fallback_color_id = variant.color_id;
+                }
+                delete item._temp_size_id; // Dọn dẹp data rác
+                delete item._temp_color_id;
 
                 if (variant.stock < item.quantity) {
                     throw new Error(`Sản phẩm ${item.product_name} (Phân loại đã chọn) chỉ còn ${variant.stock}, không đủ ${item.quantity}.`);
@@ -156,17 +169,21 @@ class OrderService {
         try {
             for (const item of order.items) {
                 let updateResult;
-                if (item.variant_size_id || item.variant_color_id) {
+                if (item.variant_id || item._fallback_size_id || item._fallback_color_id) {
+                    const variantMatch = { stock: { $gte: item.quantity } };
+                    if (item.variant_id) {
+                        variantMatch._id = item.variant_id;
+                    } else {
+                        if (item._fallback_size_id) variantMatch.size_id = item._fallback_size_id;
+                        if (item._fallback_color_id) variantMatch.color_id = item._fallback_color_id;
+                    }
+
                     // Cập nhật cho biến thể: Thêm điều kiện stock >= quantity để chặn số âm
                     updateResult = await this.Products.updateOne(
                         { 
                             _id: item.product_id,
                             variants: { 
-                                $elemMatch: { 
-                                    size_id: item.variant_size_id, 
-                                    color_id: item.variant_color_id,
-                                    stock: { $gte: item.quantity } // ĐIỀU KIỆN QUAN TRỌNG
-                                } 
+                                $elemMatch: variantMatch
                             } 
                         },
                         { 
@@ -202,15 +219,20 @@ class OrderService {
         } catch (error) {
             // Rollback: Hoàn lại kho cho các sản phẩm đã trừ thành công trước đó (nếu có lỗi xảy ra)
             for (const item of reservedItems) {
-                if (item.variant_size_id || item.variant_color_id) {
+                if (item.variant_id || item._fallback_size_id || item._fallback_color_id) {
+                    const variantMatch = {};
+                    if (item.variant_id) {
+                        variantMatch._id = item.variant_id;
+                    } else {
+                        if (item._fallback_size_id) variantMatch.size_id = item._fallback_size_id;
+                        if (item._fallback_color_id) variantMatch.color_id = item._fallback_color_id;
+                    }
+
                     await this.Products.updateOne(
                         { 
                             _id: item.product_id,
                             variants: { 
-                                $elemMatch: { 
-                                    size_id: item.variant_size_id, 
-                                    color_id: item.variant_color_id 
-                                } 
+                                $elemMatch: variantMatch
                             }
                         },
                         { 
@@ -393,16 +415,21 @@ class OrderService {
                 // --- KẾT THÚC: LOGIC HOÀN TIỀN ---
                 
                 for (const item of order.items) {
-                    if (item.variant_size_id || item.variant_color_id) {
+                    if (item.variant_id || item.variant_size_id || item.variant_color_id || item._fallback_size_id) {
+                        const variantMatch = {};
+                        if (item.variant_id) {
+                            variantMatch._id = item.variant_id;
+                        } else {
+                            if (item._fallback_size_id || item.variant_size_id) variantMatch.size_id = item._fallback_size_id || item.variant_size_id;
+                            if (item._fallback_color_id || item.variant_color_id) variantMatch.color_id = item._fallback_color_id || item.variant_color_id;
+                        }
+
                         // Hoàn kho cho biến thể: Cộng lại stock, Trừ đi sold
                         await this.Products.updateOne(
                             { 
                                 _id: item.product_id,
                                 variants: { 
-                                    $elemMatch: { 
-                                        size_id: item.variant_size_id, 
-                                        color_id: item.variant_color_id 
-                                    } 
+                                    $elemMatch: variantMatch
                                 }
                             },
                             { 

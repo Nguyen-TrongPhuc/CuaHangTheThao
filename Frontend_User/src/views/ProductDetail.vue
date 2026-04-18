@@ -706,6 +706,7 @@ export default {
       cartStore.addToCart(
         this.product, 
         this.hasVariants ? {
+          _id: this.selectedVariant._id,
           size_id: this.selectedVariant.size_id,
           color_id: this.selectedVariant.color_id,
           price: finalPrice, // Sử dụng giá đã giảm
@@ -787,7 +788,7 @@ export default {
         vipPrice: finalPrice,
         stock: this.hasVariants ? this.selectedVariant.stock : this.product.stock,
         image: this.displayedImage || (this.product.images && this.product.images.length ? this.product.images[0].url : this.product.image),
-        variant: this.hasVariants ? { size_id: this.selectedVariant.size_id, color_id: this.selectedVariant.color_id, stock: this.selectedVariant.stock } : null,
+        variant: this.hasVariants ? { _id: this.selectedVariant._id, size_id: this.selectedVariant.size_id, color_id: this.selectedVariant.color_id, stock: this.selectedVariant.stock } : null,
         quantity: this.quantity,
         selected: true
       };

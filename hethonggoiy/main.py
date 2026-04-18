@@ -40,32 +40,27 @@ try:
         # Hiển thị thử 5 sản phẩm đầu tiên để kiểm tra cột (dùng name và price theo schema)
         print(df_sanpham[['_id', 'name', 'price']].head()) 
 
-        # 2. Tiền xử lý dữ liệu
-        def combineFeatures(row):
-            # Lấy dữ liệu theo đúng tên cột trong MongoDB của SportStore
-            gia = str(row.get('price', '0'))
-            mo_ta = str(row.get('description', ''))
+        # 2. Tiền xử lý dữ liệu (Chỉ gộp văn bản)
+        def combine_text_features(row):
             ten = str(row.get('name', ''))
-            
-            # Kết hợp các đặc trưng lại thành một chuỗi văn bản dài
-            return ten + " " + gia + " " + mo_ta
+            mo_ta = str(row.get('description', ''))
+            # Nhân đôi tên sản phẩm để Tên có trọng số cao hơn Mô tả
+            return (ten + " ") * 2 + mo_ta
 
-        # Áp dụng hàm combineFeatures cho từng dòng trong DataFrame
-        df_sanpham['combinedFeatures'] = df_sanpham.apply(combineFeatures, axis=1)
+        df_sanpham['text_features'] = df_sanpham.apply(combine_text_features, axis=1)
 
         # Viết thường tất cả các ký tự để mô hình AI dễ học và so sánh hơn
-        df_sanpham['combinedFeatures'] = df_sanpham['combinedFeatures'].str.lower()
+        df_sanpham['text_features'] = df_sanpham['text_features'].str.lower()
 
-        print("\n--- Dữ liệu đã gộp ---")
-        print(df_sanpham['combinedFeatures'].head())
+        print("\n--- Dữ liệu văn bản đã gộp ---")
+        print(df_sanpham['text_features'].head())
 
         # 3. Tính toán độ tương đồng (Recommendation Engine)
-        # Khởi tạo TF-IDF để biến văn bản thành vector số
         tf = TfidfVectorizer()
-        tfMatrix = tf.fit_transform(df_sanpham['combinedFeatures'])
+        tfMatrix = tf.fit_transform(df_sanpham['text_features'])
 
-        # Tính toán ma trận tương đồng Cosine
-        similar = cosine_similarity(tfMatrix)
+        # Lưu lại ma trận độ tương đồng văn bản (NxN)
+        text_similarities = cosine_similarity(tfMatrix)
 
     else:
         print("Cảnh báo: Không tìm thấy sản phẩm nào trong Collection.")
@@ -104,11 +99,36 @@ def get_data():
 
     # Lấy index dòng dữ liệu của sản phẩm đang xem
     product_index = df_sanpham.index[df_sanpham['_id'] == productid].tolist()[0]
-    similarProduct = list(enumerate(similar[product_index]))
-    sortedSimilarProduct = sorted(similarProduct, key=lambda x: x[1], reverse=True)
+    target_row = df_sanpham.iloc[product_index]
+    
+    target_cat = str(target_row.get('category_id', ''))
+    target_sport = str(target_row.get('sport_id', ''))
 
-    limit = min(4, len(df_sanpham) - 1)
-    for i in range(1, limit + 1):
+    # Bắt đầu chấm điểm (Hybrid Score) cho từng sản phẩm khác
+    scores = []
+    for i in range(len(df_sanpham)):
+        # Bỏ qua chính sản phẩm đang xem
+        if i == product_index:
+            continue
+            
+        row = df_sanpham.iloc[i]
+        
+        # 1. Điểm Text Similarity (0 đến 1)
+        sim_text = text_similarities[product_index][i]
+        
+        # 2. Điểm Danh mục & Thể thao (Trùng khớp = 1, Không trùng = 0)
+        sim_cat = 1.0 if str(row.get('category_id', '')) == target_cat and target_cat != '' else 0.0
+        sim_sport = 1.0 if str(row.get('sport_id', '')) == target_sport and target_sport != '' else 0.0
+        
+        # 3. TỔNG ĐIỂM (Trọng số: Văn bản 50%, Danh mục 30%, Thể thao 20%)
+        final_score = (0.5 * sim_text) + (0.3 * sim_cat) + (0.2 * sim_sport)
+        scores.append((i, final_score))
+
+    # Sắp xếp các sản phẩm theo điểm tổng hợp giảm dần
+    sortedSimilarProduct = sorted(scores, key=lambda x: x[1], reverse=True)
+
+    limit = min(4, len(sortedSimilarProduct))
+    for i in range(limit):
         sp = lay_thong_tin_sp(sortedSimilarProduct[i][0])
         ket_qua.append(sp)
 
