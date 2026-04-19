@@ -64,7 +64,7 @@
       </section>
 
       <!-- 3. Sản phẩm Gợi ý (Personalized Recommendations) -->
-      <section class="section-container recommendations-section">
+      <section v-if="topRatedProducts.length > 0" class="section-container recommendations-section">
         <div class="section-header">
           <div>
             <h2 class="section-title" style="margin-bottom: 5px; text-align: left;">Sản phẩm Đánh giá cao</h2>
@@ -107,7 +107,7 @@
       </section>
 
       <!-- 4. Sản phẩm Bán chạy/Khuyến mãi -->
-      <section class="section-container best-sellers">
+      <section v-if="bestSellers.length > 0" class="section-container best-sellers">
         <div class="section-header">
           <h2 class="section-title" style="margin-bottom: 0;">Sản phẩm Bán chạy</h2>
           <router-link :to="{ path: '/products', query: { sort: 'bestseller' } }" class="view-all-link" style="display:flex;align-items:center;gap:5px;">
@@ -181,21 +181,15 @@ export default {
         // Ta chỉ việc cắt lấy 8 sản phẩm đầu tiên mà không cần quan tâm ngày tạo.
         this.newArrivals = this.allProducts.slice(0, 8);
 
-        // 2. Top Rated: Lấy 4 sản phẩm có ĐIỂM THẬT CAO NHẤT
-        const productsWithReviews = this.allProducts
+        // 2. Top Rated: Lấy tối đa 8 sản phẩm có đánh giá (> 0 sao)
+        this.topRatedProducts = this.allProducts
             .filter(p => p.averageRating > 0)
-            .sort((a, b) => b.averageRating - a.averageRating || (b.reviewCount || 0) - (a.reviewCount || 0));
-            
-        if (productsWithReviews.length >= 8) {
-            this.topRatedProducts = productsWithReviews.slice(0, 8);
-        } else {
-            // Nếu chưa có ai đánh giá (hoặc không đủ 8), tự thêm ngẫu nhiên cho đầy 8 khung của giao diện
-            const others = this.allProducts.filter(p => p.averageRating === 0).sort(() => 0.5 - Math.random());
-            this.topRatedProducts = [...productsWithReviews, ...others].slice(0, 8);
-        }
+            .sort((a, b) => b.averageRating - a.averageRating || (b.reviewCount || 0) - (a.reviewCount || 0))
+            .slice(0, 8);
 
-        // 3. Best Sellers: Sắp xếp giảm dần lượt bán (Lấy luôn cả những sản phẩm chưa bán được cho đủ 8 cái)
-        this.bestSellers = [...this.allProducts]
+        // 3. Best Sellers: Sắp xếp giảm dần lượt bán (Chỉ lấy sản phẩm có lượt bán > 0)
+        this.bestSellers = this.allProducts
+            .filter(p => (p.sold || 0) > 0)
             .sort((a, b) => (b.sold || 0) - (a.sold || 0))
             .slice(0, 8);
 

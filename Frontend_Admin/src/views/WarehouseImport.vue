@@ -24,11 +24,28 @@
       <div class="add-product-section" :class="{ 'disabled-section': !receipt.supplier_name }">
         <h3>Thêm sản phẩm vào phiếu</h3>
         <div class="form-group">
-          <label>Chọn sản phẩm:</label>
-          <select v-model="selectedProductId" @change="onProductSelect" class="input-field" :disabled="!receipt.supplier_name">
-            <option value="">-- Chọn sản phẩm --</option>
-            <option v-for="p in filteredProducts" :key="p._id" :value="p._id">{{ p.name }}</option>
-          </select>
+          <label>Chọn sản phẩm (Click vào sản phẩm bên dưới):</label>
+          
+          <!-- Thanh tìm kiếm nhanh -->
+          <input v-if="receipt.supplier_name && filteredProducts.length > 0" v-model="searchProduct" placeholder="🔍 Tìm tên sản phẩm..." class="input-field" style="margin-bottom: 10px;" />
+          
+          <!-- Danh sách sản phẩm có hình ảnh -->
+          <div class="custom-product-list" v-if="receipt.supplier_name && displayProducts.length > 0">
+            <div v-for="p in displayProducts" :key="p._id" 
+                 @click="handleProductClick(p._id)"
+                 :class="['product-list-item', { 'active': selectedProductId === p._id }]">
+                <img :src="(p.images && p.images.length > 0 && p.images[0].url) ? p.images[0].url : (p.image || 'https://via.placeholder.com/40')" alt="img" class="prod-mini-img" />
+                <div class="prod-mini-info">
+                    <div class="prod-mini-name">{{ p.name }}</div>
+                    <div class="prod-mini-meta">Kho: {{ p.stock }} | Giá bán: {{ p.price.toLocaleString() }}đ</div>
+                </div>
+            </div>
+          </div>
+          
+          <small v-if="receipt.supplier_name && filteredProducts.length > 0 && displayProducts.length === 0" class="warning-text" style="color: #e74c3c;">
+            Không tìm thấy sản phẩm khớp với từ khóa tìm kiếm.
+          </small>
+
           <small v-if="receipt.supplier_name && filteredProducts.length === 0" class="warning-text">
             <i class="fa-solid fa-info-circle"></i> Nhà cung cấp này chưa có sản phẩm nào. Vui lòng thêm sản phẩm cho nhà cung cấp trước.
           </small>
@@ -142,6 +159,7 @@ export default {
       inputQuantity: 1,
       inputPrice: 0,
       variantInputs: [], // Mảng lưu trữ input cho từng biến thể
+      searchProduct: "", // Thêm biến lưu từ khóa tìm kiếm
       receipt: {
         supplier_name: "",
         note: "",
@@ -161,6 +179,10 @@ export default {
         if (!p.supplier_id) return false;
         return String(p.supplier_id) === String(selectedSupplier._id);
       });
+    },
+    displayProducts() {
+      if (!this.searchProduct) return this.filteredProducts;
+      return this.filteredProducts.filter(p => p.name.toLowerCase().includes(this.searchProduct.toLowerCase()));
     },
     canAddItem() {
         if (!this.receipt.supplier_name) return false;
@@ -193,6 +215,10 @@ export default {
     getSizeName(id) { return this.sizes.find(s => s._id === id)?.name || '---'; },
     getColorName(id) { return this.colors.find(c => c._id === id)?.name || '---'; },
     
+    handleProductClick(id) {
+        this.selectedProductId = id;
+        this.onProductSelect();
+    },
     onProductSelect() {
         this.selectedProduct = this.products.find(p => p._id === this.selectedProductId);
         
@@ -321,4 +347,17 @@ export default {
 .variant-table th, .variant-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
 .variant-table th { background: #f8f9fa; position: sticky; top: 0; }
 .input-small { width: 80px; padding: 5px; border: 1px solid #ddd; border-radius: 3px; }
+
+/* Custom Product List Styles */
+.custom-product-list { max-height: 250px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; background: #fdfdfd; margin-bottom: 10px; }
+.custom-product-list::-webkit-scrollbar { width: 6px; }
+.custom-product-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+.product-list-item { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: all 0.2s; }
+.product-list-item:last-child { border-bottom: none; }
+.product-list-item:hover { background: #f1f5f9; }
+.product-list-item.active { background: #e8f0fe; border-left: 4px solid #4776E6; }
+.prod-mini-img { width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; flex-shrink: 0; }
+.prod-mini-info { flex: 1; }
+.prod-mini-name { font-weight: 600; font-size: 0.95em; color: #2c3e50; margin-bottom: 4px; line-height: 1.3; }
+.prod-mini-meta { font-size: 0.85em; color: #7f8c8d; }
 </style>

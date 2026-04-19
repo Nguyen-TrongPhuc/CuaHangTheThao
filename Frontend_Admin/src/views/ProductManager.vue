@@ -72,8 +72,14 @@
             <div class="form-grid">
                 <!-- Cột trái -->
                 <div class="form-group full-width">
-                    <label>Tên sản phẩm <span class="required">*</span></label>
-                    <input v-model="form.name" placeholder="Tên sản phẩm" required class="input-field" />
+                    <label>Tên sản phẩm & Ảnh đại diện <span class="required">*</span></label>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <div class="main-img-preview" style="width: 50px; height: 50px; border-radius: 6px; border: 1px solid #ddd; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8f9fa; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <img v-if="form.images && form.images.length > 0 && form.images[0].url" :src="form.images[0].url" style="width: 100%; height: 100%; object-fit: cover;" @error="$event.target.src='https://placehold.co/60'" />
+                            <i v-else class="fa-regular fa-image" style="color: #ccc; font-size: 20px;"></i>
+                        </div>
+                        <input v-model="form.name" placeholder="Tên sản phẩm" required class="input-field" style="flex: 1;" />
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -128,7 +134,15 @@
                             <img v-if="img.url" :src="img.url" @error="$event.target.src='https://placehold.co/50'" />
                             <i v-else class="fa-regular fa-image" style="color: #ccc;"></i>
                         </div>
-                        <input v-model="img.url" placeholder="Link ảnh (URL)" class="input-field" style="flex:1;" />
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                            <input v-model="img.url" placeholder="Link ảnh (URL) hoặc chọn file bên dưới" class="input-field" />
+                            <div class="custom-file-upload">
+                                <input type="file" :id="'file-upload-' + idx" accept="image/*" @change="uploadImageToServer($event, idx)" class="hidden-file-input" />
+                                <label :for="'file-upload-' + idx" class="btn-custom-upload">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Tải ảnh từ thiết bị
+                                </label>
+                            </div>
+                        </div>
                         <select v-model="img.color_id" class="input-field" style="width:150px;">
                         <option value="">--- Màu ---</option>
                         <option v-for="c in colors" :key="c._id" :value="c._id">{{ c.name }}</option>
@@ -285,6 +299,11 @@ export default {
       this.isFormVisible = true;
     },
     addVariant() {
+        // Kiểm tra nếu sản phẩm chưa có biến thể nào và đang có tồn kho chung > 0
+        if (this.form.variants.length === 0 && this.form.stock > 0) {
+            showToast(`Sản phẩm đang có ${this.form.stock} tồn kho. Không thể phân loại. Vui lòng tạo mã mới hoặc hủy kho về 0.`, "warning");
+            return;
+        }
         this.form.variants.push({ size_id: "", color_id: "", stock: 0, import_price: 0, price: this.form.price });
     },
     removeVariant(index) {
@@ -295,6 +314,33 @@ export default {
     },
     removeImage(index) {
       this.form.images.splice(index, 1);
+    },
+    async uploadImageToServer(event, index) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      // Chữ 'image' ở đây PHẢI khớp với cấu hình upload.single('image') ở Backend của bạn
+      formData.append('image', file); 
+
+      try {
+        // Giả định backend chạy ở port 3003 và có API là /api/upload
+        // (Bạn có thể sửa lại URL này nếu Backend của bạn chạy ở port khác)
+        const uploadUrl = "http://localhost:3003/api/upload";
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) throw new Error("Lỗi tải ảnh");
+        
+        const data = await response.json();
+        this.form.images[index].url = data.url || data.imageUrl || data.path || "";
+        showToast("Tải ảnh từ máy tính lên thành công!", "success");
+      } catch (error) {
+        console.error("Lỗi khi tải ảnh:", error);
+        showToast("Không thể tải ảnh lên server.", "error");
+      }
     },
     async save() {
       try {
@@ -422,4 +468,28 @@ export default {
 .btn-cancel:hover { background: #e2e6ea; }
 .btn-confirm-delete { background: #e74c3c; color: white; }
 .btn-confirm-delete:hover { background: #c0392b; }
+
+/* Custom File Upload Button */
+.hidden-file-input { display: none; }
+.btn-custom-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  color: #495057;
+  padding: 8px 15px;
+  border-radius: 6px;
+  border: 1px dashed #adb5bd;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+.btn-custom-upload:hover {
+  background: #e8f0fe;
+  border-color: #4776E6;
+  color: #4776E6;
+}
+.btn-custom-upload i { margin-right: 6px; font-size: 14px; }
 </style>

@@ -255,6 +255,13 @@ class ProductsService {
             updateData.import_price = oldProduct.import_price || 0;
         }
 
+        // BẢO VỆ NGHIỆP VỤ KHO: Chặn việc thêm biến thể vào sản phẩm đang có tồn kho chung > 0
+        const hadNoVariants = !oldProduct.variants || oldProduct.variants.length === 0;
+        const willHaveVariants = updateData.variants && updateData.variants.length > 0;
+        if (oldProduct && hadNoVariants && willHaveVariants && oldProduct.stock > 0) {
+            throw new ApiError(400, `Sản phẩm đang có ${oldProduct.stock} tồn kho chung. Không thể phân loại biến thể. Vui lòng tạo sản phẩm mới hoặc xuất kho về 0 trước.`);
+        }
+
         // Xử lý variants khi update
         if (updateData.variants && Array.isArray(updateData.variants)) {
             updateData.variants = updateData.variants.map(v => {
