@@ -516,9 +516,19 @@ exports.getShippingFee = async (req, res, next) => {
         let standardFee = shippingFee;
         let expressFee = shippingFee * config.shipping.expressMultiplier;
         
-        // Tính thời gian giao nhanh (thường nhanh hơn 1 nửa hoặc cố định 1-2 ngày)
-        if (standardEstimatedTime.includes("Trong ngày")) {
-            expressEstimatedTime = "Hỏa tốc 2h";
+        // Tính thời gian giao nhanh (rút ngắn thời gian so với tiêu chuẩn)
+        if (standardEstimatedTime === "Trong ngày") {
+            expressEstimatedTime = "Hỏa tốc 2h - 4h";
+        } else if (standardEstimatedTime.includes("Trong ngày hoặc 1 ngày")) {
+            expressEstimatedTime = "Trong ngày (Hỏa tốc)";
+        } else if (standardEstimatedTime.includes("1-2 ngày")) {
+            expressEstimatedTime = "Trong ngày hoặc 1 ngày";
+        } else if (standardEstimatedTime.includes("2-3 ngày")) {
+            expressEstimatedTime = "1-2 ngày";
+        } else if (standardEstimatedTime.includes("3-4 ngày") || standardEstimatedTime.includes("3-5 ngày")) {
+            expressEstimatedTime = "2-3 ngày";
+        } else if (standardEstimatedTime.includes("4-5 ngày") || standardEstimatedTime.includes("5-7 ngày")) {
+            expressEstimatedTime = "3-4 ngày";
         } else {
             expressEstimatedTime = "1-2 ngày (Giao nhanh)";
         }
@@ -652,7 +662,8 @@ exports.momoCallback = async (req, res, next) => {
             console.log(`Order ${realOrderId} payment failed via MoMo: ${message}`);
         }
 
-        return res.status(204).json({});
+        // Trả về 204 chuẩn HTTP (không có body) để máy chủ MoMo xác nhận thành công
+        return res.status(204).send();
     } catch (error) {
         console.error("MoMo Callback Error:", error);
         return res.status(500).json({ message: "Internal Server Error" });

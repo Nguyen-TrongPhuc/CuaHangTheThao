@@ -7,8 +7,8 @@ class MoMoUtil {
     const accessKey = config.payment.momo.accessKey;
     const secretKey = config.payment.momo.secretKey;
     const partnerCode = config.payment.momo.partnerCode;
-    const redirectUrl = `${config.app.baseUrl}/payment-result`; // Frontend result
-    const ipnUrl = `http://localhost:${config.app.port}/api/payment/momo-callback`; // Server IPN
+    const redirectUrl = config.payment.momo.redirectUrl; // Lấy từ config
+    const ipnUrl = config.payment.momo.ipnUrl; // Lấy từ config (có ngrok)
     const requestType = 'payWithMethod';
     const requestId = orderId;
     const extraData = customerEmail; // Encode customer info

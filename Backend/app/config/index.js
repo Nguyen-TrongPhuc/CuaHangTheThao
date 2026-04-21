@@ -102,13 +102,15 @@ const config = {
             tmnCode: process.env.VNPAY_TMNCODE || "YOUR_TMNCODE",
             hashSecret: process.env.VNPAY_HASHSECRET || "YOUR_HASHSECRET",
             url: process.env.VNPAY_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
-returnUrl: process.env.VNPAY_RETURN_URL || `http://localhost:3003/api/payment/vnpay/callback`
+            returnUrl: process.env.VNPAY_RETURN_URL || "https://YOUR_NGROK_URL/api/payment/vnpay/callback" // Thay bằng link ngrok của bạn
         },
         momo: {
             endpoint: process.env.MOMO_ENDPOINT || "https://test-payment.momo.vn/v2/gateway/api/create",
             partnerCode: process.env.MOMO_PARTNERCODE || "MOMO",
             accessKey: process.env.MOMO_ACCESSKEY || "F8BBA842ECF85",
-            secretKey: process.env.MOMO_SECRETKEY || "K951B6PE1waDMi640xX08PD3vg6EkVlz"
+            secretKey: process.env.MOMO_SECRETKEY || "K951B6PE1waDMi640xX08PD3vg6EkVlz",
+            redirectUrl: process.env.MOMO_REDIRECT_URL || "http://localhost:3005/payment-result", // Link Frontend của bạn
+            ipnUrl: process.env.MOMO_IPN_URL || "https://tarmac-manhunt-brewery.ngrok-free.dev/api/payment/momo-callback" // Nhớ thay YOUR_NGROK_URL bằng link ngrok thật!
         }
     }
 };

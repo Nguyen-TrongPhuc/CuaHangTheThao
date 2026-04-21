@@ -37,7 +37,22 @@ exports.create = async (req, res, next) => {
         req.body.password = await bcrypt.hash(req.body.password, salt);
 
         const document = await customerService.create(req.body);
-        return res.send(document);
+        
+        // Tự động đăng nhập: Tạo token ngay sau khi đăng ký thành công
+        if (config.jwt.secret) {
+            const token = jwt.sign(
+                { userId: document._id, role: "customer" },
+                config.jwt.secret,
+                { expiresIn: "1h" }
+            );
+
+            const { password: _pw, ...userWithoutPassword } = document;
+            userWithoutPassword.wallet_balance = userWithoutPassword.wallet_balance || 0;
+
+            return res.send({ message: "Đăng ký và đăng nhập thành công", token, user: userWithoutPassword });
+        }
+        
+        return res.send(document); // Dự phòng nếu không có secret
     } catch (error) {
         return next(
             new ApiError(500, "An error occurred while creating the customer")

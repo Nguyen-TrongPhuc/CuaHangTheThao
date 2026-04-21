@@ -17,7 +17,6 @@
                     </div>
                     <div class="details">
                         <span class="name">CSKH SportStore</span>
-                        <span class="status">Đang hoạt động</span>
                     </div>
                 </div>
             </div>

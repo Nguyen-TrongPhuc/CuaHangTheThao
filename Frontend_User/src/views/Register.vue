@@ -138,9 +138,22 @@ export default {
     const handleRegister = async () => {
       try {
         // Validation đã có ở backend, có thể thêm ở đây nếu muốn
-        await AuthService.register(form);
-        showToast("Đăng ký thành công! Vui lòng đăng nhập.", "success");
-        router.push("/login");
+        const response = await AuthService.register(form);
+        const data = response.data || response;
+        
+        // Nếu Backend trả về token và thông tin user, tiến hành đăng nhập luôn
+        if (data.token && data.user) {
+            localStorage.setItem('user_token', data.token);
+            localStorage.setItem('user_name', `${data.user.last_name || ''} ${data.user.first_name || ''}`.trim());
+            localStorage.setItem('user_email', data.user.email);
+            localStorage.setItem('user_phone', data.user.phone || '');
+            
+            showToast("Đăng ký thành công!", "success");
+            window.location.href = "/"; // Reload trang và về thẳng trang chủ
+        } else {
+            showToast("Đăng ký thành công! Vui lòng đăng nhập.", "success");
+            router.push("/login");
+        }
       } catch (error) {
         showToast(error.response?.data?.message || "Đăng ký thất bại", "error");
       }

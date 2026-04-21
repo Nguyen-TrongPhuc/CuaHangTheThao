@@ -66,7 +66,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { cartStore } from "@/utils/cart";
 import CustomerService from "@/services/customer.service";
@@ -91,6 +91,10 @@ export default {
             default: return 'Thành viên';
         }
     };
+
+    const cartTotal = computed(() => {
+      return cartStore.state.items.reduce((total, item) => total + (item.quantity || 0), 0);
+    });
 
     const checkLogin = async () => {
       const token = localStorage.getItem("user_token");
@@ -165,7 +169,7 @@ export default {
     return {
       searchQuery,
       handleSearch,
-      cartTotal: cartStore.totalItems, // Reactive từ cartStore
+      cartTotal,
       isLoggedIn,
       userName,
       logout,
