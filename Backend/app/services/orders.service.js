@@ -535,6 +535,26 @@ class OrderService {
             console.log(`⏰ [CRON] Đã tự động hủy và hoàn kho ${canceledCount} đơn hàng chưa thanh toán quá 15 phút.`);
         }
     }
+
+    // Tự động chuyển đơn hàng "Đã giao" (delivered) thành "Hoàn thành" (completed) sau 3 ngày
+    async autoCompleteDeliveredOrders() {
+        // Tính mốc thời gian: Hiện tại trừ đi 3 ngày (3 ngày * 24h * 60p * 60s * 1000ms)
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+        const deliveredOrders = await this.Orders.find({
+            status: "delivered",
+            updatedAt: { $lt: threeDaysAgo } // Tìm các đơn đã giao mà thời gian cập nhật cũ hơn 3 ngày
+        }).toArray();
+
+        let completedCount = 0;
+        for (const order of deliveredOrders) {
+            await this.update(order._id, { status: 'completed' }); 
+            completedCount++;
+        }
+        
+        if (completedCount > 0) {
+            console.log(`⏰ [CRON] Đã tự động chuyển ${completedCount} đơn hàng "Đã giao" thành "Hoàn thành" sau 3 ngày.`);
+        }
+    }
 }
 
 module.exports = OrderService;
